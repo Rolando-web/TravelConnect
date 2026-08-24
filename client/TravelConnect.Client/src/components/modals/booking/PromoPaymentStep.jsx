@@ -47,7 +47,7 @@ export default function PromoPaymentStep({
 
         {promoResult && (
           <p className="mt-2 text-xs font-semibold text-green-600 flex items-center gap-1">
-            <CheckCircle size={13} /> Code {promoResult.code} applied! ({promoResult.description}) - Save ${promoResult.discountAmount}
+            <CheckCircle size={13} /> Code {promoResult.code} applied! ({promoResult.description}) - Save ₱{promoResult.discountAmount}
           </p>
         )}
 
@@ -62,7 +62,7 @@ export default function PromoPaymentStep({
       <div>
         <label className="block text-xs font-bold text-gray-700 mb-2">Select Payment Method</label>
         <div className="grid grid-cols-3 gap-3 mb-4">
-          {["Credit Card", "PayPal", "Instalments"].map((m) => (
+          {["Credit Card", "GCash / Maya", "Instalments"].map((m) => (
             <button
               key={m}
               type="button"
@@ -119,19 +119,19 @@ export default function PromoPaymentStep({
       <div className="bg-slate-900 text-white rounded-2xl p-4 space-y-2 text-xs">
         <div className="flex justify-between text-gray-300">
           <span>Package Price ({travellers} Traveler{travellers > 1 ? "s" : ""})</span>
-          <span>${rawSubtotal.toLocaleString()}</span>
+          <span>₱{rawSubtotal.toLocaleString()}</span>
         </div>
 
         {discountAmount > 0 && (
           <div className="flex justify-between text-green-400 font-semibold">
             <span>Promotion Discount ({promoResult?.code})</span>
-            <span>-${discountAmount.toLocaleString()}</span>
+            <span>-₱{discountAmount.toLocaleString()}</span>
           </div>
         )}
 
         <div className="border-t border-white/10 pt-2 flex justify-between text-sm font-extrabold text-white">
           <span>Total Payment Transaction</span>
-          <span className="text-[#008fe5]">${totalAmount.toLocaleString()}</span>
+          <span className="text-[#008fe5]">₱{totalAmount.toLocaleString()}</span>
         </div>
       </div>
     </div>

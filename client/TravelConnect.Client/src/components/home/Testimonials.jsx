@@ -4,7 +4,7 @@ export default function Testimonials() {
   const featuredTestimonial = {
     rating: 5,
     quote: "Our trip to Japan was spectacular! Every single detail, from hotel bookings, private bullet train transfers, and custom guided itineraries was handled seamlessly. It was the most relaxing and organized vacation we have ever taken.",
-    author: "Jhsser Nigs",
+    author: "Panyangismo",
     role: "Honeymoon Travelers",
     location: "Tokyo & Kyoto Package",
     avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80",

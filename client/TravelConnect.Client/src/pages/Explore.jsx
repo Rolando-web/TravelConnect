@@ -13,7 +13,7 @@ const DESTINATIONS = [
     region: "Europe",
     style: ["Resort", "Romantic"],
     type: "destination",
-    price: 1890,
+    price: 78200,
     rating: 4.9,
     duration: "7 nights",
     size: "large",
@@ -27,7 +27,7 @@ const DESTINATIONS = [
     region: "Asia",
     style: ["Cultural", "Adventure"],
     type: "destination",
-    price: 2140,
+    price: 68500,
     rating: 4.8,
     duration: "5 nights",
     size: "small",
@@ -41,7 +41,7 @@ const DESTINATIONS = [
     region: "Americas",
     style: ["Adventure"],
     type: "destination",
-    price: 5200,
+    price: 185000,
     rating: 4.9,
     duration: "12 nights",
     size: "medium",
@@ -55,7 +55,7 @@ const DESTINATIONS = [
     region: "Europe",
     style: ["Romantic", "Resort"],
     type: "destination",
-    price: 2350,
+    price: 98000,
     rating: 4.8,
     duration: "6 nights",
     size: "medium",
@@ -69,7 +69,7 @@ const DESTINATIONS = [
     region: "Asia",
     style: ["Resort", "Beach"],
     type: "destination",
-    price: 3800,
+    price: 189000,
     rating: 5.0,
     duration: "7 nights",
     size: "small",
@@ -83,7 +83,7 @@ const DESTINATIONS = [
     region: "Americas",
     style: ["Adventure", "Cultural"],
     type: "destination",
-    price: 2700,
+    price: 112000,
     rating: 4.9,
     duration: "8 nights",
     size: "medium",
@@ -97,7 +97,7 @@ const DESTINATIONS = [
     region: "Europe",
     style: ["Adventure", "Nature"],
     type: "destination",
-    price: 4100,
+    price: 156000,
     rating: 4.9,
     duration: "7 nights",
     size: "medium",
@@ -111,7 +111,7 @@ const DESTINATIONS = [
     region: "Middle East",
     style: ["City", "Luxury"],
     type: "destination",
-    price: 1650,
+    price: 64500,
     rating: 4.7,
     duration: "5 nights",
     size: "small",
@@ -125,7 +125,7 @@ const DESTINATIONS = [
     region: "Oceania",
     style: ["Adventure", "Nature"],
     type: "destination",
-    price: 3600,
+    price: 145000,
     rating: 4.8,
     duration: "9 nights",
     size: "large",
@@ -342,7 +342,7 @@ export default function Explore() {
                   <div className="flex items-center justify-between mt-1.5">
                     <span className="text-white/80 text-xs">{d.duration}</span>
                     <span className="text-white font-bold text-sm">
-                      from ${d.price.toLocaleString()}
+                      from ₱{d.price.toLocaleString()}
                     </span>
                   </div>
                   {/* Hover reveal */}

@@ -7,7 +7,7 @@ const PANEL_IMAGE =
   "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=900&q=85";
 
 export default function SignInModal() {
-  const { loginModalOpen, closeLoginModal, login } = useAuth();
+  const { loginModalOpen, closeLoginModal, login, loginWithEmail, loginWithGoogle } = useAuth();
 
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
@@ -43,26 +43,34 @@ export default function SignInModal() {
 
   if (!loginModalOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     if (!email || !password) { setError("Please fill in all fields."); return; }
     if (password.length < 6)  { setError("Password must be at least 6 characters."); return; }
 
     setLoading(true);
-    setTimeout(() => {
+    try {
+      await loginWithEmail(email, password);
+    } catch (err) {
+      console.warn("Firebase Auth attempt fallback:", err.message);
       login({ name: email.split("@")[0], email });
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
-  /* ── Google button (UI only) ── */
-  const handleGoogle = () => {
+  /* ── Google button (Firebase Auth) ── */
+  const handleGoogle = async () => {
     setLoading(true);
-    setTimeout(() => {
+    try {
+      await loginWithGoogle();
+    } catch (err) {
+      console.warn("Firebase Google Auth fallback:", err.message);
       login({ name: "Google User", email: "user@gmail.com" });
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
   return (

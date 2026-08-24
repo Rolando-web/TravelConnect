@@ -84,7 +84,7 @@ export default function BookingDetailsModal() {
 
             <div className="text-right">
               <span className="text-[10px] uppercase font-bold text-gray-400 block">Total Transaction</span>
-              <span className="text-2xl font-black text-gray-900">${(b.amount || b.totalAmount || 0).toLocaleString()}</span>
+              <span className="text-2xl font-black text-gray-900">₱{(b.amount || b.totalAmount || 0).toLocaleString()}</span>
               {b.paid && (
                 <span className="block text-[10px] font-bold text-green-600">✓ PAYMENT CONFIRMED</span>
               )}

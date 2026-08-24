@@ -31,7 +31,7 @@ export default function TransactionReceiptStep({ completedBooking, guestName }) 
         </div>
         <div className="flex justify-between border-b border-gray-200 pb-2">
           <span className="text-gray-400 font-medium">Total Paid Amount:</span>
-          <span className="font-bold text-gray-900 text-sm">${(completedBooking.totalAmount || completedBooking.amount || 0).toLocaleString()}</span>
+          <span className="font-bold text-gray-900 text-sm">₱{(completedBooking.totalAmount || completedBooking.amount || 0).toLocaleString()}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-400 font-medium">Traveler:</span>

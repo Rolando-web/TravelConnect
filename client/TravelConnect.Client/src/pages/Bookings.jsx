@@ -116,7 +116,7 @@ function BookingCard({ booking, onViewDetails, onCancel }) {
         {/* Amount + actions */}
         <div className="flex flex-col items-end gap-2">
           <p className="text-2xl font-extrabold text-gray-900">
-            ${(booking.amount || booking.totalAmount || 0).toLocaleString()}
+            ₱{(booking.amount || booking.totalAmount || 0).toLocaleString()}
           </p>
           <p className="text-xs text-gray-400 flex items-center gap-1">
             <CreditCard size={11} /> {booking.paymentMethod || "Credit Card"}

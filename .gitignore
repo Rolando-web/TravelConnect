@@ -1,0 +1,72 @@
+# ══════════════════════════════════════════════════════════════
+# TravelConnect — Root .gitignore (Client + Server)
+# ══════════════════════════════════════════════════════════════
+
+# ── Environment & Secret Files (CRITICAL) ────────────────────
+.env
+.env.*
+!.env.example
+*.local
+
+# ── Node.js / Vite (Client) ─────────────────────────────────
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.tsbuildinfo
+
+# ── Logs ─────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ── .NET / C# (Server) ──────────────────────────────────────
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+
+# .NET secrets & publish output
+**/appsettings.*.local.json
+publish/
+
+# ── IDE / Editor ─────────────────────────────────────────────
+.vs/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*.sw?
+
+# ── OS Files ─────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Firebase ─────────────────────────────────────────────────
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# ── Coverage & Testing ──────────────────────────────────────
+coverage/
+*.lcov
+.nyc_output/
+
+# ── Misc ────────────────────────────────────────────────────
+*.ntvs*
+*.njsproj
+*.sln
