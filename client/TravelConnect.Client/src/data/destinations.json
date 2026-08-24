@@ -1,0 +1,53 @@
+{
+  "popular": [
+    {"city": "Manila", "country": "Philippines", "code": "MNL", "airport": "Ninoy Aquino Intl"},
+    {"city": "Cebu", "country": "Philippines", "code": "CEB", "airport": "Mactan-Cebu Intl"},
+    {"city": "Taipei", "country": "Taiwan", "code": "TPE", "airport": "Taoyuan Intl"},
+    {"city": "Hong Kong", "country": "Hong Kong", "code": "HKG", "airport": "Hong Kong Intl"},
+    {"city": "Bangkok", "country": "Thailand", "code": "BKK", "airport": "Suvarnabhumi"},
+    {"city": "Caticlan", "country": "Philippines", "code": "MPH", "airport": "Boracay Airport"}
+  ],
+  "asia": [
+    {"city": "Manila", "country": "Philippines", "code": "MNL", "airport": "Ninoy Aquino Intl"},
+    {"city": "Cebu", "country": "Philippines", "code": "CEB", "airport": "Mactan-Cebu Intl"},
+    {"city": "Taipei", "country": "Taiwan", "code": "TPE", "airport": "Taoyuan Intl"},
+    {"city": "Tokyo", "country": "Japan", "code": "HND", "airport": "Haneda Airport"},
+    {"city": "Bangkok", "country": "Thailand", "code": "BKK", "airport": "Suvarnabhumi"},
+    {"city": "Singapore", "country": "Singapore", "code": "SIN", "airport": "Changi Airport"},
+    {"city": "Seoul", "country": "South Korea", "code": "ICN", "airport": "Incheon Intl"},
+    {"city": "Kuala Lumpur", "country": "Malaysia", "code": "KUL", "airport": "Kuala Lumpur Intl"},
+    {"city": "Osaka", "country": "Japan", "code": "KIX", "airport": "Kansai Intl"},
+    {"city": "Beijing", "country": "China", "code": "PEK", "airport": "Beijing Capital"}
+  ],
+  "europe": [
+    {"city": "London", "country": "United Kingdom", "code": "LHR", "airport": "Heathrow Airport"},
+    {"city": "Paris", "country": "France", "code": "CDG", "airport": "Charles de Gaulle"},
+    {"city": "Madrid", "country": "Spain", "code": "MAD", "airport": "Adolfo Suárez Barajas"},
+    {"city": "Milan", "country": "Italy", "code": "MXP", "airport": "Malpensa Airport"},
+    {"city": "Frankfurt", "country": "Germany", "code": "FRA", "airport": "Frankfurt Airport"},
+    {"city": "Amsterdam", "country": "Netherlands", "code": "AMS", "airport": "Schiphol Airport"},
+    {"city": "Rome", "country": "Italy", "code": "FCO", "airport": "Fiumicino Airport"},
+    {"city": "Zurich", "country": "Switzerland", "code": "ZRH", "airport": "Zurich Airport"},
+    {"city": "Barcelona", "country": "Spain", "code": "BCN", "airport": "Josep Tarradellas"},
+    {"city": "Munich", "country": "Germany", "code": "MUC", "airport": "Munich Airport"}
+  ],
+  "north_america": [
+    {"city": "New York", "country": "United States", "code": "JFK", "airport": "John F. Kennedy"},
+    {"city": "Los Angeles", "country": "United States", "code": "LAX", "airport": "Los Angeles Intl"},
+    {"city": "San Francisco", "country": "United States", "code": "SFO", "airport": "San Francisco Intl"},
+    {"city": "Chicago", "country": "United States", "code": "ORD", "airport": "O'Hare Intl"},
+    {"city": "Toronto", "country": "Canada", "code": "YYZ", "airport": "Pearson Intl"},
+    {"city": "Vancouver", "country": "Canada", "code": "YVR", "airport": "Vancouver Intl"},
+    {"city": "Miami", "country": "United States", "code": "MIA", "airport": "Miami Intl"},
+    {"city": "Seattle", "country": "United States", "code": "SEA", "airport": "Seattle-Tacoma"},
+    {"city": "Dallas", "country": "United States", "code": "DFW", "airport": "Dallas/Fort Worth"},
+    {"city": "Atlanta", "country": "United States", "code": "ATL", "airport": "Hartsfield-Jackson"}
+  ],
+  "south_america": [
+    {"city": "São Paulo", "country": "Brazil", "code": "GRU", "airport": "Guarulhos Intl"},
+    {"city": "Buenos Aires", "country": "Argentina", "code": "EZE", "airport": "Ministro Pistarini"},
+    {"city": "Lima", "country": "Peru", "code": "LIM", "airport": "Jorge Chávez Intl"},
+    {"city": "Santiago", "country": "Chile", "code": "SCL", "airport": "Arturo Merino Benítez"},
+    {"city": "Bogota", "country": "Colombia", "code": "BOG", "airport": "El Dorado Intl"}
+  ]
+}
