@@ -1,5 +1,3 @@
-import { Users } from "lucide-react";
-
 /* ─── Travelers + Cabin class popover ───────────────────────────────── */
 export default function TravelersPopover({
   adults, setAdults,

@@ -100,7 +100,7 @@ export default function BookingDetailsModal() {
             <div>
               <span className="text-gray-400 block text-[10px] uppercase font-semibold">Payment Method</span>
               <span className="font-bold text-gray-900 flex items-center gap-1">
-                <CreditCard size={12} /> {b.paymentMethod || "Credit Card"}
+                <CreditCard size={12} /> {b.paymentMethod === "paymaya" ? "Maya" : b.paymentMethod === "gcash" ? "GCash" : b.paymentMethod || "GCash"}
               </span>
             </div>
             <div>

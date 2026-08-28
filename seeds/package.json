@@ -1,0 +1,13 @@
+{
+  "name": "travelconnect-seeder",
+  "version": "1.0.0",
+  "description": "Firebase seed script for TravelConnect admin accounts",
+  "type": "module",
+  "scripts": {
+    "seed": "node seed.js",
+    "seed:reset": "node seed.js --reset"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}

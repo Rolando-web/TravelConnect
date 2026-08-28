@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   MapPin, Calendar, Users, CreditCard, X, CheckCircle, Clock,
-  ArrowRight, Globe, Lock, FileText, Shield
+  ArrowRight, Globe, Lock, FileText
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useBooking } from "../context/BookingContext";
@@ -119,7 +119,7 @@ function BookingCard({ booking, onViewDetails, onCancel }) {
             ₱{(booking.amount || booking.totalAmount || 0).toLocaleString()}
           </p>
           <p className="text-xs text-gray-400 flex items-center gap-1">
-            <CreditCard size={11} /> {booking.paymentMethod || "Credit Card"}
+            <CreditCard size={11} /> {booking.paymentMethod === "paymaya" ? "Maya" : booking.paymentMethod === "gcash" ? "GCash" : booking.paymentMethod || "GCash"}
           </p>
 
           <div className="flex items-center gap-2 mt-1">

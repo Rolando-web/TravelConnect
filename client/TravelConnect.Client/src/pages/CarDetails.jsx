@@ -1,0 +1,207 @@
+import { useState } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import {
+  Car, MapPin, ArrowLeft, CheckCircle2, ShieldCheck, Sparkles, Users, Gauge, Fuel
+} from "lucide-react";
+import { getCarById, toCarBooking } from "../data/carsData";
+import { useBooking } from "../context/BookingContext";
+
+const DAYS = 3;
+
+export default function CarDetails() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { openCheckoutModal } = useBooking();
+  const car = getCarById(id);
+  const [activeImg, setActiveImg] = useState(0);
+
+  if (!car) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-4 px-4">
+        <p className="text-slate-600 font-semibold">Vehicle not found.</p>
+        <Link to="/cars" className="text-[#008fe5] font-bold hover:underline">Back to Cars</Link>
+      </div>
+    );
+  }
+
+  const gallery = car.gallery?.length ? car.gallery : [car.img];
+  const total = car.dailyRate * DAYS;
+  const originalTotal = car.originalRate * DAYS;
+
+  return (
+    <div className="w-full bg-slate-50 min-h-screen pb-16">
+      {/* Breadcrumb */}
+      <div className="relative z-20 bg-slate-900/90 backdrop-blur text-white py-4 px-4 sm:px-6 border-b border-slate-800">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <button
+            onClick={() => navigate("/cars")}
+            className="flex items-center gap-2 text-xs font-semibold text-slate-300 hover:text-white transition"
+          >
+            <ArrowLeft size={16} /> Back to Cars
+          </button>
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <Link to="/" className="hover:underline">Home</Link> /
+            <Link to="/cars" className="hover:underline">Cars</Link> /
+            <span className="text-slate-200 font-bold truncate max-w-[150px] sm:max-w-none">{car.name}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Hero with car background */}
+      <div className="relative text-white overflow-hidden">
+        <div className="absolute inset-0">
+          <img
+            src={gallery[activeImg] || car.img}
+            alt={car.name}
+            className="w-full h-full object-cover scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/75 via-slate-900/55 to-slate-900/85" />
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
+            <div className="lg:col-span-2 space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-extrabold text-white px-3 py-1 rounded-full uppercase tracking-wider bg-[#008fe5]">
+                  {car.badge}
+                </span>
+                <span className="bg-white/10 border border-white/20 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5">
+                  <Car size={14} className="text-amber-400" /> {car.type}
+                </span>
+              </div>
+
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight drop-shadow-md">
+                {car.name}
+              </h1>
+
+              <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-slate-200 font-medium">
+                <span className="flex items-center gap-1">
+                  <Users size={15} className="text-[#008fe5]" /> {car.seats} Seats
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <Gauge size={15} className="text-emerald-400" /> {car.transmission}
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <Fuel size={15} className="text-amber-400" /> {car.fuel}
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <MapPin size={15} className="text-[#008fe5]" /> {car.location}
+                </span>
+              </div>
+
+              <p className="text-slate-200 text-sm leading-relaxed max-w-2xl drop-shadow">
+                {car.shortDesc}
+              </p>
+            </div>
+
+            {/* Pricing card */}
+            <div className="bg-white text-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-100 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Rental Rate</span>
+                <span className="bg-emerald-50 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-full">
+                  {DAYS} Days Default
+                </span>
+              </div>
+
+              <div>
+                <span className="text-xs text-slate-400 line-through">₱{car.originalRate.toLocaleString()}/day</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-black text-slate-900">₱{car.dailyRate.toLocaleString()}</span>
+                  <span className="text-xs text-slate-500 font-semibold">/ day</span>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Estimated total · ₱{total.toLocaleString()} for {DAYS} days
+                </p>
+              </div>
+
+              <button
+                onClick={() => openCheckoutModal(toCarBooking(car, DAYS))}
+                className="w-full bg-gradient-to-r from-[#008fe5] to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-extrabold py-4 rounded-2xl shadow-xl shadow-blue-500/25 hover:-translate-y-0.5 transition text-sm flex items-center justify-center gap-2"
+              >
+                <span>Rent This Vehicle</span>
+                <Sparkles size={16} />
+              </button>
+
+              <div className="flex items-center justify-center gap-3 text-[11px] text-slate-500 pt-1">
+                <span className="flex items-center gap-1"><ShieldCheck size={13} className="text-emerald-500" /> Full Insurance</span>
+                <span>•</span>
+                <span className="flex items-center gap-1"><CheckCircle2 size={13} className="text-blue-500" /> Airport Pickup</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Details body */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-8">
+            <div className="space-y-3">
+              <div className="relative rounded-3xl overflow-hidden shadow-lg h-72 sm:h-96 bg-slate-100">
+                <img src={gallery[activeImg]} alt={car.name} className="w-full h-full object-cover" />
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {gallery.map((src, i) => (
+                  <button
+                    key={src + i}
+                    type="button"
+                    onClick={() => setActiveImg(i)}
+                    className={`shrink-0 w-24 h-16 rounded-xl overflow-hidden border-2 transition ${
+                      activeImg === i ? "border-[#008fe5]" : "border-transparent opacity-80 hover:opacity-100"
+                    }`}
+                  >
+                    <img src={src} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/80 space-y-5">
+              <h2 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
+                <CheckCircle2 size={24} className="text-[#008fe5]" /> Rental Inclusions
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {car.inclusions.map((inc) => (
+                  <div key={inc} className="flex items-center gap-2 text-sm text-slate-700 font-medium p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <CheckCircle2 size={16} className="text-emerald-500 shrink-0" /> {inc}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-200/80 sticky top-24 space-y-5">
+              <h3 className="text-lg font-extrabold text-slate-900 pb-3 border-b border-slate-100">
+                Book Rental
+              </h3>
+              <div className="space-y-3 text-xs">
+                <div className="flex items-center justify-between text-slate-600 font-medium">
+                  <span>₱{car.originalRate.toLocaleString()} × {DAYS} days</span>
+                  <span className="line-through text-slate-400">₱{originalTotal.toLocaleString()}</span>
+                </div>
+                <div className="flex items-center justify-between text-emerald-600 font-bold">
+                  <span>Rental discount</span>
+                  <span>-₱{(originalTotal - total).toLocaleString()}</span>
+                </div>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <span className="font-black text-slate-900 text-sm">Total</span>
+                  <span className="font-black text-[#008fe5] text-2xl">₱{total.toLocaleString()}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => openCheckoutModal(toCarBooking(car, DAYS))}
+                className="w-full bg-[#008fe5] hover:bg-blue-600 text-white font-extrabold py-3.5 rounded-2xl shadow-lg shadow-blue-500/25 hover:-translate-y-0.5 transition text-sm"
+              >
+                Proceed to Checkout
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -38,10 +38,7 @@ export default function BookingCheckoutModal() {
   const [promoError, setPromoError] = useState("");
   const [validatingPromo, setValidatingPromo] = useState(false);
 
-  const [paymentMethod, setPaymentMethod] = useState("Credit Card");
-  const [cardNumber, setCardNumber] = useState("4532 •••• •••• 8821");
-  const [cardExpiry, setCardExpiry] = useState("12/28");
-  const [cardCvc, setCardCvc] = useState("382");
+  const [paymentMethod, setPaymentMethod] = useState("gcash");
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [completedBooking, setCompletedBooking] = useState(null);
@@ -130,13 +127,15 @@ export default function BookingCheckoutModal() {
 
     const paymentPayload = {
       paymentMethod,
-      cardNumber,
-      amount: totalAmount
+      amount: totalAmount,
+      bookingReference: checkoutPackage.name || checkoutPackage.title,
+      customerName: guestName,
+      customerEmail: guestEmail
     };
 
     try {
       const created = await processAndCreateBooking(bookingPayload, paymentPayload);
-      
+
       if (specialRequests.trim()) {
         await sendCustomerInquiry({
           customerName: guestName,
@@ -153,6 +152,7 @@ export default function BookingCheckoutModal() {
     } catch (err) {
       console.error("Transaction error:", err);
       setIsProcessing(false);
+      setPromoError(err.message || "Payment could not be completed. Please try again or check your internet connection.");
     }
   };
 
@@ -253,12 +253,6 @@ export default function BookingCheckoutModal() {
               promoError={promoError}
               paymentMethod={paymentMethod}
               setPaymentMethod={setPaymentMethod}
-              cardNumber={cardNumber}
-              setCardNumber={setCardNumber}
-              cardExpiry={cardExpiry}
-              setCardExpiry={setCardExpiry}
-              cardCvc={cardCvc}
-              setCardCvc={setCardCvc}
               travellers={travellers}
               rawSubtotal={rawSubtotal}
               discountAmount={discountAmount}

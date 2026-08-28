@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
-  Menu, X, ArrowRight, User, LogOut, Calendar, Tag, Heart, Settings, Headset, ChevronDown, Coins, ShieldCheck, Hotel, Car, Globe
+  Menu, X, User, LogOut, Calendar, Tag, Heart, Headset, ChevronDown, Coins, ShieldCheck, LayoutDashboard
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { ADMIN_ROLES } from "../../pages/admin/adminConfig";
 import logoImg from "../../assets/logo.png";
 
 export default function Header() {
@@ -56,6 +57,7 @@ export default function Header() {
 
   const userName = user?.name || "TravelConnect Member";
   const userInitial = userName.charAt(0).toUpperCase();
+  const isAdmin = ADMIN_ROLES.includes(user?.role);
 
   return (
     <header className="w-full z-50 relative">
@@ -95,19 +97,30 @@ export default function Header() {
             {/* User Profile Avatar Button */}
             <div className="relative" ref={dropdownRef}>
               {isLoggedIn ? (
-                <button
-                  onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                  className="flex items-center gap-1.5 focus:outline-none group"
-                  aria-label="User profile menu"
-                >
-                  <div className="relative w-7 h-7 rounded-full bg-gradient-to-tr from-[#008fe5] to-blue-400 text-white font-bold flex items-center justify-center text-xs shadow-md border-2 border-slate-700 group-hover:border-[#008fe5] transition">
-                    {userInitial}
-                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-blue-500 rounded-full border border-slate-900 flex items-center justify-center text-[7px] text-white font-extrabold">
-                      T
-                    </span>
-                  </div>
-                  <ChevronDown size={13} className={`text-slate-300 group-hover:text-white transition-transform duration-200 ${profileDropdownOpen ? "rotate-180" : ""}`} />
-                </button>
+                <>
+                  {isAdmin && (
+                    <button
+                      onClick={() => navigate("/admin")}
+                      className="flex items-center gap-1.5 bg-[#008fe5]/10 text-[#008fe5] hover:bg-[#008fe5] hover:text-white px-3 py-1.5 rounded-full text-[11px] font-bold transition-all mr-3 border border-[#008fe5]/30"
+                    >
+                      <LayoutDashboard size={12} />
+                      Admin
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                    className="flex items-center gap-1.5 focus:outline-none group"
+                    aria-label="User profile menu"
+                  >
+                    <div className="relative w-7 h-7 rounded-full bg-gradient-to-tr from-[#008fe5] to-blue-400 text-white font-bold flex items-center justify-center text-xs shadow-md border-2 border-slate-700 group-hover:border-[#008fe5] transition">
+                      {userInitial}
+                      <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-blue-500 rounded-full border border-slate-900 flex items-center justify-center text-[7px] text-white font-extrabold">
+                        T
+                      </span>
+                    </div>
+                    <ChevronDown size={13} className={`text-slate-300 group-hover:text-white transition-transform duration-200 ${profileDropdownOpen ? "rotate-180" : ""}`} />
+                  </button>
+                </>
               ) : (
                 <button
                   onClick={openLoginModal}
@@ -184,6 +197,16 @@ export default function Header() {
                     </button>
 
                     <div className="my-1 border-t border-slate-100" />
+
+                    {isAdmin && (
+                      <button
+                        onClick={() => { navigate("/admin"); setProfileDropdownOpen(false); }}
+                        className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-blue-50 text-[#008fe5] transition text-left font-bold"
+                      >
+                        <LayoutDashboard size={16} className="text-[#008fe5]" />
+                        <span>Admin Panel</span>
+                      </button>
+                    )}
 
                     <button
                       onClick={() => { logout(); setProfileDropdownOpen(false); }}

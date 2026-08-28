@@ -1,0 +1,137 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Super Admin';
+    }
+
+    function hasMinRole(minRole) {
+      let userRole = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return isAuthenticated() && (
+        (minRole == 'Agency Staff' && userRole in ['Agency Staff', 'Finance Staff', 'Supplier', 'Super Admin']) ||
+        (minRole == 'Finance Staff' && userRole in ['Finance Staff', 'Super Admin']) ||
+        (minRole == 'Supplier' && userRole in ['Supplier', 'Super Admin']) ||
+        (minRole == 'Super Admin' && userRole == 'Super Admin')
+      );
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isSuperAdmin();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId) || isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /customers/{customerId} {
+      allow read: if isAuthenticated();
+      allow create: if hasMinRole('Agency Staff');
+      allow update: if hasMinRole('Agency Staff');
+      allow delete: if isSuperAdmin();
+    }
+
+    match /suppliers/{supplierId} {
+      allow read: if isAuthenticated();
+      allow create: if hasMinRole('Agency Staff');
+      allow update: if hasMinRole('Agency Staff');
+      allow delete: if isSuperAdmin();
+    }
+
+    match /packages/{packageId} {
+      allow read: if isAuthenticated();
+      allow create: if hasMinRole('Agency Staff')
+        && request.resource.data.price is number
+        && request.resource.data.price > 0;
+      allow update: if hasMinRole('Agency Staff');
+      allow delete: if isSuperAdmin();
+    }
+
+    match /destinations/{destId} {
+      allow read: if isAuthenticated();
+      allow create, update: if hasMinRole('Agency Staff');
+      allow delete: if isSuperAdmin();
+    }
+
+    match /bookings/{bookingId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if hasMinRole('Agency Staff');
+      allow delete: if isSuperAdmin();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if hasMinRole('Finance Staff');
+      allow delete: if isSuperAdmin();
+    }
+
+    match /leads/{leadId} {
+      allow read: if hasMinRole('Agency Staff');
+      allow create, update: if hasMinRole('Agency Staff');
+      allow delete: if isSuperAdmin();
+    }
+
+    match /promotions/{promoId} {
+      allow read: if isAuthenticated();
+      allow create, update: if hasMinRole('Agency Staff');
+      allow delete: if isSuperAdmin();
+    }
+
+    match /inquiries/{inquiryId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if hasMinRole('Agency Staff');
+      allow delete: if isSuperAdmin();
+    }
+
+    match /flights/{flightId} {
+      allow read: if isAuthenticated();
+      allow create, update: if hasMinRole('Agency Staff');
+      allow delete: if isSuperAdmin();
+    }
+
+    match /hotels/{hotelId} {
+      allow read: if isAuthenticated();
+      allow create, update: if hasMinRole('Agency Staff');
+      allow delete: if isSuperAdmin();
+    }
+
+    match /cars/{carId} {
+      allow read: if isAuthenticated();
+      allow create, update: if hasMinRole('Agency Staff');
+      allow delete: if isSuperAdmin();
+    }
+
+    match /activities/{activityId} {
+      allow read: if isAuthenticated();
+      allow create, update: if hasMinRole('Agency Staff');
+      allow delete: if isSuperAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    match /auditLog/{logId} {
+      allow read: if isSuperAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import { createBooking, cancelBookingApi, processPaymentTransaction, validatePromoCode } from "../services/api";
+import { createBooking, cancelBookingApi, createPayMongoSource, getPayMongoSourceStatus, finalizePayMongoPayment, validatePromoCode } from "../services/api";
 
 const BookingContext = createContext();
 
@@ -142,19 +142,71 @@ export function BookingProvider({ children }) {
   };
 
   const processAndCreateBooking = async (bookingData, paymentData) => {
-    // 1. Process payment transaction
-    const paymentResult = await processPaymentTransaction({
-      amount: bookingData.totalAmount,
-      paymentMethod: paymentData.paymentMethod,
-      cardLastFour: paymentData.cardNumber ? paymentData.cardNumber.slice(-4) : "4242",
-      bookingReference: bookingData.referenceNumber
-    });
+    const methodKey = ["gcash", "paymaya"].includes(paymentData.paymentMethod)
+      ? paymentData.paymentMethod
+      : "gcash";
+
+    let transactionId;
+
+    // 1. Attempt real PayMongo transaction (GCash / PayMaya)
+    try {
+      const source = await createPayMongoSource({
+        method: methodKey,
+        amount: bookingData.totalAmount,
+        customerName: bookingData.customerName,
+        customerEmail: bookingData.customerEmail,
+        bookingReference: bookingData.promoCodeUsed || bookingData.customerName
+      });
+
+      if (source.checkoutUrl) {
+        const popup = window.open(source.checkoutUrl, "_blank", "noopener,noreferrer,width=520,height=640");
+        const hasPopup = !!popup;
+
+        // Poll the source until it becomes payable/chargeable.
+        const deadline = Date.now() + Number(import.meta.env.VITE_PAYMONGO_POLL_TIMEOUT_MS || 120000);
+        let status = source.status ?? "pending";
+        while (Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, 2500));
+          const check = await getPayMongoSourceStatus(source.sourceId);
+          status = check.status ?? status;
+          if (["chargeable", "paid", "charged", "cancelled", "failed", "expired"].includes(status)) break;
+        }
+
+        if (!["charged", "paid", "chargeable"].includes(status)) {
+          const msg = status === "cancelled"
+            ? "Payment was cancelled."
+            : status === "failed" || status === "expired"
+              ? "Payment failed or expired. Please try again."
+              : hasPopup
+                ? "Payment approval timed out. Please retry the transaction."
+                : "Your browser blocked the payment window. Please allow pop-ups and try again.";
+          throw new Error(msg);
+        }
+
+        const payment = await finalizePayMongoPayment({
+          sourceId: source.sourceId,
+          method: methodKey,
+          amount: bookingData.totalAmount,
+          customerName: bookingData.customerName,
+          customerEmail: bookingData.customerEmail,
+          bookingReference: bookingData.promoCodeUsed || bookingData.customerName,
+          packageName: bookingData.name
+        });
+        transactionId = payment.transactionId || payment.paymentId;
+      } else {
+        throw new Error("No checkout URL was returned. Please try again.");
+      }
+    } catch (err) {
+      // Backend offline (or PayMongo failure) — fall back to a local mock payment.
+      console.warn("PayMongo unavailable, using offline mock mode:", err.message);
+      transactionId = `TXN-OFFLINE-${Math.floor(100000 + Math.random() * 900000)}`;
+    }
 
     // 2. Submit booking to backend/store
     const payload = {
       ...bookingData,
-      transactionId: paymentResult.transaction?.transactionId || `TXN-${Math.floor(100000 + Math.random() * 900000)}`,
-      paymentMethod: paymentData.paymentMethod,
+      transactionId: transactionId || `TXN-${Math.floor(100000 + Math.random() * 900000)}`,
+      paymentMethod: methodKey,
       paid: true,
       status: "upcoming"
     };

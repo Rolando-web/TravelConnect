@@ -1,5 +1,4 @@
-import { useRef, useEffect } from "react";
-import { MapPin } from "lucide-react";
+import { useRef } from "react";
 import DESTINATIONS_DATA from "../../data/destinations.json";
 
 /* ─── Reusable categorised city-picker dropdown ─────────────────────── */

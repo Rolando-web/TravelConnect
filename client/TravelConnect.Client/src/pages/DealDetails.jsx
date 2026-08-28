@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
-  Plane, Hotel, Car, CheckCircle2, Star, Clock, ShieldCheck, Tag, Copy, CheckCheck, ArrowLeft, Calendar, MapPin, Sparkles, AlertCircle, HeadphonesIcon
+  Plane, Hotel, Car, CheckCircle2, Star, ShieldCheck, Tag, Copy, CheckCheck, ArrowLeft, Calendar, MapPin, Sparkles, HeadphonesIcon
 } from "lucide-react";
 import { DEALS } from "../data/dealsData";
 import { useBooking } from "../context/BookingContext";
@@ -50,9 +50,18 @@ export default function DealDetails() {
         </div>
       </div>
 
-      {/* ── Hero Banner ─────────────────────────────────────────────────── */}
-      <div className="relative bg-slate-900 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+      {/* ── Hero Banner (package photo background) ─────────────────────── */}
+      <div className="relative text-white overflow-hidden">
+        <div className="absolute inset-0">
+          <img
+            src={deal.img}
+            alt={deal.name}
+            className="w-full h-full object-cover scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/75 via-slate-900/55 to-slate-900/85" />
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
             {/* Banner Main Text */}
             <div className="lg:col-span-2 space-y-4">
@@ -69,11 +78,11 @@ export default function DealDetails() {
                 </span>
               </div>
 
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-tight">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-tight drop-shadow-md">
                 {deal.name}
               </h1>
 
-              <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-slate-300 font-medium">
+              <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-slate-200 font-medium">
                 <span className="flex items-center gap-1 text-amber-400 font-bold">
                   <Star size={16} className="fill-amber-400" /> {deal.rating} ({deal.reviewsCount} verified traveler reviews)
                 </span>
@@ -87,7 +96,7 @@ export default function DealDetails() {
                 </span>
               </div>
 
-              <p className="text-slate-300 text-sm leading-relaxed max-w-2xl">
+              <p className="text-slate-200 text-sm leading-relaxed max-w-2xl drop-shadow">
                 {deal.shortDesc}
               </p>
             </div>

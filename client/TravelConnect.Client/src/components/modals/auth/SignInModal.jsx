@@ -1,13 +1,16 @@
 import { useState, useEffect, useRef } from "react";
-import { X, Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { X, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
+import { ADMIN_ROLES } from "../../../pages/admin/adminConfig";
 import logoImg from "../../../assets/logo.png";
 
 const PANEL_IMAGE =
   "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=900&q=85";
 
 export default function SignInModal() {
-  const { loginModalOpen, closeLoginModal, login, loginWithEmail, loginWithGoogle } = useAuth();
+  const { loginModalOpen, closeLoginModal, loginWithEmail, loginWithGoogle } = useAuth();
+  const navigate = useNavigate();
 
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
@@ -20,10 +23,6 @@ export default function SignInModal() {
   /* Auto-focus email field when modal opens */
   useEffect(() => {
     if (loginModalOpen) {
-      setEmail("");
-      setPassword("");
-      setError("");
-      setLoading(false);
       setTimeout(() => emailRef.current?.focus(), 100);
     }
   }, [loginModalOpen]);
@@ -51,10 +50,16 @@ export default function SignInModal() {
 
     setLoading(true);
     try {
-      await loginWithEmail(email, password);
+      const result = await loginWithEmail(email, password);
+      if (ADMIN_ROLES.includes(result.role)) {
+        navigate("/admin", { replace: true });
+      }
     } catch (err) {
-      console.warn("Firebase Auth attempt fallback:", err.message);
-      login({ name: email.split("@")[0], email });
+      if (err.message === "ACCOUNT_NOT_FOUND") {
+        setError("No account found with this email. Please contact your administrator.");
+      } else {
+        setError("Invalid email or password. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -63,11 +68,18 @@ export default function SignInModal() {
   /* ── Google button (Firebase Auth) ── */
   const handleGoogle = async () => {
     setLoading(true);
+    setError("");
     try {
-      await loginWithGoogle();
+      const result = await loginWithGoogle();
+      if (ADMIN_ROLES.includes(result.role)) {
+        navigate("/admin", { replace: true });
+      }
     } catch (err) {
-      console.warn("Firebase Google Auth fallback:", err.message);
-      login({ name: "Google User", email: "user@gmail.com" });
+      if (err.message === "ACCOUNT_NOT_FOUND") {
+        setError("No account found. Please contact your administrator.");
+      } else {
+        setError("Google sign-in failed. Please try again.");
+      }
     } finally {
       setLoading(false);
     }

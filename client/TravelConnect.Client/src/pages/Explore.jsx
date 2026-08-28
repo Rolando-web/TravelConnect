@@ -1,7 +1,27 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, MapPin, Package, Star, ArrowRight, Globe, TrendingUp, Users, Plane, Hotel } from "lucide-react";
+import { Search, Package, Star, ArrowRight, Globe, TrendingUp, Users } from "lucide-react";
 import { useBooking } from "../context/BookingContext";
+import PageHeroCarousel from "../components/shared/PageHeroCarousel";
+
+const EXPLORE_HERO_SLIDES = [
+  {
+    image: "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?auto=format&fit=crop&w=1920&q=80",
+    alt: "Santorini Greece",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=1920&q=80",
+    alt: "Kyoto Japan",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1920&q=80",
+    alt: "Dubai skyline",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1507699622108-4be3abd695ad?auto=format&fit=crop&w=1920&q=80",
+    alt: "Queenstown New Zealand",
+  },
+];
 
 /* ─── Data ─────────────────────────────────────────────────────────── */
 
@@ -200,20 +220,18 @@ export default function Explore() {
   return (
     <div className="w-full bg-slate-50 min-h-screen">
       {/* ── Hero Banner ─────────────────────────────────────── */}
-      <section className="relative bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 pt-14 pb-10 px-4 overflow-hidden">
-        {/* Decorative blobs */}
-        <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-blue-200/40 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-10 w-48 h-48 rounded-full bg-indigo-200/30 blur-2xl pointer-events-none" />
-
+      <PageHeroCarousel slides={EXPLORE_HERO_SLIDES} className="pt-14 pb-14 px-4">
         <div className="max-w-7xl mx-auto">
-          <p className="text-[#008fe5] text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
+          <p className="text-cyan-300 text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
             <Globe size={14} /> EXPLORE THE WORLD
           </p>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-900 leading-tight mb-4">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-4 drop-shadow-md">
             Discover your{" "}
-            <span className="block text-[#008fe5]">next chapter.</span>
+            <span className="block bg-gradient-to-r from-cyan-300 via-blue-400 to-[#008fe5] bg-clip-text text-transparent">
+              next chapter.
+            </span>
           </h1>
-          <p className="text-gray-500 text-base sm:text-lg max-w-lg mb-8 leading-relaxed">
+          <p className="text-slate-200 text-base sm:text-lg max-w-lg mb-8 leading-relaxed drop-shadow">
             Curated destinations and tailored journeys handpicked by our travel experts.
           </p>
 
@@ -226,14 +244,14 @@ export default function Explore() {
               { icon: Star, val: "4.9/5", label: "Avg Rating" },
             ].map(({ icon: Icon, val, label }) => (
               <div key={label} className="flex items-center gap-2">
-                <Icon size={15} className="text-[#008fe5]" />
-                <span className="font-bold text-gray-900">{val}</span>
-                <span className="text-gray-500">{label}</span>
+                <Icon size={15} className="text-cyan-300" />
+                <span className="font-bold text-white">{val}</span>
+                <span className="text-slate-300">{label}</span>
               </div>
             ))}
           </div>
         </div>
-      </section>
+      </PageHeroCarousel>
 
       {/* ── Tabs + Filters ──────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">

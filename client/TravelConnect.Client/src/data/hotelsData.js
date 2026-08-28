@@ -1,0 +1,151 @@
+export const HOTELS = [
+  {
+    id: 101,
+    name: "Shangri-La Boracay Resort & Spa",
+    location: "Boracay Island, Aklan, Philippines",
+    city: "Boracay",
+    stars: 5.0,
+    rating: 4.9,
+    reviews: 840,
+    pricePerNight: 18500,
+    originalPrice: 24000,
+    badge: "LUXURY BEACHFRONT",
+    img: "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=1600&q=85",
+    gallery: [
+      "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=1200&q=85",
+      "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=1200&q=85",
+      "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=1200&q=85",
+    ],
+    amenities: ["Free High-Speed Wi-Fi", "Daily Buffet Breakfast", "Private Speedboat Transfer", "Infinity Ocean Pool", "Chi Spa"],
+    roomType: "Deluxe Ocean View Room",
+    shortDesc:
+      "Wake up to powder-white sand and turquoise water at this iconic Boracay beachfront resort — private transfers, infinity pools, and Chi Spa included.",
+  },
+  {
+    id: 102,
+    name: "El Nido Resorts Pangulasian Island",
+    location: "El Nido, Palawan, Philippines",
+    city: "El Nido",
+    stars: 5.0,
+    rating: 4.95,
+    reviews: 620,
+    pricePerNight: 32000,
+    originalPrice: 38000,
+    badge: "ECO-LUXURY VILLA",
+    img: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1600&q=85",
+    gallery: [
+      "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1200&q=85",
+      "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=1200&q=85",
+      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&q=85",
+    ],
+    amenities: ["Private Canopy Villa", "Island Hopping Boat Included", "Free Breakfast & Lunch", "Full Marine Reserve Access"],
+    roomType: "Beach Villa with Private Deck",
+    shortDesc:
+      "Secluded island villas surrounded by limestone cliffs and turquoise lagoons — the ultimate eco-luxury escape in El Nido.",
+  },
+  {
+    id: 103,
+    name: "Crimson Resort & Spa Mactan",
+    location: "Lapu-Lapu City, Cebu, Philippines",
+    city: "Cebu",
+    stars: 4.8,
+    rating: 4.8,
+    reviews: 1120,
+    pricePerNight: 9800,
+    originalPrice: 13500,
+    badge: "TOP FAMILY RESORT",
+    img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1600&q=85",
+    gallery: [
+      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&q=85",
+      "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=1200&q=85",
+      "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=1200&q=85",
+    ],
+    amenities: ["Infinity Pool", "Crimson Spa", "Beachfront Cabanas", "Free Airport Shuttle", "Kid's Activity Center"],
+    roomType: "Deluxe Garden View Room",
+    shortDesc:
+      "Family-friendly beachfront living in Mactan with spa days, kids' clubs, and easy airport access for stress-free Cebu getaways.",
+  },
+  {
+    id: 104,
+    name: "Okura Manila Resort Hotel",
+    location: "Pasay City, Metro Manila, Philippines",
+    city: "Manila",
+    stars: 5.0,
+    rating: 4.85,
+    reviews: 490,
+    pricePerNight: 12500,
+    originalPrice: 16000,
+    badge: "CITY CENTER CLASS",
+    img: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=1600&q=85",
+    gallery: [
+      "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=1200&q=85",
+      "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=1200&q=85",
+      "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=1200&q=85",
+    ],
+    amenities: ["Japanese Hinoki Tub Suite", "Rooftop Heated Pool", "Fine Dining Yamazato", "Free Casino Shuttle"],
+    roomType: "Hinoki Executive Suite",
+    shortDesc:
+      "Japanese hospitality in the heart of Manila — hinoki suites, rooftop pools, and fine dining steps from the city's entertainment district.",
+  },
+  {
+    id: 105,
+    name: "Henann Crystal Sands Resort",
+    location: "Station 1, Boracay Island, Philippines",
+    city: "Boracay",
+    stars: 4.7,
+    rating: 4.75,
+    reviews: 1430,
+    pricePerNight: 8200,
+    originalPrice: 11000,
+    badge: "STATION 1 BEACHFRONT",
+    img: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=1600&q=85",
+    gallery: [
+      "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=1200&q=85",
+      "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=1200&q=85",
+      "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1200&q=85",
+    ],
+    amenities: ["Sky Pool Bar", "Direct White Beach Access", "Free Breakfast", "Fitness Center"],
+    roomType: "Premier Room with Pool Access",
+    shortDesc:
+      "Prime Station 1 location with direct White Beach access, sky pool bar vibes, and rooms designed for sun-soaked Boracay days.",
+  },
+  {
+    id: 106,
+    name: "Amorita Resort Bohol",
+    location: "Panglao Island, Bohol, Philippines",
+    city: "Bohol",
+    stars: 4.9,
+    rating: 4.9,
+    reviews: 780,
+    pricePerNight: 14200,
+    originalPrice: 18000,
+    badge: "CLIFFSIDE SUITE",
+    img: "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=1600&q=85",
+    gallery: [
+      "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=1200&q=85",
+      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&q=85",
+      "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=1200&q=85",
+    ],
+    amenities: ["Cliffside Ocean Pool", "Free Kayak & Paddleboard", "Organic Breakfast", "Sunset Cocktail Hour"],
+    roomType: "Junior Ocean Suite",
+    shortDesc:
+      "Cliffside suites overlooking the Bohol Sea — kayaks, paddleboards, and golden-hour cocktails included with every stay.",
+  },
+];
+
+export function getHotelById(id) {
+  return HOTELS.find((h) => h.id === parseInt(id, 10));
+}
+
+export function toHotelBooking(hotel, nights = 3) {
+  return {
+    id: `HOTEL-${hotel.id}`,
+    name: `${hotel.name} (${hotel.roomType})`,
+    location: hotel.location,
+    price: hotel.pricePerNight * nights,
+    original: hotel.originalPrice * nights,
+    duration: `${nights} Nights`,
+    img: hotel.img,
+    category: "hotel",
+  };
+}

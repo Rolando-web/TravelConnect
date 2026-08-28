@@ -1,1 +1,81 @@
 @import "tailwindcss";
+
+@theme {
+  --color-navy-900: #0B132B;
+  --color-navy-800: #1C2541;
+  --color-navy-700: #253453;
+  --color-navy-600: #2E4068;
+  --color-cyan-accent: #00B4D8;
+  --color-cyan-glow: #00B4D840;
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: #8D99AE;
+  --color-badge-green: #06D6A0;
+  --color-badge-orange: #FFB703;
+  --color-badge-red: #EF476F;
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center gap-2 rounded-xl bg-cyan-accent px-4 py-2.5 text-sm font-bold text-navy-900 hover:bg-cyan-accent/80 transition;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 rounded-xl border border-cyan-accent/60 px-4 py-2.5 text-sm font-bold text-cyan-accent hover:bg-cyan-accent/10 transition;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center gap-2 rounded-xl bg-badge-red/15 px-4 py-2.5 text-sm font-bold text-badge-red hover:bg-badge-red/25 transition;
+  }
+
+  .card {
+    @apply rounded-2xl border border-navy-700 bg-navy-800 p-6;
+  }
+
+  .badge-green {
+    @apply rounded-full px-2.5 py-1 text-xs font-semibold bg-badge-green/15 text-badge-green;
+  }
+
+  .badge-orange {
+    @apply rounded-full px-2.5 py-1 text-xs font-semibold bg-badge-orange/15 text-badge-orange;
+  }
+
+  .badge-red {
+    @apply rounded-full px-2.5 py-1 text-xs font-semibold bg-badge-red/15 text-badge-red;
+  }
+
+  .badge-cyan {
+    @apply rounded-full px-2.5 py-1 text-xs font-semibold bg-cyan-accent/15 text-cyan-accent;
+  }
+
+  .badge-purple {
+    @apply rounded-full px-2.5 py-1 text-xs font-semibold bg-violet-500/15 text-violet-400;
+  }
+
+  .input-field {
+    @apply w-full rounded-lg border border-navy-700 bg-navy-900 px-3 py-2.5 text-sm text-text-primary outline-none focus:border-cyan-accent transition placeholder:text-text-secondary;
+  }
+
+  .sidebar-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition text-text-secondary hover:bg-white/10;
+  }
+
+  .sidebar-item-active {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition bg-cyan-accent text-navy-900 font-bold;
+  }
+
+  .filter-pill {
+    @apply rounded-full px-3 py-1.5 text-xs font-medium border border-navy-700 text-text-secondary hover:border-cyan-accent hover:text-cyan-accent transition cursor-pointer;
+  }
+
+  .filter-pill-active {
+    @apply rounded-full px-3 py-1.5 text-xs font-medium bg-cyan-accent/15 border border-cyan-accent text-cyan-accent cursor-pointer;
+  }
+
+  .table-header {
+    @apply bg-navy-900 text-left text-xs uppercase tracking-wider text-text-secondary;
+  }
+
+  .table-row {
+    @apply border-b border-navy-700 hover:bg-navy-700/50 transition;
+  }
+}

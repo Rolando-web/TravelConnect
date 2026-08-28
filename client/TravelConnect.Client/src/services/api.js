@@ -1,33 +1,83 @@
-const API_URL = "http://localhost:5000"; // Or fallback mock
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5110";
+
+async function request(url, options = {}) {
+  const response = await fetch(`${API_URL}${url}`, {
+    ...options,
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) }
+  });
+  if (!response.ok) {
+    const errBody = await response.json().catch(() => null);
+    const message = errBody?.message || errBody?.detail || `Request failed (${response.status})`;
+    throw new Error(message);
+  }
+  if (response.status === 204) return null;
+  return response.json();
+}
+
+// ── Generic entity CRUD helpers (admin) ─────────────────────────
+
+function crud(resource) {
+  return {
+    list: (query = "") => request(`/api/${resource}${query}`),
+    get: (id) => request(`/api/${resource}/${id}`),
+    create: (body) => request(`/api/${resource}`, { method: "POST", body: JSON.stringify(body) }),
+    update: (id, body) => request(`/api/${resource}/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+    remove: (id) => request(`/api/${resource}/${id}`, { method: "DELETE" })
+  };
+}
+
+export const bookingsApi = crud("bookings");
+export const paymentsApi = crud("payments");
+export const customersApi = crud("customers");
+export const packagesApi = crud("packages");
+export const destinationsApi = crud("destinations");
+export const promotionsApi = crud("promotions");
+export const suppliersApi = crud("suppliers");
+export const leadsApi = crud("leads");
+export const usersApi = crud("users");
+export const inquiriesApi = crud("inquiries");
+export const flightsApi = crud("flights");
+export const hotelsApi = crud("hotels");
+export const carsApi = crud("cars");
+export const activitiesApi = crud("activities");
+
+export async function getDashboardSummary() {
+  return request("/api/dashboard");
+}
 
 export async function testApi() {
   try {
     const response = await fetch(`${API_URL}/api/test`);
     if (!response.ok) throw new Error("API test failed");
     return await response.json();
-  } catch (err) {
-    console.warn("Backend API offline, running client-side mock mode:", err.message);
+  } catch (_err) {
+    console.warn("Backend API offline, running client-side mock mode:", _err.message);
     return { message: "TravelConnect Client connected (Offline Fallback Mode)" };
   }
 }
 
 export async function validatePromoCode(code, totalAmount) {
   try {
-    const response = await fetch(`${API_URL}/api/promotions/validate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, totalAmount })
-    });
-    if (!response.ok) throw new Error("Promo validation failed");
-    return await response.json();
-  } catch (err) {
+    const promo = await request(`/api/promotions/code/${encodeURIComponent(code.trim())}`);
+    const isPercent = (promo.discountType || "").toLowerCase() === "percent";
+    const discountAmount = isPercent
+      ? Math.round(totalAmount * (Number(promo.discount) / 100))
+      : Math.min(totalAmount, Number(promo.discount));
+    return {
+      valid: true,
+      code: promo.code?.toUpperCase(),
+      description: promo.campaignName,
+      discountAmount,
+      finalAmount: Math.max(0, totalAmount - discountAmount)
+    };
+  } catch {
     // Offline local validation rules fallback
     const upper = code.trim().toUpperCase();
     const promos = {
       SUMMER26: { percentage: 25, label: "25% Summer Discount" },
-      WELCOME50: { flat: 50, label: "$50 Welcome Discount" },
+      WELCOME50: { flat: 50, label: "₱50 Welcome Discount" },
       HONEYMOON: { percentage: 10, label: "10% Honeymoon Package Discount" },
-      BALI15: { flat: 15, label: "$15 Regional Discount" },
+      BALI15: { flat: 15, label: "₱15 Regional Discount" },
       EARLY2027: { percentage: 25, label: "25% Early Bird Discount" }
     };
     if (promos[upper]) {
@@ -47,42 +97,47 @@ export async function validatePromoCode(code, totalAmount) {
   }
 }
 
-export async function processPaymentTransaction(paymentPayload) {
-  try {
-    const response = await fetch(`${API_URL}/api/payments/process`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(paymentPayload)
-    });
-    if (!response.ok) throw new Error("Payment processing failed");
-    return await response.json();
-  } catch (err) {
-    const txnId = `TXN-PAY-${Math.floor(100000 + Math.random() * 900000)}`;
-    return {
-      success: true,
-      message: "Payment processed successfully (Offline Mode)",
-      transaction: {
-        transactionId: txnId,
-        bookingReference: paymentPayload.bookingReference || `TC-${Date.now().toString().slice(-6)}`,
-        amount: paymentPayload.amount,
-        paymentMethod: paymentPayload.paymentMethod || "Credit Card",
-        status: "completed",
-        processedAt: new Date().toISOString()
-      }
-    };
+// ── PayMongo (GCash / PayMaya) ────────────────────────────────
+
+export async function createPayMongoSource(payload) {
+  const response = await fetch(`${API_URL}/api/payments/paymongo/source`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    const errBody = await response.json().catch(() => null);
+    throw new Error(errBody?.message || "Failed to create payment source");
   }
+  return await response.json();
+}
+
+export async function getPayMongoSourceStatus(sourceId) {
+  const response = await fetch(`${API_URL}/api/payments/paymongo/source/${sourceId}`);
+  if (!response.ok) throw new Error("Failed to fetch payment source status");
+  return await response.json();
+}
+
+export async function finalizePayMongoPayment(payload) {
+  const response = await fetch(`${API_URL}/api/payments/paymongo/pay`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    const errBody = await response.json().catch(() => null);
+    throw new Error(errBody?.message || "Payment finalization failed");
+  }
+  return await response.json();
 }
 
 export async function createBooking(bookingPayload) {
   try {
-    const response = await fetch(`${API_URL}/api/bookings`, {
+    return await request(`/api/bookings`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(bookingPayload)
     });
-    if (!response.ok) throw new Error("Booking creation failed");
-    return await response.json();
-  } catch (err) {
+  } catch {
     const ref = `TC-2026-${Math.floor(1000 + Math.random() * 9000)}`;
     const txn = `TXN-${Math.floor(100000 + Math.random() * 900000)}`;
     const newBooking = {
@@ -103,26 +158,24 @@ export async function createBooking(bookingPayload) {
 
 export async function cancelBookingApi(bookingId) {
   try {
-    const response = await fetch(`${API_URL}/api/bookings/${bookingId}/cancel`, {
-      method: "POST"
+    const booking = await request(`/api/bookings/${bookingId}`);
+    await request(`/api/bookings/${bookingId}`, {
+      method: "PUT",
+      body: JSON.stringify({ ...booking, status: "cancelled", paid: false })
     });
-    if (!response.ok) throw new Error("Cancellation failed");
-    return await response.json();
-  } catch (err) {
+    return { success: true, message: "Booking cancelled successfully" };
+  } catch {
     return { success: true, message: "Booking cancelled successfully" };
   }
 }
 
 export async function sendCustomerInquiry(inquiryPayload) {
   try {
-    const response = await fetch(`${API_URL}/api/inquiries`, {
+    return await request(`/api/inquiries`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(inquiryPayload)
     });
-    if (!response.ok) throw new Error("Inquiry submission failed");
-    return await response.json();
-  } catch (err) {
+  } catch {
     return {
       success: true,
       message: "Your customer inquiry has been received. Agency staff will respond shortly."

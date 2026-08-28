@@ -1,22 +1,20 @@
 namespace TravelConnect.Server.Models;
 
-public class Package
+public class Package : BaseEntity
 {
-    public int Id { get; set; }
-    public string Title { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
     public string Location { get; set; } = string.Empty;
-    public string Country { get; set; } = string.Empty;
-    public string Region { get; set; } = string.Empty;
-    public decimal Price { get; set; }
-    public double Rating { get; set; }
-    public int DurationDays { get; set; }
-    public string ImageUrl { get; set; } = string.Empty;
-    public string Tag { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    
-    // Services included in the travel package
-    public string FlightInfo { get; set; } = string.Empty;
-    public string HotelInfo { get; set; } = string.Empty;
-    public string CarRentalInfo { get; set; } = string.Empty;
-    public string IncludedActivities { get; set; } = string.Empty;
+    public string Duration { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+    public decimal Rating { get; set; }
+    public int Reviews { get; set; }
+    public string Tag { get; set; } = string.Empty;
+    public string ImageUrl { get; set; } = string.Empty;
+    public string Status { get; set; } = "Active";
+    public string Itinerary { get; set; } = string.Empty;
+    public string Inclusions { get; set; } = string.Empty;
+    public string Exclusions { get; set; } = string.Empty;
+    public int? SupplierId { get; set; }
+    public Supplier? Supplier { get; set; }
 }

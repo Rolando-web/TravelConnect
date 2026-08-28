@@ -1,10 +1,30 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
-  Tag, Clock, Copy, CheckCheck, Zap, Shield, CreditCard, HeadphonesIcon, RefreshCcw, ArrowRight, Star, Plane, Hotel, Car, Eye
+  Tag, Clock, Copy, CheckCheck, Zap, Shield, CreditCard, HeadphonesIcon, RefreshCcw, Star, Plane, Hotel, Car, Eye
 } from "lucide-react";
 import { useBooking } from "../context/BookingContext";
 import { DEALS } from "../data/dealsData";
+import PageHeroCarousel from "../components/shared/PageHeroCarousel";
+
+const DEAL_HERO_SLIDES = [
+  {
+    image: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1920&q=80",
+    alt: "Travel adventure destination",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1506929562872-bb421503ef21?auto=format&fit=crop&w=1920&q=80",
+    alt: "Tropical beach paradise deal",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1436491865332-7a61a109cab0?auto=format&fit=crop&w=1920&q=80",
+    alt: "Airplane wing over clouds",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1920&q=80",
+    alt: "Road trip travel package",
+  },
+];
 
 const PROMO_CODES = [
   { code: "SUMMER26", label: "25% off all summer & autumn packages", badge: "Ending Soon", expires: "Oct 31" },
@@ -24,7 +44,7 @@ const SORT_OPTIONS = ["Low Price", "High Price", "Top Rated"];
 
 const PERKS = [
   { icon: Shield, title: "Best Rate Guarantee", desc: "Found a cheaper rate elsewhere? We match it in PHP." },
-  { icon: CreditCard, title: "Flexible Payment Options", desc: "Pay via GCash, Maya, Credit Card, or instalments." },
+  { icon: CreditCard, title: "Flexible Payment Options", desc: "Pay quickly and securely via GCash or Maya e-wallets." },
   { icon: HeadphonesIcon, title: "24/7 Local Support", desc: "Our Manila-based team is always one call away." },
   { icon: RefreshCcw, title: "Free Cancellation", desc: "Up to 48 hrs before your flight departure." },
 ];
@@ -52,18 +72,18 @@ export default function Deals() {
   return (
     <div className="w-full bg-slate-50 min-h-screen pb-16">
       {/* ── Hero Banner ────────────────────────────────────────────────────────── */}
-      <section className="relative bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-900 text-white py-16 px-4 overflow-hidden">
-        <div className="max-w-7xl mx-auto text-center relative z-10 space-y-3">
+      <PageHeroCarousel slides={DEAL_HERO_SLIDES} className="py-16 px-4 pb-20">
+        <div className="max-w-7xl mx-auto text-center space-y-3">
           <span className="inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-widest bg-white/15 backdrop-blur-md border border-white/20 text-white rounded-full px-4 py-1.5 mb-2">
             <Zap size={13} className="fill-amber-400 text-amber-400" /> EXCLUSIVE PHILIPPINES &amp; GLOBAL DEALS
           </span>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black leading-tight">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black leading-tight drop-shadow-md">
             Handpicked Travel Bundles
           </h1>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-amber-400">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-amber-400 drop-shadow">
             Flight + Hotel + Car Packages in PHP (₱)
           </h2>
-          <p className="text-slate-300 text-sm max-w-xl mx-auto pt-1">
+          <p className="text-slate-200 text-sm max-w-xl mx-auto pt-1 drop-shadow">
             Click on any deal card to inspect full inclusions, flight schedules, resort perks, and day-by-day itineraries!
           </p>
 
@@ -77,7 +97,7 @@ export default function Deals() {
             ))}
           </div>
         </div>
-      </section>
+      </PageHeroCarousel>
 
       {/* ── Active Promo Codes ────────────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

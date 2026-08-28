@@ -60,11 +60,19 @@ desktop.ini
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+seeds/serviceAccountKey.json
 
 # ── Coverage & Testing ──────────────────────────────────────
 coverage/
 *.lcov
 .nyc_output/
+
+# ── .NET build output ───────────────────────────────────────
+**/bin/
+**/obj/
+
+# ── Local .NET config (may contain secrets) ────────────────
+**/appsettings.Development.json
 
 # ── Misc ────────────────────────────────────────────────────
 *.ntvs*
