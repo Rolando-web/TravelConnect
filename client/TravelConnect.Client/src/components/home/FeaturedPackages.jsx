@@ -1,53 +1,39 @@
+import { useState, useEffect } from "react";
 import { Star, Clock, MapPin, ArrowRight } from "lucide-react";
 import { useBooking } from "../../context/BookingContext";
+import { packagesApi } from "../../services/api";
+
+const fmtPrice = (p) => `₱${Number(p || 0).toLocaleString()}`;
+
+const badge = (pkg) => {
+  const map = {
+    "Best Seller": "bg-[#008fe5]",
+    "Top Rated": "bg-amber-500",
+    Luxury: "bg-purple-600",
+    Cultural: "bg-emerald-500",
+    "Ultra-Luxury": "bg-indigo-600",
+    "City Break": "bg-rose-500",
+  };
+  return {
+    text: pkg.tag || "Featured",
+    color: map[pkg.tag] || "bg-[#008fe5]",
+  };
+};
 
 export default function FeaturedPackages() {
   const { openCheckoutModal } = useBooking();
+  const [packages, setPackages] = useState([]);
 
-  const packages = [
-    {
-      id: 1,
-      title: "Romantic Paris Getaway",
-      name: "Romantic Paris Getaway",
-      location: "Paris, France",
-      duration: "5 Days, 4 Nights",
-      price: "₱83,300",
-      rating: "4.9",
-      reviews: "120",
-      image: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=85",
-      img: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=85",
-      badge: "Hot Deal",
-      badgeColor: "bg-red-500",
-    },
-    {
-      id: 2,
-      title: "Tokyo Lights & Tradition",
-      name: "Tokyo Lights & Tradition",
-      location: "Kyoto & Tokyo, Japan",
-      duration: "7 Days, 6 Nights",
-      price: "₱78,750",
-      rating: "4.8",
-      reviews: "95",
-      image: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=800&q=85",
-      img: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=800&q=85",
-      badge: "Bestseller",
-      badgeColor: "bg-[#008fe5]",
-    },
-    {
-      id: 3,
-      title: "Metropolitan New York Tour",
-      name: "Metropolitan New York Tour",
-      location: "New York, USA",
-      duration: "4 Days, 3 Nights",
-      price: "₱68,500",
-      rating: "4.7",
-      reviews: "54",
-      image: "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?auto=format&fit=crop&w=800&q=85",
-      img: "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?auto=format&fit=crop&w=800&q=85",
-      badge: "New Tour",
-      badgeColor: "bg-emerald-500",
-    },
-  ];
+  useEffect(() => {
+    let active = true;
+    packagesApi
+      .list("/featured/6")
+      .then((data) => { if (active) setPackages(Array.isArray(data) ? data : []); })
+      .catch(() => { if (active) setPackages([]); });
+    return () => { active = false; };
+  }, []);
+
+  if (packages.length === 0) return null;
 
   return (
     <section id="packages" className="py-24 bg-white scroll-mt-10">
@@ -73,71 +59,74 @@ export default function FeaturedPackages() {
 
         {/* Package Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {packages.map((pkg) => (
-            <div 
-              key={pkg.id}
-              className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col group"
-            >
-              {/* Image Section */}
-              <div className="relative h-60 w-full overflow-hidden">
-                <img 
-                  src={pkg.image} 
-                  alt={pkg.title} 
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-                
-                {/* Float Badge */}
-                <div className="absolute top-4 left-4 flex gap-2">
-                  <span className={`text-[10px] font-extrabold text-white px-3.5 py-1 rounded-full uppercase tracking-wider ${pkg.badgeColor} shadow-md`}>
-                    {pkg.badge}
-                  </span>
+          {packages.map((pkg) => {
+            const b = badge(pkg);
+            return (
+              <div 
+                key={pkg.id}
+                className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col group"
+              >
+                {/* Image Section */}
+                <div className="relative h-60 w-full overflow-hidden">
+                  <img 
+                    src={pkg.imageUrl || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=85"} 
+                    alt={pkg.name} 
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                  
+                  {/* Float Badge */}
+                  <div className="absolute top-4 left-4 flex gap-2">
+                    <span className={`text-[10px] font-extrabold text-white px-3.5 py-1 rounded-full uppercase tracking-wider ${b.color} shadow-md`}>
+                      {b.text}
+                    </span>
+                  </div>
+
+                  {/* Rating Overlay */}
+                  <div className="absolute bottom-4 right-4 bg-white/95 backdrop-blur-sm px-3 py-1 rounded-full flex items-center gap-1 text-xs font-bold text-gray-900 shadow-md">
+                    <Star size={14} className="fill-amber-400 text-amber-400" />
+                    <span>{Number(pkg.rating || 0).toFixed(1)}</span>
+                    <span className="text-gray-400 font-normal">({pkg.reviews || 0})</span>
+                  </div>
                 </div>
 
-                {/* Rating Overlay */}
-                <div className="absolute bottom-4 right-4 bg-white/95 backdrop-blur-sm px-3 py-1 rounded-full flex items-center gap-1 text-xs font-bold text-gray-900 shadow-md">
-                  <Star size={14} className="fill-amber-400 text-amber-400" />
-                  <span>{pkg.rating}</span>
-                  <span className="text-gray-400 font-normal">({pkg.reviews})</span>
+                {/* Card Details */}
+                <div className="p-6 flex-grow flex flex-col justify-between">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-gray-500">
+                      <div className="flex items-center gap-1">
+                        <Clock size={14} className="text-gray-400" />
+                        <span>{pkg.duration || "—"}</span>
+                      </div>
+                      <span className="text-gray-300">•</span>
+                      <div className="flex items-center gap-1">
+                        <MapPin size={14} className="text-gray-400" />
+                        <span>{pkg.location || "—"}</span>
+                      </div>
+                    </div>
+                    
+                    <h3 className="text-lg font-bold text-gray-950 group-hover:text-[#008fe5] transition-colors leading-snug">
+                      {pkg.name}
+                    </h3>
+                  </div>
+
+                  {/* Pricing and Action */}
+                  <div className="flex items-center justify-between border-t border-gray-50 pt-5 mt-6">
+                    <div>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Price Starts At</span>
+                      <span className="text-2xl font-black text-gray-950">{fmtPrice(pkg.price)} <span className="text-xs font-semibold text-gray-500">/ person</span></span>
+                    </div>
+                    
+                    <button
+                      onClick={() => openCheckoutModal(pkg)}
+                      className="bg-[#008fe5] hover:bg-blue-600 active:scale-95 text-white font-bold px-5 py-2.5 rounded-full text-xs transition-all shadow-md cursor-pointer"
+                    >
+                      Book Now
+                    </button>
+                  </div>
                 </div>
               </div>
-
-              {/* Card Details */}
-              <div className="p-6 flex-grow flex flex-col justify-between">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <Clock size={14} className="text-gray-400" />
-                      <span>{pkg.duration}</span>
-                    </div>
-                    <span className="text-gray-300">•</span>
-                    <div className="flex items-center gap-1">
-                      <MapPin size={14} className="text-gray-400" />
-                      <span>{pkg.location}</span>
-                    </div>
-                  </div>
-                  
-                  <h3 className="text-lg font-bold text-gray-950 group-hover:text-[#008fe5] transition-colors leading-snug">
-                    {pkg.title}
-                  </h3>
-                </div>
-
-                {/* Pricing and Action */}
-                <div className="flex items-center justify-between border-t border-gray-50 pt-5 mt-6">
-                  <div>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Price Starts At</span>
-                    <span className="text-2xl font-black text-gray-950">{pkg.price} <span className="text-xs font-semibold text-gray-500">/ person</span></span>
-                  </div>
-                  
-                  <button
-                    onClick={() => openCheckoutModal(pkg)}
-                    className="bg-[#008fe5] hover:bg-blue-600 active:scale-95 text-white font-bold px-5 py-2.5 rounded-full text-xs transition-all shadow-md cursor-pointer"
-                  >
-                    Book Now
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
       </div>

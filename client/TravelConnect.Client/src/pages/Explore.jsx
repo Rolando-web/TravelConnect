@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Search, Package, Star, ArrowRight, Globe, TrendingUp, Users } from "lucide-react";
 import { useBooking } from "../context/BookingContext";
 import PageHeroCarousel from "../components/shared/PageHeroCarousel";
+import { destinationsApi, packagesApi } from "../services/api";
 
 const EXPLORE_HERO_SLIDES = [
   {
@@ -20,137 +21,6 @@ const EXPLORE_HERO_SLIDES = [
   {
     image: "https://images.unsplash.com/photo-1507699622108-4be3abd695ad?auto=format&fit=crop&w=1920&q=80",
     alt: "Queenstown New Zealand",
-  },
-];
-
-/* ─── Data ─────────────────────────────────────────────────────────── */
-
-const DESTINATIONS = [
-  {
-    id: 1,
-    name: "Santorini",
-    country: "Greece",
-    region: "Europe",
-    style: ["Resort", "Romantic"],
-    type: "destination",
-    price: 78200,
-    rating: 4.9,
-    duration: "7 nights",
-    size: "large",
-    img: "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=800&q=80",
-    tag: "ICONIC",
-  },
-  {
-    id: 2,
-    name: "Kyoto",
-    country: "Japan",
-    region: "Asia",
-    style: ["Cultural", "Adventure"],
-    type: "destination",
-    price: 68500,
-    rating: 4.8,
-    duration: "5 nights",
-    size: "small",
-    img: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&q=80",
-    tag: "CULTURAL",
-  },
-  {
-    id: 3,
-    name: "Patagonia",
-    country: "Argentina / Chile",
-    region: "Americas",
-    style: ["Adventure"],
-    type: "destination",
-    price: 185000,
-    rating: 4.9,
-    duration: "12 nights",
-    size: "medium",
-    img: "https://images.unsplash.com/photo-1501854140801-50d01698950b?w=800&q=80",
-    tag: "ADVENTURE",
-  },
-  {
-    id: 4,
-    name: "Amalfi Coast",
-    country: "Italy",
-    region: "Europe",
-    style: ["Romantic", "Resort"],
-    type: "destination",
-    price: 98000,
-    rating: 4.8,
-    duration: "6 nights",
-    size: "medium",
-    img: "https://images.unsplash.com/photo-1534239143101-1b1c627395c5?w=800&q=80",
-    tag: "ROMANTIC",
-  },
-  {
-    id: 5,
-    name: "Maldives",
-    country: "Maldives",
-    region: "Asia",
-    style: ["Resort", "Beach"],
-    type: "destination",
-    price: 189000,
-    rating: 5.0,
-    duration: "7 nights",
-    size: "small",
-    img: "https://images.unsplash.com/photo-1540202404-a2f29016b523?w=800&q=80",
-    tag: "LUXURY",
-  },
-  {
-    id: 6,
-    name: "Machu Picchu",
-    country: "Peru",
-    region: "Americas",
-    style: ["Adventure", "Cultural"],
-    type: "destination",
-    price: 112000,
-    rating: 4.9,
-    duration: "8 nights",
-    size: "medium",
-    img: "https://images.unsplash.com/photo-1526392060635-9d6019884377?w=800&q=80",
-    tag: "WONDER",
-  },
-  {
-    id: 7,
-    name: "Swiss Alps",
-    country: "Switzerland",
-    region: "Europe",
-    style: ["Adventure", "Nature"],
-    type: "destination",
-    price: 156000,
-    rating: 4.9,
-    duration: "7 nights",
-    size: "medium",
-    img: "https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=800&q=80",
-    tag: "PANORAMIC",
-  },
-  {
-    id: 8,
-    name: "Dubai",
-    country: "UAE",
-    region: "Middle East",
-    style: ["City", "Luxury"],
-    type: "destination",
-    price: 64500,
-    rating: 4.7,
-    duration: "5 nights",
-    size: "small",
-    img: "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=800&q=80",
-    tag: "ICONIC",
-  },
-  {
-    id: 9,
-    name: "Queenstown",
-    country: "New Zealand",
-    region: "Oceania",
-    style: ["Adventure", "Nature"],
-    type: "destination",
-    price: 145000,
-    rating: 4.8,
-    duration: "9 nights",
-    size: "large",
-    img: "https://images.unsplash.com/photo-1507699622108-4be3abd695ad?w=800&q=80",
-    tag: "ADVENTURE",
   },
 ];
 
@@ -181,10 +51,6 @@ const ARTICLES = [
   },
 ];
 
-const REGIONS = ["All", "Asia", "Europe", "Americas", "Middle East", "Oceania"];
-const STYLES = ["All", "Resort", "Adventure", "City", "Cultural", "Romantic", "Beach", "Nature"];
-
-/* ─── Tag color helper ─────────────────────────────────────────────── */
 const tagColors = {
   "EDITOR'S PICK": "bg-amber-500",
   TRENDING: "bg-rose-500",
@@ -199,23 +65,59 @@ const tagColors = {
   BEACH: "bg-cyan-500",
 };
 
+const toBooking = (item) => ({
+  id: item.id,
+  name: item.name,
+  location: item.location || item.region || "",
+  price: Number(item.price || 0),
+  duration: item.duration || "",
+  img: item.imageUrl,
+  category: "package",
+});
+
 /* ─── Component ────────────────────────────────────────────────────── */
 export default function Explore() {
   const { openCheckoutModal } = useBooking();
   const [activeTab, setActiveTab] = useState("Destinations");
   const [activeRegion, setActiveRegion] = useState("All");
-  const [activeStyle, setActiveStyle] = useState("All");
   const [search, setSearch] = useState("");
+  const [destinations, setDestinations] = useState([]);
+  const [packages, setPackages] = useState([]);
 
-  const filtered = DESTINATIONS.filter((d) => {
+  useEffect(() => {
+    let active = true;
+    destinationsApi
+      .list()
+      .then((data) => { if (active) setDestinations(Array.isArray(data) ? data : []); })
+      .catch(() => { if (active) setDestinations([]); });
+    packagesApi
+      .list()
+      .then((data) => { if (active) setPackages(Array.isArray(data) ? data : []); })
+      .catch(() => { if (active) setPackages([]); });
+    return () => { active = false; };
+  }, []);
+
+  const regions = ["All", ...new Set(destinations.map((d) => d.region).filter(Boolean))];
+
+  const filteredDestinations = destinations.filter((d) => {
     const matchRegion = activeRegion === "All" || d.region === activeRegion;
-    const matchStyle = activeStyle === "All" || d.style.includes(activeStyle);
     const matchSearch =
       !search ||
-      d.name.toLowerCase().includes(search.toLowerCase()) ||
-      d.country.toLowerCase().includes(search.toLowerCase());
-    return matchRegion && matchStyle && matchSearch;
+      (d.name || "").toLowerCase().includes(search.toLowerCase()) ||
+      (d.region || "").toLowerCase().includes(search.toLowerCase());
+    return matchRegion && matchSearch;
   });
+
+  const filteredPackages = packages.filter((p) => {
+    const matchRegion = activeRegion === "All" || (p.location || "").toLowerCase().includes(activeRegion.toLowerCase());
+    const matchSearch =
+      !search ||
+      (p.name || "").toLowerCase().includes(search.toLowerCase()) ||
+      (p.location || "").toLowerCase().includes(search.toLowerCase());
+    return matchRegion && matchSearch;
+  });
+
+  const list = activeTab === "Destinations" ? filteredDestinations : filteredPackages;
 
   return (
     <div className="w-full bg-slate-50 min-h-screen">
@@ -238,10 +140,10 @@ export default function Explore() {
           {/* Stats row */}
           <div className="flex flex-wrap gap-6 text-sm">
             {[
-              { icon: Globe, val: "9+", label: "Regions" },
-              { icon: Package, val: "190+", label: "Packages" },
-              { icon: Users, val: "58k+", label: "Journeys" },
-              { icon: Star, val: "4.9/5", label: "Avg Rating" },
+              { icon: Globe, val: `${regions.length - 1}+`, label: "Regions" },
+              { icon: Package, val: `${packages.length}+`, label: "Packages" },
+              { icon: Users, val: `${destinations.length}+`, label: "Destinations" },
+              { icon: Star, val: `${destinations.length}+`, label: "Live Picks" },
             ].map(({ icon: Icon, val, label }) => (
               <div key={label} className="flex items-center gap-2">
                 <Icon size={15} className="text-cyan-300" />
@@ -272,9 +174,9 @@ export default function Explore() {
           ))}
         </div>
 
-        {/* Region + Style filters */}
+        {/* Region filters */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
-          {REGIONS.map((r) => (
+          {regions.map((r) => (
             <button
               key={r}
               onClick={() => setActiveRegion(r)}
@@ -287,21 +189,6 @@ export default function Explore() {
               {r}
             </button>
           ))}
-          <div className="ml-auto flex items-center gap-2">
-            {STYLES.map((s) => (
-              <button
-                key={s}
-                onClick={() => setActiveStyle(s)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-200 hidden sm:block ${
-                  activeStyle === s
-                    ? "bg-[#008fe5] text-white border-[#008fe5]"
-                    : "bg-white text-gray-600 border-gray-200 hover:border-[#008fe5]"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Search bar */}
@@ -311,68 +198,78 @@ export default function Explore() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search destinations..."
+            placeholder={`Search ${activeTab.toLowerCase()}...`}
             className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#008fe5]/40 focus:border-[#008fe5] transition"
           />
         </div>
 
-        {/* ── Destination Grid ─────────────────────────────── */}
-        {filtered.length === 0 ? (
+        {/* ── Item Grid ─────────────────────────────────────── */}
+        {list.length === 0 ? (
           <div className="text-center py-20 text-gray-400 text-lg font-medium">
-            No destinations match your filters.
+            No {activeTab.toLowerCase()} available yet.
           </div>
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-[220px]">
-            {filtered.map((d) => (
-              <div
-                key={d.id}
-                className={`relative rounded-2xl overflow-hidden group cursor-pointer shadow-sm hover:shadow-xl transition-shadow duration-300 ${
-                  d.size === "large" ? "row-span-2" : "row-span-1"
-                }`}
-              >
-                <img
-                  src={d.img}
-                  alt={d.name}
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-                {/* Gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-
-                {/* Tag badge */}
-                <span
-                  className={`absolute top-3 left-3 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white ${
-                    tagColors[d.tag] || "bg-gray-600"
-                  }`}
+            {list.map((d) => {
+              const name = d.name;
+              const region = activeTab === "Destinations" ? d.region : d.location;
+              const price = activeTab === "Packages" ? Number(d.price || 0) : 0;
+              const rating = Number(d.rating || 0);
+              const duration = activeTab === "Packages" ? d.duration : "";
+              const tag = activeTab === "Destinations" ? (d.category || "Region").toUpperCase() : (d.tag || "PACKAGE").toUpperCase();
+              return (
+                <div
+                  key={d.id}
+                  className="relative rounded-2xl overflow-hidden group cursor-pointer shadow-sm hover:shadow-xl transition-shadow duration-300"
                 >
-                  {d.tag}
-                </span>
+                  <img
+                    src={d.imageUrl || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80"}
+                    alt={name}
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  />
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
-                {/* Rating */}
-                <span className="absolute top-3 right-3 bg-black/40 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <Star size={10} className="fill-yellow-400 text-yellow-400" />
-                  {d.rating}
-                </span>
-
-                {/* Info */}
-                <div className="absolute bottom-0 left-0 right-0 p-4">
-                  <p className="text-white/70 text-xs mb-0.5">{d.country}</p>
-                  <h3 className="text-white font-bold text-lg leading-tight">{d.name}</h3>
-                  <div className="flex items-center justify-between mt-1.5">
-                    <span className="text-white/80 text-xs">{d.duration}</span>
-                    <span className="text-white font-bold text-sm">
-                      from ₱{d.price.toLocaleString()}
-                    </span>
-                  </div>
-                  {/* Hover reveal */}
-                  <button
-                    onClick={() => openCheckoutModal(d)}
-                    className="mt-3 w-full py-2 bg-gradient-to-r from-[#008fe5] to-blue-600 border border-white/30 text-white text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 hover:from-blue-600 hover:to-blue-700 shadow-md"
+                  {/* Tag badge */}
+                  <span
+                    className={`absolute top-3 left-3 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white ${
+                      tagColors[tag] || "bg-gray-600"
+                    }`}
                   >
-                    Book Package Deal →
-                  </button>
+                    {tag}
+                  </span>
+
+                  {/* Rating */}
+                  {rating > 0 && (
+                    <span className="absolute top-3 right-3 bg-black/40 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <Star size={10} className="fill-yellow-400 text-yellow-400" />
+                      {rating}
+                    </span>
+                  )}
+
+                  {/* Info */}
+                  <div className="absolute bottom-0 left-0 right-0 p-4">
+                    <p className="text-white/70 text-xs mb-0.5">{region}</p>
+                    <h3 className="text-white font-bold text-lg leading-tight">{name}</h3>
+                    <div className="flex items-center justify-between mt-1.5">
+                      <span className="text-white/80 text-xs">{duration}</span>
+                      {price > 0 && (
+                        <span className="text-white font-bold text-sm">
+                          from ₱{price.toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                    {/* Hover reveal */}
+                    <button
+                      onClick={() => openCheckoutModal(toBooking(d))}
+                      className="mt-3 w-full py-2 bg-gradient-to-r from-[#008fe5] to-blue-600 border border-white/30 text-white text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 hover:from-blue-600 hover:to-blue-700 shadow-md"
+                    >
+                      Book Package Deal →
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
@@ -381,7 +278,7 @@ export default function Explore() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">20 Picks</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">{destinations.length} Picks</p>
             <h2 className="text-2xl font-extrabold text-gray-900">Curated reads</h2>
           </div>
           <button className="text-sm font-semibold text-[#008fe5] hover:underline flex items-center gap-1">

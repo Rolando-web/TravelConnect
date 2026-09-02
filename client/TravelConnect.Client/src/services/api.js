@@ -45,6 +45,10 @@ export async function getDashboardSummary() {
   return request("/api/dashboard");
 }
 
+export async function getPublicStats() {
+  return request("/api/dashboard/public");
+}
+
 export async function testApi() {
   try {
     const response = await fetch(`${API_URL}/api/test`);

@@ -1,6 +1,10 @@
 import { ArrowRight, Sparkles } from "lucide-react";
+import { usePublicStats } from "../../hooks/usePublicStats";
 
 export default function CTA() {
+  const { stats } = usePublicStats();
+  const fmt = (n) => new Intl.NumberFormat("en-US").format(n && !isNaN(n) ? n : 0);
+
   const handleScrollToPackages = (e) => {
     e.preventDefault();
     const element = document.getElementById("packages");
@@ -32,7 +36,7 @@ export default function CTA() {
         
         {/* Subtext */}
         <p className="text-sm sm:text-base text-blue-50 max-w-xl mx-auto leading-relaxed">
-          Join over 45,000+ happy travelers and book your curated tropical package today. Safe routes, secure bookings, and lifetime memories guaranteed.
+          Join over {fmt(stats?.happyTravelers)}+ happy travelers and book your curated tropical package today. Safe routes, secure bookings, and lifetime memories guaranteed.
         </p>
 
         {/* Buttons Grid */}

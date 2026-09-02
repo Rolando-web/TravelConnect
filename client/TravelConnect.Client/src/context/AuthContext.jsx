@@ -6,7 +6,7 @@ import {
   signInWithPopup,
   signOut,
 } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { ADMIN_ROLES } from "../pages/admin/adminConfig";
 
 const AuthContext = createContext(null);
@@ -19,7 +19,7 @@ export function AuthProvider({ children }) {
   const openLoginModal = () => setLoginModalOpen(true);
   const closeLoginModal = () => setLoginModalOpen(false);
 
-  /* ── Resolve role: Firestore doc → custom claims → null ─────── */
+  /* ── Resolve role: Firestore doc → custom claims → Customer ─── */
   const resolveRole = async (firebaseUser) => {
     const uid = firebaseUser.uid;
 
@@ -28,7 +28,7 @@ export function AuthProvider({ children }) {
       const snap = await getDoc(doc(db, "users", uid));
       if (snap.exists()) {
         const data = snap.data();
-        if (data.role && ADMIN_ROLES.includes(data.role)) {
+        if (data.role) {
           return { role: data.role, profile: data };
         }
       }
@@ -39,14 +39,42 @@ export function AuthProvider({ children }) {
     // 2) Fallback: Firebase Auth custom claims
     try {
       const token = await firebaseUser.getIdTokenResult();
-      if (token.claims?.role && ADMIN_ROLES.includes(token.claims.role)) {
+      if (token.claims?.role) {
         return { role: token.claims.role, profile: null };
       }
     } catch (err) {
       console.warn("Custom claims read failed:", err.message);
     }
 
-    return { role: null, profile: null };
+    // 3) No role found → treat as a self-registered customer
+    return { role: "Customer", profile: null };
+  };
+
+  /* ── Ensure a Firestore profile exists for Google sign-ins ──── */
+  const ensureCustomerProfile = async (firebaseUser) => {
+    try {
+      const snap = await getDoc(doc(db, "users", firebaseUser.uid));
+      if (snap.exists()) return snap.data();
+
+      const profile = {
+        email: firebaseUser.email,
+        displayName: firebaseUser.displayName || "",
+        name: firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "User",
+        role: "Customer",
+        phone: firebaseUser.phoneNumber || "",
+        department: "N/A",
+        avatar: "",
+        status: "Active",
+        isGoogle: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      await setDoc(doc(db, "users", firebaseUser.uid), profile, { merge: true });
+      return profile;
+    } catch (err) {
+      console.warn("Could not write customer profile:", err.message);
+      return { role: "Customer" };
+    }
   };
 
   /* ── Build profile object ──────────────────────────────────── */
@@ -81,14 +109,8 @@ export function AuthProvider({ children }) {
 
       const { role, profile } = await resolveRole(fbUser);
 
-      if (!role) {
-        // Signed in but no valid role → sign out
-        await signOut(auth);
-        setUser(null);
-        localStorage.removeItem("tc_logged_in");
-        localStorage.removeItem("tc_user");
-        setLoading(false);
-        return;
+      if (role === "Customer") {
+        await ensureCustomerProfile(fbUser);
       }
 
       persistProfile(buildProfile(fbUser, role, profile));
@@ -103,7 +125,7 @@ export function AuthProvider({ children }) {
     const cred = await signInWithEmailAndPassword(auth, email, password);
     const { role, profile } = await resolveRole(cred.user);
 
-    if (!role) {
+    if (!role || !ADMIN_ROLES.includes(role)) {
       await signOut(auth);
       throw new Error("ACCOUNT_NOT_FOUND");
     }
@@ -118,9 +140,8 @@ export function AuthProvider({ children }) {
     const cred = await signInWithPopup(auth, googleProvider);
     const { role, profile } = await resolveRole(cred.user);
 
-    if (!role) {
-      await signOut(auth);
-      throw new Error("ACCOUNT_NOT_FOUND");
+    if (role === "Customer") {
+      await ensureCustomerProfile(cred.user);
     }
 
     persistProfile(buildProfile(cred.user, role, profile));

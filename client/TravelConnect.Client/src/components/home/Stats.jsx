@@ -1,10 +1,15 @@
 import { Users, Globe, Star, HeartHandshake } from "lucide-react";
+import { usePublicStats } from "../../hooks/usePublicStats";
+
+const fmt = (n) => new Intl.NumberFormat("en-US").format(n && !isNaN(n) ? n : 0);
 
 export default function Stats() {
+  const { stats } = usePublicStats();
+
   const statsList = [
-    { label: "Happy Travelers", value: "45,000+", icon: Users },
-    { label: "Countries Covered", value: "120+", icon: Globe },
-    { label: "Customer Rating", value: "4.9+", icon: Star },
+    { label: "Happy Travelers", value: `${fmt(stats?.happyTravelers)}+`, icon: Users },
+    { label: "Countries Covered", value: `${fmt(stats?.countriesCovered)}+`, icon: Globe },
+    { label: "Customer Rating", value: `${Number(stats?.avgRating || 0).toFixed(1)}+`, icon: Star },
     { label: "Support Channels", value: "24/7", icon: HeartHandshake },
   ];
 

@@ -1,44 +1,25 @@
+import { useState, useEffect } from "react";
 import { ArrowRight } from "lucide-react";
+import { destinationsApi } from "../../services/api";
+
+function parseName(name) {
+  const parts = (name || "").split(",").map((s) => s.trim());
+  return parts.length > 1 ? { city: parts[0], country: parts.slice(1).join(", ") } : { city: name || "—", country: "" };
+}
 
 export default function PopularDestinations() {
-  const destinations = [
-    {
-      name: "Rome",
-      country: "Italy",
-      packages: "15 Packages",
-      image: "https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-      name: "Paris",
-      country: "France",
-      packages: "24 Packages",
-      image: "https://images.unsplash.com/photo-1511739001486-6bfe10ce785f?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-      name: "Tokyo",
-      country: "Japan",
-      packages: "18 Packages",
-      image: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-      name: "Bali",
-      country: "Indonesia",
-      packages: "20 Packages",
-      image: "https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-      name: "Sydney",
-      country: "Australia",
-      packages: "12 Packages",
-      image: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-      name: "Barcelona",
-      country: "Spain",
-      packages: "14 Packages",
-      image: "https://images.unsplash.com/photo-1583422409516-2895a77efedd?auto=format&fit=crop&w=400&q=80",
-    },
-  ];
+  const [destinations, setDestinations] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    destinationsApi
+      .list()
+      .then((data) => { if (active) setDestinations(Array.isArray(data) ? data.slice(0, 6) : []); })
+      .catch(() => { if (active) setDestinations([]); });
+    return () => { active = false; };
+  }, []);
+
+  if (destinations.length === 0) return null;
 
   return (
     <section id="destinations" className="py-20 bg-slate-50 scroll-mt-10">
@@ -57,33 +38,36 @@ export default function PopularDestinations() {
 
         {/* Destinations Slider/Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-          {destinations.map((dest, idx) => (
-            <a 
-              key={idx}
-              href="#packages"
-              className="group relative h-72 rounded-3xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 block"
-            >
-              {/* Image */}
-              <img 
-                src={dest.image} 
-                alt={`${dest.name}, ${dest.country}`} 
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-              />
-              
-              {/* Gradient Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent"></div>
-              
-              {/* Text Info */}
-              <div className="absolute bottom-5 left-5 right-5 text-white flex flex-col justify-end">
-                <span className="text-xs font-bold text-blue-300 tracking-wide uppercase">{dest.country}</span>
-                <span className="text-lg font-black leading-tight mb-1 group-hover:text-blue-200 transition-colors">{dest.name}</span>
-                <div className="flex items-center gap-1 text-[10px] text-slate-300 font-bold opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <span>{dest.packages}</span>
-                  <ArrowRight size={10} />
+          {destinations.map((dest, idx) => {
+            const { city, country } = parseName(dest.name);
+            return (
+              <a 
+                key={dest.id ?? idx}
+                href="#packages"
+                className="group relative h-72 rounded-3xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 block"
+              >
+                {/* Image */}
+                <img 
+                  src={dest.imageUrl || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=400&q=80"} 
+                  alt={`${city}, ${country}`} 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                />
+                
+                {/* Gradient Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent"></div>
+                
+                {/* Text Info */}
+                <div className="absolute bottom-5 left-5 right-5 text-white flex flex-col justify-end">
+                  <span className="text-xs font-bold text-blue-300 tracking-wide uppercase">{dest.region || country}</span>
+                  <span className="text-lg font-black leading-tight mb-1 group-hover:text-blue-200 transition-colors">{city}</span>
+                  <div className="flex items-center gap-1 text-[10px] text-slate-300 font-bold opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <span>{dest.category || "Explore"}</span>
+                    <ArrowRight size={10} />
+                  </div>
                 </div>
-              </div>
-            </a>
-          ))}
+              </a>
+            );
+          })}
         </div>
 
       </div>

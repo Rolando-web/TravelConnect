@@ -57,16 +57,14 @@ export default function Hero() {
         {SLIDES.map((slide, index) => (
           <div
             key={index}
-            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-              currentSlide === index ? "opacity-70 z-10" : "opacity-0 z-0"
-            }`}
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${currentSlide === index ? "opacity-70 z-10" : "opacity-0 z-0"
+              }`}
           >
             <img
               src={slide.image}
               alt={slide.tag}
-              className={`w-full h-full object-cover object-center transition-transform duration-[6000ms] ease-out ${
-                currentSlide === index ? "scale-105" : "scale-100"
-              }`}
+              className={`w-full h-full object-cover object-center transition-transform duration-[6000ms] ease-out ${currentSlide === index ? "scale-105" : "scale-100"
+                }`}
             />
           </div>
         ))}
@@ -118,9 +116,8 @@ export default function Hero() {
             <button
               key={index}
               onClick={() => setCurrentSlide(index)}
-              className={`h-2 rounded-full transition-all duration-300 ${
-                currentSlide === index ? "w-8 bg-[#008fe5]" : "w-2 bg-white/40 hover:bg-white/60"
-              }`}
+              className={`h-2 rounded-full transition-all duration-300 ${currentSlide === index ? "w-8 bg-[#008fe5]" : "w-2 bg-white/40 hover:bg-white/60"
+                }`}
               aria-label={`Go to slide ${index + 1}`}
             />
           ))}

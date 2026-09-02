@@ -19,7 +19,7 @@ export default function ProtectedRoute({ children }) {
   }
 
   if (!ADMIN_ROLES.includes(user.role)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/bookings" replace />;
   }
 
   const pathParts = location.pathname.split("/").filter(Boolean);

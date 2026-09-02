@@ -1,6 +1,10 @@
 import { Star, Quote } from "lucide-react";
+import { usePublicStats } from "../../hooks/usePublicStats";
 
 export default function Testimonials() {
+  const { stats } = usePublicStats();
+  const fmt = (n) => new Intl.NumberFormat("en-US").format(n && !isNaN(n) ? n : 0);
+
   const featuredTestimonial = {
     rating: 5,
     quote: "Our trip to Japan was spectacular! Every single detail, from hotel bookings, private bullet train transfers, and custom guided itineraries was handled seamlessly. It was the most relaxing and organized vacation we have ever taken.",
@@ -40,7 +44,7 @@ export default function Testimonials() {
             What Our Clients Say
           </h2>
           <p className="text-sm sm:text-base text-gray-500">
-            Over 45,000+ happy travelers have explored the world using our curated stays and routes.
+            Over {fmt(stats?.happyTravelers)}+ happy travelers have explored the world using our curated stays and routes.
           </p>
         </div>
 

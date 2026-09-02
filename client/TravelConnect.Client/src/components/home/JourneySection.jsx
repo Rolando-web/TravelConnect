@@ -1,6 +1,10 @@
 import { ArrowUpRight, CheckCircle2 } from "lucide-react";
+import { usePublicStats } from "../../hooks/usePublicStats";
 
 export default function JourneySection() {
+  const { stats } = usePublicStats();
+  const fmt = (n) => new Intl.NumberFormat("en-US").format(n && !isNaN(n) ? n : 0);
+
   const points = [
     "Handcrafted itineraries customized for your preferences",
     "Luxury accommodations vetted by our travel consultants",
@@ -10,16 +14,16 @@ export default function JourneySection() {
 
   const statItems = [
     { label: "Years Experience", value: "15+" },
-    { label: "Destinations", value: "120+" },
-    { label: "Happy Travelers", value: "45K+" },
-    { label: "Star Rating", value: "4.9+" },
+    { label: "Destinations", value: `${fmt(stats?.destinations)}+` },
+    { label: "Happy Travelers", value: `${fmt(stats?.happyTravelers)}` },
+    { label: "Star Rating", value: `${Number(stats?.avgRating || 0).toFixed(1)}+` },
   ];
 
   return (
     <section className="py-24 bg-white overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
-          
+
           {/* Left Column: Text & Features */}
           <div className="lg:col-span-5 space-y-8">
             <div className="space-y-4">
@@ -71,36 +75,36 @@ export default function JourneySection() {
             <div className="grid grid-cols-2 gap-4 sm:gap-6 relative z-10">
               {/* Image 1 - Bali Gate */}
               <div className="h-64 sm:h-80 rounded-3xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                <img 
-                  src="https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=600&q=80" 
-                  alt="Bali Gate of Heaven" 
+                <img
+                  src="https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=600&q=80"
+                  alt="Bali Gate of Heaven"
                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                 />
               </div>
-              
+
               {/* Image 2 - Greece Town */}
               <div className="h-56 sm:h-72 mt-8 rounded-3xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                <img 
-                  src="https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&w=600&q=80" 
-                  alt="Santorini Greece" 
+                <img
+                  src="https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&w=600&q=80"
+                  alt="Santorini Greece"
                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                 />
               </div>
-              
+
               {/* Image 3 - Neon Tokyo */}
               <div className="h-56 sm:h-72 -mt-8 rounded-3xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                <img 
-                  src="https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=600&q=80" 
-                  alt="Tokyo Neon" 
+                <img
+                  src="https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=600&q=80"
+                  alt="Tokyo Neon"
                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                 />
               </div>
-              
+
               {/* Image 4 - Eiffel Tower */}
               <div className="h-64 sm:h-80 rounded-3xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                <img 
-                  src="https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=600&q=80" 
-                  alt="Paris Eiffel Tower" 
+                <img
+                  src="https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=600&q=80"
+                  alt="Paris Eiffel Tower"
                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                 />
               </div>

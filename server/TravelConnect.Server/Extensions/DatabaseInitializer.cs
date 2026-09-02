@@ -1,11 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using TravelConnect.Server.Data;
+using TravelConnect.Server.Models;
 
 namespace TravelConnect.Server.Extensions;
 
 public static class DatabaseInitializer
 {
-    public static async Task InitializeDatabaseAsync(this WebApplication app)
+    public static async Task InitializeDatabaseAsync(this WebApplication app, bool reseed = false)
     {
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<TravelConnectDbContext>();
@@ -13,146 +14,151 @@ public static class DatabaseInitializer
         // Create database if it doesn't exist
         await db.Database.EnsureCreatedAsync();
 
+        // Optionally wipe seed tables before re-seeding
+        if (reseed)
+        {
+            db.Packages.RemoveRange(await db.Packages.ToListAsync());
+            db.Flights.RemoveRange(await db.Flights.ToListAsync());
+            db.Cars.RemoveRange(await db.Cars.ToListAsync());
+            db.Hotels.RemoveRange(await db.Hotels.ToListAsync());
+            db.Activities.RemoveRange(await db.Activities.ToListAsync());
+            db.Destinations.RemoveRange(await db.Destinations.ToListAsync());
+            await db.SaveChangesAsync();
+        }
+
         // Seed initial data if empty
         await SeedAsync(db);
     }
 
     private static async Task SeedAsync(TravelConnectDbContext db)
     {
-        if (await db.Customers.AnyAsync() || await db.Suppliers.AnyAsync()) return;
-
-        var customers = new[]
+        // Only seed default admin/staff accounts if none exist yet.
+        if (!await db.SystemUsers.AnyAsync())
         {
-            new Models.Customer { Name = "Maria Santos", Email = "maria@gmail.com", Phone = "+63 917 123 4567", Country = "Philippines", TotalBookings = 4, TotalSpent = 74900m, Status = "Active" },
-            new Models.Customer { Name = "Priya Nair", Email = "priya@gmail.com", Phone = "+91 982 345 6789", Country = "India", TotalBookings = 2, TotalSpent = 34800m, Status = "Active" },
-            new Models.Customer { Name = "James Tan", Email = "james@gmail.com", Phone = "+65 9123 4567", Country = "Singapore", TotalBookings = 1, TotalSpent = 12900m, Status = "Inactive" },
-            new Models.Customer { Name = "Sarah Chen", Email = "sarah@gmail.com", Phone = "+1 555 123 4567", Country = "USA", TotalBookings = 6, TotalSpent = 124800m, Status = "Active" },
-            new Models.Customer { Name = "Aiko Yamada", Email = "aiko@gmail.com", Phone = "+81 90 1234 5678", Country = "Japan", TotalBookings = 2, TotalSpent = 45900m, Status = "Active" },
-            new Models.Customer { Name = "Marcus Okoye", Email = "marcus@gmail.com", Phone = "+234 803 123 4567", Country = "Nigeria", TotalBookings = 3, TotalSpent = 67500m, Status = "Active" },
-            new Models.Customer { Name = "Lena Muller", Email = "lena@gmail.com", Phone = "+49 171 123 4567", Country = "Germany", TotalBookings = 1, TotalSpent = 21900m, Status = "Pending" },
-        };
+            var systemUsers = new[]
+            {
+                new SystemUser { FirebaseUid = "", Email = "superadmin@travelconnect.com", DisplayName = "Juan Dela Cruz", Phone = "+63 917 123 4567", Role = "Super Admin", Department = "Administration", Status = "Active" },
+                new SystemUser { FirebaseUid = "", Email = "admin@travelconnect.com", DisplayName = "Maria Santos", Phone = "+63 918 234 5678", Role = "Agency Staff", Department = "Operations", Status = "Active" },
+                new SystemUser { FirebaseUid = "", Email = "finance@travelconnect.com", DisplayName = "Pedro Reyes", Phone = "+63 919 345 6789", Role = "Finance Staff", Department = "Finance", Status = "Active" },
+                new SystemUser { FirebaseUid = "", Email = "supplier@travelconnect.com", DisplayName = "Ana Garcia", Phone = "+63 920 456 7890", Role = "Supplier", Department = "Supply Chain", Status = "Active" },
+            };
 
-        var suppliers = new[]
+            db.SystemUsers.AddRange(systemUsers);
+            await db.SaveChangesAsync();
+        }
+
+        // Destinations (10)
+        if (!await db.Destinations.AnyAsync())
         {
-            new Models.Supplier { CompanyName = "Bali Paradise Resorts", ContactName = "I Wayan Agung", ContactEmail = "wayan@baliparadise.com", ContactPhone = "+62 812 345 6789", Type = "Hotel", Rating = 4.8m, Status = "Active" },
-            new Models.Supplier { CompanyName = "Tokyo Transfers Co.", ContactName = "Hiroshi Tanaka", ContactEmail = "hiroshi@tokyotransfers.com", ContactPhone = "+81 3 1234 5678", Type = "Transport", Rating = 4.7m, Status = "Active" },
-            new Models.Supplier { CompanyName = "Aegean Tours Ltd.", ContactName = "Nikos Pappas", ContactEmail = "nikos@aegeantours.com", ContactPhone = "+30 21 1234 5678", Type = "Tour Operator", Rating = 4.9m, Status = "Active" },
-            new Models.Supplier { CompanyName = "Alps Adventure Co.", ContactName = "Hans Gruber", ContactEmail = "hans@alpsadventure.com", ContactPhone = "+41 79 123 4567", Type = "Activity", Rating = 4.5m, Status = "Review" },
-            new Models.Supplier { CompanyName = "Manila Air Services", ContactName = "Juan Dela Cruz", ContactEmail = "juan@manilaair.com", ContactPhone = "+63 2 8123 4567", Type = "Airline", Rating = 4.6m, Status = "Active" },
-            new Models.Supplier { CompanyName = "Singapore Luxury Hotels", ContactName = "Wei Lin", ContactEmail = "wei@singaporeluxury.com", ContactPhone = "+65 6789 1234", Type = "Hotel", Rating = 4.9m, Status = "Active" },
-        };
+            db.Destinations.AddRange(new[]
+            {
+                new Destination { Name = "Boracay", Region = "Visayas", Category = "Beach", Description = "World-famous white sand beaches and vibrant nightlife on a small island paradise.", ImageUrl = "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80", Status = "Active" },
+                new Destination { Name = "Palawan", Region = "Visayas", Category = "Island", Description = "Unesco-listed underground river and limestone karst lagoons of El Nido and Coron.", ImageUrl = "https://images.unsplash.com/photo-1559128010-7c1ad6e1b6a5?w=800&q=80", Status = "Active" },
+                new Destination { Name = "Tokyo", Region = "Asia", Category = "Urban", Description = "A dazzling fusion of ancient temples, neon skylines, and world-class cuisine.", ImageUrl = "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=800&q=80", Status = "Active" },
+                new Destination { Name = "Kyoto", Region = "Asia", Category = "Cultural", Description = "Historic temples, serene gardens, and geisha districts frozen in time.", ImageUrl = "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&q=80", Status = "Active" },
+                new Destination { Name = "Bali", Region = "Asia", Category = "Island", Description = "Emerald rice terraces, spiritual retreats, and surf-perfect beaches.", ImageUrl = "https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=800&q=80", Status = "Active" },
+                new Destination { Name = "Paris", Region = "Europe", Category = "Urban", Description = "The city of lights — iconic landmarks, art, fashion, and romance.", ImageUrl = "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=800&q=80", Status = "Active" },
+                new Destination { Name = "Santorini", Region = "Europe", Category = "Island", Description = "Whitewashed villages clinging to volcanic cliffs over an azure Aegean sea.", ImageUrl = "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=800&q=80", Status = "Active" },
+                new Destination { Name = "Dubai", Region = "Middle East", Category = "Urban", Description = "Futuristic skyscrapers, desert safaris, and record-breaking attractions.", ImageUrl = "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=800&q=80", Status = "Active" },
+                new Destination { Name = "Queenstown", Region = "Oceania", Category = "Adventure", Description = "The adventure capital of the world, set on the shores of crystal-clear Lake Wakatipu.", ImageUrl = "https://images.unsplash.com/photo-1507699622108-4be3abd695ad?w=800&q=80", Status = "Active" },
+                new Destination { Name = "New York", Region = "North America", Category = "Urban", Description = "The city that never sleeps — Broadway, skyscrapers, and endless energy.", ImageUrl = "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=800&q=80", Status = "Active" },
+            });
+            await db.SaveChangesAsync();
+        }
 
-        db.Customers.AddRange(customers);
-        db.Suppliers.AddRange(suppliers);
-        await db.SaveChangesAsync();
-
-        var packages = new[]
+        // Hotels (10)
+        if (!await db.Hotels.AnyAsync())
         {
-            new Models.Package { Name = "Bali Serenity Escape", Location = "Indonesia", Description = "Seven days of beaches, temples and tranquility in Bali.", Duration = "7D", Price = 74900m, Rating = 4.8m, Reviews = 312, Tag = "Best Seller", Status = "Active", SupplierId = suppliers[0].Id },
-            new Models.Package { Name = "Paris Romance Package", Location = "France", Description = "Five romantic days in the City of Light.", Duration = "5D", Price = 107500m, Rating = 4.9m, Reviews = 487, Tag = "Top Rated", Status = "Active", SupplierId = suppliers[2].Id },
-            new Models.Package { Name = "Tokyo Cultural Immersion", Location = "Japan", Description = "Ten days experiencing Japan's rich culture and cuisine.", Duration = "10D", Price = 142500m, Rating = 4.7m, Reviews = 256, Tag = "Cultural", Status = "Active", SupplierId = suppliers[1].Id },
-            new Models.Package { Name = "Maldives Overwater Villa", Location = "Maldives", Description = "Eight-day luxury escape in an overwater villa.", Duration = "8D", Price = 186000m, Rating = 5.0m, Reviews = 189, Tag = "Luxury", Status = "Active", SupplierId = suppliers[0].Id },
-            new Models.Package { Name = "Swiss Alps Adventure", Location = "Switzerland", Description = "Twelve days of mountain hikes, cable cars and alpine views.", Duration = "12D", Price = 219000m, Rating = 4.6m, Reviews = 142, Tag = "Ultra-Luxury", Status = "Active", SupplierId = suppliers[3].Id },
-            new Models.Package { Name = "New York City Break", Location = "USA", Description = "Four-day city break in the Big Apple.", Duration = "4D", Price = 89900m, Rating = 4.5m, Reviews = 198, Tag = "City Break", Status = "Active", SupplierId = suppliers[5].Id },
-        };
+            db.Hotels.AddRange(new[]
+            {
+                new Hotel { Name = "White Beach Resort Villas", Location = "Boracay", Description = "Beachfront villas minutes from the famous white sand shoreline.", PricePerNight = 8500m, Rating = 4.8m, Reviews = 312, Amenities = "Free Wi-Fi|Pool|Beachfront|Restaurant|Spa", ImageUrl = "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80", Status = "Active", RoomsAvailable = 42 },
+                new Hotel { Name = "Harbor Bay Grand", Location = "Palawan", Description = "Overwater bungalows with panoramic views of the limestone cliffs.", PricePerNight = 12000m, Rating = 4.9m, Reviews = 487, Amenities = "Pool|Spa|Diving|Free Wi-Fi|Bar", ImageUrl = "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=800&q=80", Status = "Active", RoomsAvailable = 65 },
+                new Hotel { Name = "Sakura Garden Hotel", Location = "Tokyo", Description = "Modern comfort in the heart of the city, steps from transit.", PricePerNight = 9800m, Rating = 4.6m, Reviews = 721, Amenities = "Free Wi-Fi|Gym|Restaurant|Concierge|Laundry", ImageUrl = "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&q=80", Status = "Active", RoomsAvailable = 120 },
+                new Hotel { Name = "Kyoto Zen Retreat", Location = "Kyoto", Description = "Traditional ryokan with tatami rooms and a tranquil garden bath.", PricePerNight = 11000m, Rating = 4.9m, Reviews = 268, Amenities = "Onsen|Garden|Tea House|Breakfast|Free Wi-Fi", ImageUrl = "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&q=80", Status = "Active", RoomsAvailable = 18 },
+                new Hotel { Name = "Bali Cliffside Resort", Location = "Bali", Description = "Luxury villas perched over the Indian Ocean with infinity pools.", PricePerNight = 14500m, Rating = 4.7m, Reviews = 356, Amenities = "Infinity Pool|Spa|Restaurant|Yoga|Free Wi-Fi", ImageUrl = "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&q=80", Status = "Active", RoomsAvailable = 54 },
+                new Hotel { Name = "Le Rêve Paris", Location = "Paris", Description = "Elegant boutique hotel near the Champs-Élysées with classic French charm.", PricePerNight = 16800m, Rating = 4.8m, Reviews = 540, Amenities = "Free Wi-Fi|Bar|Concierge|Room Service|Gym", ImageUrl = "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800&q=80", Status = "Active", RoomsAvailable = 38 },
+                new Hotel { Name = "Aegean Blue Suites", Location = "Santorini", Description = "Cave suites with private plunge pools and caldera sunsets.", PricePerNight = 19200m, Rating = 5.0m, Reviews = 419, Amenities = "Plunge Pool|Breakfast|Airport Shuttle|Bar|Free Wi-Fi", ImageUrl = "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80", Status = "Active", RoomsAvailable = 27 },
+                new Hotel { Name = "Skyline Tower Hotel", Location = "Dubai", Description = "Stay high above the city with panoramic views of the Burj Khalifa.", PricePerNight = 13500m, Rating = 4.7m, Reviews = 634, Amenities = "Infinity Pool|Gym|Restaurant|Spa|Free Wi-Fi", ImageUrl = "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&q=80", Status = "Active", RoomsAvailable = 88 },
+                new Hotel { Name = "Lakeview Adventure Lodge", Location = "Queenstown", Description = "Charming lodge overlooking Lake Wakatipu near the ski fields.", PricePerNight = 7200m, Rating = 4.5m, Reviews = 302, Amenities = "Free Wi-Fi|Restaurant|Fireplace|Parking|Bar", ImageUrl = "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80", Status = "Active", RoomsAvailable = 31 },
+                new Hotel { Name = "The Manhattan Grand", Location = "New York", Description = "Iconic midtown hotel with skyline views and luxury amenities.", PricePerNight = 21800m, Rating = 4.6m, Reviews = 893, Amenities = "Gym|Bar|Concierge|Free Wi-Fi|Restaurant", ImageUrl = "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&q=80", Status = "Active", RoomsAvailable = 150 },
+            });
+            await db.SaveChangesAsync();
+        }
 
-        var destinations = new[]
+        // Cars (10)
+        if (!await db.Cars.AnyAsync())
         {
-            new Models.Destination { Name = "Bali, Indonesia", Region = "Southeast Asia", Category = "Beach & Culture", Status = "Featured" },
-            new Models.Destination { Name = "Santorini, Greece", Region = "Europe", Category = "Romance", Status = "Featured" },
-            new Models.Destination { Name = "Tokyo, Japan", Region = "East Asia", Category = "Culture & Food", Status = "Featured" },
-            new Models.Destination { Name = "Maldives", Region = "Indian Ocean", Category = "Luxury", Status = "Featured" },
-            new Models.Destination { Name = "Paris, France", Region = "Europe", Category = "Romance", Status = "Active" },
-            new Models.Destination { Name = "Swiss Alps", Region = "Europe", Category = "Adventure", Status = "Active" },
-            new Models.Destination { Name = "New York, USA", Region = "Americas", Category = "City Break", Status = "Active" },
-        };
+            db.Cars.AddRange(new[]
+            {
+                new Car { Name = "Toyota Vios", Type = "Sedan", Location = "Manila", PricePerDay = 1900m, Transmission = "Automatic", Seats = 5, FuelType = "Gasoline", ImageUrl = "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&q=80", Status = "Active" },
+                new Car { Name = "Honda Civic", Type = "Sedan", Location = "Cebu", PricePerDay = 2200m, Transmission = "Automatic", Seats = 5, FuelType = "Gasoline", ImageUrl = "https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?w=800&q=80", Status = "Active" },
+                new Car { Name = "Toyota Fortuner", Type = "SUV", Location = "Manila", PricePerDay = 3500m, Transmission = "Automatic", Seats = 7, FuelType = "Diesel", ImageUrl = "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=800&q=80", Status = "Active" },
+                new Car { Name = "Mitsubishi Montero", Type = "SUV", Location = "Davao", PricePerDay = 3400m, Transmission = "Automatic", Seats = 7, FuelType = "Diesel", ImageUrl = "https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?w=800&q=80", Status = "Active" },
+                new Car { Name = "Nissan Almera", Type = "Sedan", Location = "Iloilo", PricePerDay = 1700m, Transmission = "Manual", Seats = 5, FuelType = "Gasoline", ImageUrl = "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=800&q=80", Status = "Active" },
+                new Car { Name = "Hyundai Stargazer", Type = "MPV", Location = "Manila", PricePerDay = 3000m, Transmission = "Automatic", Seats = 7, FuelType = "Gasoline", ImageUrl = "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&q=80", Status = "Active" },
+                new Car { Name = "Toyota Hilux", Type = "Pickup", Location = "Baguio", PricePerDay = 3800m, Transmission = "Manual", Seats = 5, FuelType = "Diesel", ImageUrl = "https://images.unsplash.com/photo-1594502184342-2e12f877aa73?w=800&q=80", Status = "Active" },
+                new Car { Name = "Toyota Hiace", Type = "Van", Location = "Cebu", PricePerDay = 4200m, Transmission = "Manual", Seats = 14, FuelType = "Diesel", ImageUrl = "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800&q=80", Status = "Active" },
+                new Car { Name = "Suzuki Jimny", Type = "SUV", Location = "Puerto Princesa", PricePerDay = 2600m, Transmission = "Manual", Seats = 4, FuelType = "Gasoline", ImageUrl = "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=800&q=80", Status = "Active" },
+                new Car { Name = "Hyundai Accent", Type = "Sedan", Location = "Manila", PricePerDay = 1600m, Transmission = "Automatic", Seats = 5, FuelType = "Gasoline", ImageUrl = "https://images.unsplash.com/photo-1494905998402-395d579af36f?w=800&q=80", Status = "Active" },
+            });
+            await db.SaveChangesAsync();
+        }
 
-        var flights = new[]
+        // Deals / Packages (10)
+        if (!await db.Packages.AnyAsync())
         {
-            new Models.Flight { Airline = "Philippine Airlines", FlightNumber = "PR180", DepartureCity = "Manila", ArrivalCity = "Bali", DepartureTime = "09:00", ArrivalTime = "12:30", DepartureDate = "2026-09-15", Price = 12800m, Class = "Economy", SeatsAvailable = 24, Status = "Active", SupplierId = suppliers[4].Id },
-            new Models.Flight { Airline = "Japan Airlines", FlightNumber = "JL724", DepartureCity = "Manila", ArrivalCity = "Tokyo", DepartureTime = "06:45", ArrivalTime = "12:20", DepartureDate = "2026-09-18", Price = 15600m, Class = "Economy", SeatsAvailable = 18, Status = "Active", SupplierId = suppliers[4].Id },
-            new Models.Flight { Airline = "Singapore Airlines", FlightNumber = "SQ891", DepartureCity = "Manila", ArrivalCity = "Singapore", DepartureTime = "18:30", ArrivalTime = "21:45", DepartureDate = "2026-09-20", Price = 9800m, Class = "Economy", SeatsAvailable = 32, Status = "Active", SupplierId = suppliers[4].Id },
-        };
+            db.Packages.AddRange(new[]
+            {
+                new Package { Name = "Boracay Beach Escape", Location = "Boracay, Visayas", Description = "4 days of sun, sand, and island hopping around the Philippines' top beach destination.", Duration = "4D / 3N", Price = 15999m, Rating = 4.8m, Reviews = 210, Tag = "Best Seller", ImageUrl = "https://images.unsplash.com/photo-1519046904884-53103b34b206?w=800&q=80", Status = "Featured", Itinerary = "Day 1: Arrival & White Beach|Day 2: Island Hopping|Day 3: Water Sports & Leisure|Day 4: Departure", Inclusions = "3 nights hotel|Daily breakfast|Island hopping tour|Airport transfers", Exclusions = "Airfare|Meals not mentioned|Personal expenses" },
+                new Package { Name = "Palawan Underground River Tour", Location = "Palawan, Visayas", Description = "Discover the Unesco-listed subterranean river and crystal lagoons of Puerto Princesa.", Duration = "3D / 2N", Price = 12800m, Rating = 4.9m, Reviews = 175, Tag = "WONDER", ImageUrl = "https://images.unsplash.com/photo-1559128010-7c1ad6e1b6a5?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival|Day 2: Underground River|Day 3: Departure", Inclusions = "2 nights hotel|Underground river tour|Breakfast daily|Transfers", Exclusions = "Airfare|Lunch & dinner|Extras" },
+                new Package { Name = "Tokyo City Lights", Location = "Tokyo, Japan", Description = "Explore neon districts, historic temples, and world-class dining in Japan's capital.", Duration = "5D / 4N", Price = 32500m, Rating = 4.7m, Reviews = 340, Tag = "TRENDING", ImageUrl = "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival|Day 2: Asakusa & Shibuya|Day 3: Mount Fuji Day Trip|Day 4: Shopping & Shinjuku|Day 5: Departure", Inclusions = "4 nights hotel|Daily breakfast|Mt. Fuji day tour|Airport transfers", Exclusions = "Airfare|Meals|Travel insurance" },
+                new Package { Name = "Kyoto Cultural Immersion", Location = "Kyoto, Japan", Description = "Step back in time through temples, tea ceremonies, and geisha streets.", Duration = "4D / 3N", Price = 28800m, Rating = 4.9m, Reviews = 150, Tag = "CULTURAL", ImageUrl = "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival|Day 2: Golden Pavilion & Tea Ceremony|Day 3: Fushimi Inari & Gion|Day 4: Departure", Inclusions = "3 nights ryokan|Breakfast daily|Tea ceremony|Public transport pass", Exclusions = "Airfare|Meals|Extras" },
+                new Package { Name = "Bali Honeymoon Paradise", Location = "Bali, Indonesia", Description = "Romantic island getaway with spa treatments and sunset dinners by the sea.", Duration = "6D / 5N", Price = 39600m, Rating = 4.8m, Reviews = 264, Tag = "ROMANTIC", ImageUrl = "https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival|Day 2: Ubud Rice Terraces|Day 3: Spa & Beach Club|Day 4: Nusa Penida|Day 5: Sunset Cruise|Day 6: Departure", Inclusions = "5 nights resort|Daily breakfast|Romance package|Airport transfers", Exclusions = "Airfare|Lunch & dinner|Optional tours" },
+                new Package { Name = "Paris Art & Romance", Location = "Paris, France", Description = "The Eiffel Tower, Louvre, and Seine cruises wrapped in classic Parisian charm.", Duration = "5D / 4N", Price = 47800m, Rating = 4.7m, Reviews = 198, Tag = "LUXURY", ImageUrl = "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival|Day 2: Louvre & Eiffel Tower|Day 3: Versailles|Day 4: Seine Cruise & Montmartre|Day 5: Departure", Inclusions = "4 nights hotel|Daily breakfast|Museum passes|Seine cruise", Exclusions = "Airfare|Meals|Extras" },
+                new Package { Name = "Santorini Sunset Escape", Location = "Santorini, Greece", Description = "Whitewashed cliffs, caldera sunsets, and Aegean island magic.", Duration = "4D / 3N", Price = 42900m, Rating = 4.9m, Reviews = 178, Tag = "ICONIC", ImageUrl = "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival|Day 2: Oia & Fira|Day 3: Volcano & Hot Springs|Day 4: Departure", Inclusions = "3 nights cave hotel|Daily breakfast|Catamaran cruise", Exclusions = "Airfare|Meals|Extras" },
+                new Package { Name = "Dubai Luxury Escape", Location = "Dubai, UAE", Description = "Desert safaris, Burj Khalifa views, and premium city living.", Duration = "4D / 3N", Price = 38500m, Rating = 4.6m, Reviews = 221, Tag = "LUXURY", ImageUrl = "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival|Day 2: Burj Khalifa & City Tour|Day 3: Desert Safari|Day 4: Departure", Inclusions = "3 nights hotel|Daily breakfast|Desert safari|Airport transfers", Exclusions = "Airfare|Meals|Optional tours" },
+                new Package { Name = "Queenstown Adventure Week", Location = "Queenstown, New Zealand", Description = "Thrills, lakes, and landscapes — world-class adventure in the Southern Alps.", Duration = "7D / 6N", Price = 51200m, Rating = 4.8m, Reviews = 143, Tag = "ADVENTURE", ImageUrl = "https://images.unsplash.com/photo-1507699622108-4be3abd695ad?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival|Day 2: Lake Cruise|Day 3: Bungy & Jet Boating|Day 4: Milford Sound|Day 5: Ski Day|Day 6: Freedom Day|Day 7: Departure", Inclusions = "6 nights lodge|Daily breakfast|Milford Sound tour|Adventure pass", Exclusions = "Airfare|Meals|Gear rental" },
+                new Package { Name = "New York City Break", Location = "New York, USA", Description = "Broadway, Central Park, and the bustling energy of Manhattan.", Duration = "5D / 4N", Price = 46800m, Rating = 4.6m, Reviews = 290, Tag = "URBAN", ImageUrl = "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival|Day 2: Central Park & Times Square|Day 3: Statue of Liberty|Day 4: Broadway Show|Day 5: Departure", Inclusions = "4 nights hotel|Broadway ticket|Liberty cruise|City passes", Exclusions = "Airfare|Meals|Extras" },
+            });
+            await db.SaveChangesAsync();
+        }
 
-        var hotels = new[]
+        // Flights (10)
+        if (!await db.Flights.AnyAsync())
         {
-            new Models.Hotel { Name = "Ayana Resort Bali", Location = "Bali, Indonesia", Description = "Clifftop luxury resort with ocean views.", PricePerNight = 12500m, Rating = 4.9m, Reviews = 1500, Status = "Active", RoomsAvailable = 42, SupplierId = suppliers[0].Id },
-            new Models.Hotel { Name = "Le Meurice Paris", Location = "Paris, France", Description = "Palace hotel steps from the Louvre.", PricePerNight = 18500m, Rating = 4.8m, Reviews = 900, Status = "Active", RoomsAvailable = 12, SupplierId = suppliers[2].Id },
-            new Models.Hotel { Name = "Marina Bay Sands", Location = "Singapore", Description = "Iconic infinity pool overlooking the bay.", PricePerNight = 22000m, Rating = 4.7m, Reviews = 3200, Status = "Active", RoomsAvailable = 28, SupplierId = suppliers[5].Id },
-        };
+            db.Flights.AddRange(new[]
+            {
+                new Flight { Airline = "Philippine Airlines", FlightNumber = "PR 102", DepartureCity = "Manila", ArrivalCity = "Cebu", DepartureTime = "07:00", ArrivalTime = "08:15", DepartureDate = "2026-09-15", Price = 4200m, Class = "Economy", SeatsAvailable = 120, ImageUrl = "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&q=80", Status = "Active" },
+                new Flight { Airline = "Cebu Pacific", FlightNumber = "5J 501", DepartureCity = "Manila", ArrivalCity = "Boracay", DepartureTime = "09:30", ArrivalTime = "10:40", DepartureDate = "2026-09-16", Price = 3800m, Class = "Economy", SeatsAvailable = 150, ImageUrl = "https://images.unsplash.com/photo-1540339832862-474599807a5e?w=800&q=80", Status = "Active" },
+                new Flight { Airline = "PAL Express", FlightNumber = "2P 210", DepartureCity = "Manila", ArrivalCity = "Puerto Princesa", DepartureTime = "11:00", ArrivalTime = "12:30", DepartureDate = "2026-09-17", Price = 4600m, Class = "Economy", SeatsAvailable = 130, ImageUrl = "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&q=80", Status = "Active" },
+                new Flight { Airline = "ANA", FlightNumber = "NH 818", DepartureCity = "Manila", ArrivalCity = "Tokyo", DepartureTime = "20:15", ArrivalTime = "02:00", DepartureDate = "2026-09-18", Price = 28500m, Class = "Economy", SeatsAvailable = 90, ImageUrl = "https://images.unsplash.com/photo-1558389186-4386d1bea007?w=800&q=80", Status = "Active" },
+                new Flight { Airline = "Japan Airlines", FlightNumber = "JL 742", DepartureCity = "Manila", ArrivalCity = "Osaka", DepartureTime = "13:30", ArrivalTime = "21:00", DepartureDate = "2026-09-19", Price = 31000m, Class = "Economy", SeatsAvailable = 110, ImageUrl = "https://images.unsplash.com/photo-1558389186-4386d1bea007?w=800&q=80", Status = "Active" },
+                new Flight { Airline = "Singapore Airlines", FlightNumber = "SQ 921", DepartureCity = "Manila", ArrivalCity = "Singapore", DepartureTime = "16:00", ArrivalTime = "19:45", DepartureDate = "2026-09-20", Price = 24000m, Class = "Business", SeatsAvailable = 45, ImageUrl = "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&q=80", Status = "Active" },
+                new Flight { Airline = "Emirates", FlightNumber = "EK 335", DepartureCity = "Manila", ArrivalCity = "Dubai", DepartureTime = "22:45", ArrivalTime = "04:30", DepartureDate = "2026-09-21", Price = 46000m, Class = "Economy", SeatsAvailable = 150, ImageUrl = "https://images.unsplash.com/photo-1540339832862-474599807a5e?w=800&q=80", Status = "Active" },
+                new Flight { Airline = "KLM", FlightNumber = "KL 806", DepartureCity = "Manila", ArrivalCity = "Amsterdam", DepartureTime = "01:30", ArrivalTime = "09:15", DepartureDate = "2026-09-22", Price = 58000m, Class = "Economy", SeatsAvailable = 160, ImageUrl = "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&q=80", Status = "Active" },
+                new Flight { Airline = "Qantas", FlightNumber = "QF 20", DepartureCity = "Manila", ArrivalCity = "Sydney", DepartureTime = "08:45", ArrivalTime = "19:30", DepartureDate = "2026-09-23", Price = 52000m, Class = "Economy", SeatsAvailable = 140, ImageUrl = "https://images.unsplash.com/photo-1540339832862-474599807a5e?w=800&q=80", Status = "Active" },
+                new Flight { Airline = "Delta", FlightNumber = "DL 440", DepartureCity = "Manila", ArrivalCity = "New York", DepartureTime = "23:55", ArrivalTime = "11:00", DepartureDate = "2026-09-24", Price = 82000m, Class = "Business", SeatsAvailable = 40, ImageUrl = "https://images.unsplash.com/photo-1540339832862-474599807a5e?w=800&q=80", Status = "Active" },
+            });
+            await db.SaveChangesAsync();
+        }
 
-        var cars = new[]
+        // Activities / Services (10)
+        if (!await db.Activities.AnyAsync())
         {
-            new Models.Car { Name = "Toyota Vios", Type = "Sedan", Location = "Manila", PricePerDay = 2800m, Transmission = "Automatic", Seats = 5, FuelType = "Gasoline", Status = "Active", SupplierId = suppliers[1].Id },
-            new Models.Car { Name = "Honda CR-V", Type = "SUV", Location = "Manila", PricePerDay = 4200m, Transmission = "Automatic", Seats = 7, FuelType = "Gasoline", Status = "Active", SupplierId = suppliers[1].Id },
-            new Models.Car { Name = "Toyota Hiace", Type = "Van", Location = "Cebu", PricePerDay = 5500m, Transmission = "Manual", Seats = 12, FuelType = "Diesel", Status = "Active", SupplierId = suppliers[1].Id },
-        };
-
-        var activities = new[]
-        {
-            new Models.Activity { Name = "Boracay Island Hopping", Location = "Boracay", Description = "Explore crystal-clear waters and white sand beaches.", Price = 3500m, Duration = "6 hours", Rating = 4.8m, Reviews = 420, Status = "Active", SupplierId = suppliers[3].Id },
-            new Models.Activity { Name = "Taal Volcano Trek", Location = "Batangas", Description = "Hike to the crater of an active volcano.", Price = 2500m, Duration = "5 hours", Rating = 4.6m, Reviews = 310, Status = "Active", SupplierId = suppliers[3].Id },
-            new Models.Activity { Name = "Cebu Canyoneering", Location = "Cebu", Description = "Canyon jump and swim through turquoise pools.", Price = 2800m, Duration = "7 hours", Rating = 4.9m, Reviews = 540, Status = "Active", SupplierId = suppliers[3].Id },
-        };
-
-        var promotions = new[]
-        {
-            new Models.Promotion { Code = "SUMMER26", CampaignName = "Summer Sale 2026", Discount = 20m, DiscountType = "Percent", MaxUses = 500, UsedCount = 142, ExpiresAt = "2026-08-31", Status = "Active" },
-            new Models.Promotion { Code = "WELCOME50", CampaignName = "New Member Discount", Discount = 2900m, DiscountType = "Fixed", MaxUses = 1000, UsedCount = 89, ExpiresAt = "2026-12-31", Status = "Active" },
-            new Models.Promotion { Code = "BALI15", CampaignName = "Bali Special Offer", Discount = 15m, DiscountType = "Percent", MaxUses = 100, UsedCount = 37, ExpiresAt = "2026-09-15", Status = "Active" },
-        };
-
-        var leads = new[]
-        {
-            new Models.Lead { Name = "Carlos Reyes", Email = "carlos@email.com", Phone = "+63 912 345 6789", Interest = "Bali Package", Stage = "Qualified", AssignedTo = "Jordan Lee", LastContact = "2026-08-10" },
-            new Models.Lead { Name = "Yuki Sato", Email = "yuki@email.com", Phone = "+81 90 3456 7890", Interest = "Japan Tours", Stage = "Proposal", AssignedTo = "Jordan Lee", LastContact = "2026-08-12" },
-            new Models.Lead { Name = "Emma Wilson", Email = "emma@email.com", Phone = "+44 7700 123 456", Interest = "Maldives Retreat", Stage = "New", AssignedTo = "Alex Rivera", LastContact = "2026-08-14" },
-        };
-
-        var inquiries = new[]
-        {
-            new Models.Inquiry { CustomerName = "Maria Santos", CustomerEmail = "maria@gmail.com", Subject = "Flight booking change", Category = "Flight", Message = "Can I change my connecting flight?", Status = "Replied", Reply = "Yes, please provide your booking reference." },
-            new Models.Inquiry { CustomerName = "James Tan", CustomerEmail = "james@gmail.com", Subject = "Payment not processed", Category = "Payment", Message = "My card was charged but booking not confirmed.", Status = "Pending" },
-            new Models.Inquiry { CustomerName = "Sarah Chen", CustomerEmail = "sarah@gmail.com", Subject = "Hotel upgrade available?", Category = "Hotel", Message = "Is there an upgrade option for Ayana Resort?", Status = "Pending" },
-        };
-
-        var bookings = new[]
-        {
-            new Models.Booking { ReferenceNumber = "TC-BK-0047", CustomerName = "Maria Santos", CustomerEmail = "maria@gmail.com", CustomerPhone = "+63 917 123 4567", PackageId = 1, PackageName = "Bali Serenity Escape", Location = "Bali, Indonesia", StartDate = "2026-09-15", EndDate = "2026-09-22", Travellers = 2, Subtotal = 149800m, TotalAmount = 149800m, Status = "Upcoming", Paid = true, PaymentMethod = "Card" },
-            new Models.Booking { ReferenceNumber = "TC-BK-0031", CustomerName = "James Tan", CustomerEmail = "james@gmail.com", CustomerPhone = "+65 9123 4567", PackageId = 2, PackageName = "Paris Romance Package", Location = "Paris, France", StartDate = "2026-03-10", EndDate = "2026-03-15", Travellers = 2, Subtotal = 215000m, TotalAmount = 215000m, Status = "Completed", Paid = true, PaymentMethod = "PayPal" },
-            new Models.Booking { ReferenceNumber = "TC-BK-0019", CustomerName = "Priya Nair", CustomerEmail = "priya@gmail.com", CustomerPhone = "+91 982 345 6789", PackageId = 3, PackageName = "Tokyo Cultural Immersion", Location = "Tokyo, Japan", StartDate = "2025-11-05", EndDate = "2025-11-15", Travellers = 1, Subtotal = 142500m, TotalAmount = 142500m, Status = "Completed", Paid = true, PaymentMethod = "Card" },
-            new Models.Booking { ReferenceNumber = "TC-BK-0055", CustomerName = "Sarah Chen", CustomerEmail = "sarah@gmail.com", CustomerPhone = "+1 555 123 4567", PackageId = 4, PackageName = "Maldives Overwater Villa", Location = "Maldives", StartDate = "2025-12-20", EndDate = "2025-12-28", Travellers = 2, Subtotal = 372000m, TotalAmount = 372000m, Status = "Cancelled", Paid = false, PaymentMethod = "Bank" },
-        };
-
-        db.Packages.AddRange(packages);
-        db.Destinations.AddRange(destinations);
-        db.Flights.AddRange(flights);
-        db.Hotels.AddRange(hotels);
-        db.Cars.AddRange(cars);
-        db.Activities.AddRange(activities);
-        db.Promotions.AddRange(promotions);
-        db.Leads.AddRange(leads);
-        db.Inquiries.AddRange(inquiries);
-        db.Bookings.AddRange(bookings);
-        await db.SaveChangesAsync();
-
-        var payments = new[]
-        {
-            new Models.Payment { ReferenceId = "PAY-001", BookingId = bookings[0].Id, CustomerName = "Maria Santos", PackageName = "Bali Serenity Escape", Amount = 74900m, Method = "Card", Status = "Paid", PaymentDate = "2026-07-01" },
-            new Models.Payment { ReferenceId = "PAY-002", BookingId = bookings[1].Id, CustomerName = "Marcus Okoye", PackageName = "Paris Romance Package", Amount = 107500m, Method = "PayPal", Status = "Paid", PaymentDate = "2026-07-03" },
-            new Models.Payment { ReferenceId = "PAY-003", BookingId = bookings[2].Id, CustomerName = "Priya Nair", PackageName = "Tokyo Cultural Immersion", Amount = 142500m, Method = "Card", Status = "Partial", PaymentDate = "2026-07-05" },
-        };
-
-        var systemUsers = new[]
-        {
-            new Models.SystemUser { FirebaseUid = "", Email = "superadmin@travelconnect.com", DisplayName = "Juan Dela Cruz", Phone = "+63 917 123 4567", Role = "Super Admin", Department = "Administration", Status = "Active" },
-            new Models.SystemUser { FirebaseUid = "", Email = "admin@travelconnect.com", DisplayName = "Maria Santos", Phone = "+63 918 234 5678", Role = "Agency Staff", Department = "Operations", Status = "Active" },
-            new Models.SystemUser { FirebaseUid = "", Email = "finance@travelconnect.com", DisplayName = "Pedro Reyes", Phone = "+63 919 345 6789", Role = "Finance Staff", Department = "Finance", Status = "Active" },
-            new Models.SystemUser { FirebaseUid = "", Email = "supplier@travelconnect.com", DisplayName = "Ana Garcia", Phone = "+63 920 456 7890", Role = "Supplier", Department = "Supply Chain", Status = "Active" },
-        };
-
-        db.Payments.AddRange(payments);
-        db.SystemUsers.AddRange(systemUsers);
-        await db.SaveChangesAsync();
+            db.Activities.AddRange(new[]
+            {
+                new Activity { Name = "Island Hopping Tour", Location = "Boracay", Description = "Jump between white sand beaches and snorkeling spots across the island chain.", Price = 1800m, Duration = "8 Hours", Rating = 4.8m, Reviews = 245, ImageUrl = "https://images.unsplash.com/photo-1559128010-7c1ad6e1b6a5?w=800&q=80", Status = "Active" },
+                new Activity { Name = "Underground River Tour", Location = "Puerto Princesa", Description = "Boat ride through the Unesco-listed subterranean river cave system.", Price = 2200m, Duration = "4 Hours", Rating = 4.9m, Reviews = 312, ImageUrl = "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80", Status = "Active" },
+                new Activity { Name = "Mount Fuji Day Trip", Location = "Tokyo", Description = "Full-day guided excursion to the iconic summit and surrounding lakes.", Price = 6800m, Duration = "12 Hours", Rating = 4.7m, Reviews = 180, ImageUrl = "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&q=80", Status = "Active" },
+                new Activity { Name = "Traditional Tea Ceremony", Location = "Kyoto", Description = "Authentic Japanese tea ceremony led by a certified tea master.", Price = 2500m, Duration = "1.5 Hours", Rating = 4.9m, Reviews = 150, ImageUrl = "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&q=80", Status = "Active" },
+                new Activity { Name = "Bali Spa Retreat", Location = "Bali", Description = "Full-body traditional massage in a serene jungle-side spa.", Price = 3200m, Duration = "3 Hours", Rating = 4.8m, Reviews = 220, ImageUrl = "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&q=80", Status = "Active" },
+                new Activity { Name = "Seine River Cruise", Location = "Paris", Description = "Evening illuminated cruise past the Eiffel Tower and Notre-Dame.", Price = 4500m, Duration = "1 Hour", Rating = 4.6m, Reviews = 410, ImageUrl = "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=800&q=80", Status = "Active" },
+                new Activity { Name = "Caldera Sunset Cruise", Location = "Santorini", Description = "Catamaran sailing with dinner and sunset views over the Aegean.", Price = 9800m, Duration = "4 Hours", Rating = 5.0m, Reviews = 175, ImageUrl = "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=800&q=80", Status = "Active" },
+                new Activity { Name = "Desert Safari", Location = "Dubai", Description = "Dune bashing, camel rides, and BBQ dinner in the golden desert.", Price = 5200m, Duration = "6 Hours", Rating = 4.7m, Reviews = 389, ImageUrl = "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=800&q=80", Status = "Active" },
+                new Activity { Name = "Milford Sound Cruise", Location = "Queenstown", Description = "Scenic one-day coach and boat journey through the dramatic fjord.", Price = 7500m, Duration = "12 Hours", Rating = 4.9m, Reviews = 198, ImageUrl = "https://images.unsplash.com/photo-1507699622108-4be3abd695ad?w=800&q=80", Status = "Active" },
+                new Activity { Name = "Statue of Liberty Cruise", Location = "New York", Description = "Harbor cruise with panoramic views of Lower Manhattan and Lady Liberty.", Price = 2800m, Duration = "2 Hours", Rating = 4.6m, Reviews = 520, ImageUrl = "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=800&q=80", Status = "Active" },
+            });
+            await db.SaveChangesAsync();
+        }
     }
 }

@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Car, CheckCircle2, Fuel, Users, Gauge, Filter, Eye
+  Car, Fuel, Users, Gauge, Filter, Eye
 } from "lucide-react";
 import { useBooking } from "../context/BookingContext";
 import PageHeroCarousel from "../components/shared/PageHeroCarousel";
-import { CARS, toCarBooking } from "../data/carsData";
+import { carsApi } from "../services/api";
 
 const CAR_HERO_SLIDES = [
   {
@@ -26,13 +26,35 @@ const CAR_HERO_SLIDES = [
   },
 ];
 
+const toCarBooking = (car, days = 3) => ({
+  id: `CAR-${car.id}`,
+  name: `${car.name} Rental (${car.type})`,
+  location: car.location,
+  price: Number(car.pricePerDay || 0) * days,
+  duration: `${days} Days Rental`,
+  img: car.imageUrl,
+  category: "car",
+});
+
+const TYPE_FILTERS = ["All", "SUV", "Sedan", "Van", "Convertible", "MPV"];
+
 export default function Cars() {
   const navigate = useNavigate();
   const { openCheckoutModal } = useBooking();
   const [selectedType, setSelectedType] = useState("All");
+  const [cars, setCars] = useState([]);
 
-  const filteredCars = CARS.filter(
-    (car) => selectedType === "All" || car.type.includes(selectedType)
+  useEffect(() => {
+    let active = true;
+    carsApi
+      .list()
+      .then((data) => { if (active) setCars(Array.isArray(data) ? data : []); })
+      .catch(() => { if (active) setCars([]); });
+    return () => { active = false; };
+  }, []);
+
+  const filteredCars = cars.filter(
+    (car) => selectedType === "All" || (car.type || "").toLowerCase().includes(selectedType.toLowerCase())
   );
 
   return (
@@ -44,20 +66,19 @@ export default function Cars() {
           </span>
           <h1 className="text-4xl sm:text-5xl font-black drop-shadow-md">Explore with Total Freedom</h1>
           <p className="text-slate-200 text-sm max-w-xl mx-auto drop-shadow">
-            Rent premium SUVs, family vans, compact sedans, and luxury convertibles across major airports and tourist spots in the Philippines.
+            Rent premium SUVs, family vans, compact sedans, and luxury convertibles across major airports and tourist spots.
           </p>
 
           <div className="max-w-2xl mx-auto bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/20 flex flex-wrap items-center justify-center gap-2 text-xs text-white">
             <span className="font-bold flex items-center gap-1"><Filter size={14} /> Car Class:</span>
-            {["All", "SUV", "Van", "Convertible", "Sedan"].map((t) => (
+            {TYPE_FILTERS.map((t) => (
               <button
                 key={t}
                 onClick={() => setSelectedType(t)}
-                className={`px-3 py-1.5 rounded-xl font-bold transition ${
-                  selectedType === t
+                className={`px-3 py-1.5 rounded-xl font-bold transition ${selectedType === t
                     ? "bg-[#008fe5] text-white shadow-md"
                     : "bg-white/10 hover:bg-white/20 text-slate-200"
-                }`}
+                  }`}
               >
                 {t}
               </button>
@@ -74,76 +95,75 @@ export default function Cars() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCars.map((car) => (
-            <div
-              key={car.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => navigate(`/cars/${car.id}`)}
-              onKeyDown={(e) => e.key === "Enter" && navigate(`/cars/${car.id}`)}
-              className="bg-white rounded-3xl overflow-hidden border border-slate-200/80 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between cursor-pointer group"
-            >
-              <div>
-                <div className="relative h-48 overflow-hidden bg-slate-100">
-                  <img
-                    src={car.img}
-                    alt={car.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <span className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md text-white text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">
-                    {car.badge}
-                  </span>
-                </div>
-
-                <div className="p-5 space-y-3">
-                  <h3 className="font-extrabold text-slate-900 text-lg leading-tight group-hover:text-[#008fe5] transition-colors">
-                    {car.name}
-                  </h3>
-
-                  <div className="flex items-center gap-4 text-xs text-slate-500 font-semibold border-b border-slate-100 pb-3">
-                    <span className="flex items-center gap-1"><Users size={14} className="text-[#008fe5]" /> {car.seats} Seats</span>
-                    <span className="flex items-center gap-1"><Gauge size={14} className="text-[#008fe5]" /> {car.transmission}</span>
-                    <span className="flex items-center gap-1"><Fuel size={14} className="text-[#008fe5]" /> {car.fuel}</span>
-                  </div>
-
-                  <div className="space-y-1 pt-1">
-                    {car.inclusions.map((inc) => (
-                      <div key={inc} className="text-[11px] text-slate-600 font-medium flex items-center gap-1.5">
-                        <CheckCircle2 size={12} className="text-emerald-500 shrink-0" /> {inc}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-5 pt-0 border-t border-slate-100 flex items-end justify-between mt-4 gap-2">
+        {filteredCars.length === 0 ? (
+          <div className="text-center py-20 text-slate-400 text-lg font-medium">
+            No vehicles available yet.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredCars.map((car) => (
+              <div
+                key={car.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate(`/cars/${car.id}`)}
+                onKeyDown={(e) => e.key === "Enter" && navigate(`/cars/${car.id}`)}
+                className="bg-white rounded-3xl overflow-hidden border border-slate-200/80 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between cursor-pointer group"
+              >
                 <div>
-                  <span className="text-[11px] text-slate-400 line-through">₱{car.originalRate.toLocaleString()}</span>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-black text-slate-900">₱{car.dailyRate.toLocaleString()}</span>
-                    <span className="text-[11px] text-slate-500 font-semibold">/ day</span>
+                  <div className="relative h-48 overflow-hidden bg-slate-100">
+                    <img
+                      src={car.imageUrl || "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80"}
+                      alt={car.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <span className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md text-white text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">
+                      {car.type || "Rental"}
+                    </span>
+                  </div>
+
+                  <div className="p-5 space-y-3">
+                    <h3 className="font-extrabold text-slate-900 text-lg leading-tight group-hover:text-[#008fe5] transition-colors">
+                      {car.name}
+                    </h3>
+
+                    <div className="flex items-center gap-4 text-xs text-slate-500 font-semibold border-b border-slate-100 pb-3">
+                      <span className="flex items-center gap-1"><Users size={14} className="text-[#008fe5]" /> {car.seats} Seats</span>
+                      <span className="flex items-center gap-1"><Gauge size={14} className="text-[#008fe5]" /> {car.transmission}</span>
+                      <span className="flex items-center gap-1"><Fuel size={14} className="text-[#008fe5]" /> {car.fuelType}</span>
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 font-medium">{car.location}</p>
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); navigate(`/cars/${car.id}`); }}
-                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold px-3 py-2.5 rounded-xl text-xs transition flex items-center gap-1"
-                  >
-                    <Eye size={14} /> Details
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); openCheckoutModal(toCarBooking(car)); }}
-                    className="bg-[#008fe5] hover:bg-blue-600 text-white font-extrabold px-4 py-2.5 rounded-xl shadow-md text-xs hover:-translate-y-0.5 transition"
-                  >
-                    Rent
-                  </button>
+                <div className="p-5 pt-0 border-t border-slate-100 flex items-end justify-between mt-4 gap-2">
+                  <div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-2xl font-black text-slate-900">₱{Number(car.pricePerDay || 0).toLocaleString()}</span>
+                      <span className="text-[11px] text-slate-500 font-semibold">/ day</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigate(`/cars/${car.id}`); }}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold px-3 py-2.5 rounded-xl text-xs transition flex items-center gap-1"
+                    >
+                      <Eye size={14} /> Details
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); openCheckoutModal(toCarBooking(car)); }}
+                      className="bg-[#008fe5] hover:bg-blue-600 text-white font-extrabold px-4 py-2.5 rounded-xl shadow-md text-xs hover:-translate-y-0.5 transition"
+                    >
+                      Rent
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

@@ -31,6 +31,7 @@ app.UseCors("ReactPolicy");
 
 app.MapControllers();
 
-await app.InitializeDatabaseAsync();
+var reseed = args.Contains("--reseed");
+await app.InitializeDatabaseAsync(reseed);
 
 app.Run();

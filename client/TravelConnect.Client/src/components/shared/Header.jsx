@@ -88,12 +88,6 @@ export default function Header() {
               <span>Customer support</span>
             </button>
 
-            {/* Coins / Rewards balance */}
-            <div className="flex items-center gap-1 bg-slate-800/80 px-2.5 py-1 rounded-full text-amber-400 font-bold text-xs border border-slate-700">
-              <Coins size={14} className="fill-amber-400 text-amber-400" />
-              <span>0</span>
-            </div>
-
             {/* User Profile Avatar Button */}
             <div className="relative" ref={dropdownRef}>
               {isLoggedIn ? (
@@ -147,14 +141,6 @@ export default function Header() {
                           <p className="font-extrabold text-slate-900 text-sm leading-tight truncate max-w-[150px]">
                             {userName}
                           </p>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <span className="bg-blue-100/80 text-[#008fe5] text-[10px] font-extrabold px-2 py-0.5 rounded border border-blue-200/60 flex items-center gap-1">
-                              <ShieldCheck size={10} /> Silver
-                            </span>
-                            <span className="text-[11px] text-slate-500 font-semibold flex items-center gap-0.5">
-                              <Coins size={11} className="text-amber-500 fill-amber-500" /> 0 (≈ PHP 0)
-                            </span>
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -226,8 +212,8 @@ export default function Header() {
       {/* ── Main Navbar ──────────────────────────────────────────────────────── */}
       <nav
         className={`w-full transition-all duration-300 border-b border-slate-100 ${isScrolled
-            ? "sticky top-0 bg-white/95 backdrop-blur-md shadow-md py-3"
-            : "bg-white py-3.5"
+          ? "sticky top-0 bg-white/95 backdrop-blur-md shadow-md py-3"
+          : "bg-white py-3.5"
           }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">

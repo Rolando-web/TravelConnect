@@ -138,16 +138,15 @@ export default function SearchCard() {
       {/* ─── Main Tabs ─────────────────────────────────────────────── */}
       <div className="flex items-center gap-4 pb-4 mb-6 border-b border-gray-100 overflow-x-auto scrollbar-none">
         {[
-          { id: "flights",      label: "Flights",        Icon: Plane },
+          { id: "flights", label: "Flights", Icon: Plane },
           { id: "flight-hotel", label: "Flight + Hotel", Icon: Hotel },
-          { id: "cars",         label: "Car Rental",     Icon: Car },
+          { id: "cars", label: "Car Rental", Icon: Car },
         ].map(({ id, label, Icon }) => (
           <button
             key={id}
             onClick={() => setSearchTab(id)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition whitespace-nowrap ${
-              searchTab === id ? "bg-blue-50 text-[#008fe5]" : "text-gray-500 hover:text-gray-900"
-            }`}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition whitespace-nowrap ${searchTab === id ? "bg-blue-50 text-[#008fe5]" : "text-gray-500 hover:text-gray-900"
+              }`}
           >
             <Icon size={16} /> {label}
           </button>
@@ -182,9 +181,9 @@ export default function SearchCard() {
             </button>
             {showTravelers && (
               <TravelersPopover
-                adults={adults}        setAdults={setAdults}
-                children={children}    setChildren={setChildren}
-                infants={infants}      setInfants={setInfants}
+                adults={adults} setAdults={setAdults}
+                children={children} setChildren={setChildren}
+                infants={infants} setInfants={setInfants}
                 cabinClass={cabinClass} setCabinClass={setCabinClass}
                 onClose={() => setShowTravelers(false)}
               />

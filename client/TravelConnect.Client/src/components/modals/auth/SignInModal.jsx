@@ -73,13 +73,11 @@ export default function SignInModal() {
       const result = await loginWithGoogle();
       if (ADMIN_ROLES.includes(result.role)) {
         navigate("/admin", { replace: true });
-      }
-    } catch (err) {
-      if (err.message === "ACCOUNT_NOT_FOUND") {
-        setError("No account found. Please contact your administrator.");
       } else {
-        setError("Google sign-in failed. Please try again.");
+        navigate("/bookings", { replace: true });
       }
+    } catch {
+      setError("Google sign-in failed. Please try again.");
     } finally {
       setLoading(false);
     }
