@@ -2,7 +2,9 @@ import Hero from "../components/home/Hero";
 import Stats from "../components/home/Stats";
 import WhyChooseUs from "../components/home/WhyChooseUs";
 import FeaturedPackages from "../components/home/FeaturedPackages";
+import SignatureExperiences from "../components/home/SignatureExperiences";
 import PopularDestinations from "../components/home/PopularDestinations";
+import TravelGallery from "../components/home/TravelGallery";
 import JourneySection from "../components/home/JourneySection";
 import Testimonials from "../components/home/Testimonials";
 import FAQ from "../components/home/FAQ";
@@ -20,23 +22,30 @@ export default function Home() {
       {/* 3. Grid outlining values/why choose us */}
       <WhyChooseUs />
 
-      {/* 4. Grid detailing Romantic Paris, Tokyo, NY packages */}
+      {/* 4. Complete Vacation Bundles with rich info-dense offer cards */}
       <FeaturedPackages />
 
-      {/* 5. Popular destinations with overlays */}
+      {/* 5. Asymmetric Bento Grid of Signature Luxury Experiences */}
+      <SignatureExperiences />
+
+      {/* 6. Trending destinations with magazine-style masonry layout */}
       <PopularDestinations />
 
-      {/* 6. Columns highlighting company statistics and visual image grid collage */}
+      {/* 7. Scattered photo mosaic gallery: Moments Around the World */}
+      <TravelGallery />
+
+      {/* 8. Columns highlighting company statistics and visual image grid collage */}
       <JourneySection />
 
-      {/* 7. Client testimonials column split layout */}
+      {/* 9. Client testimonials column split layout */}
       <Testimonials />
 
-      {/* 8. Frequently Asked Questions interactive accordions */}
+      {/* 10. Frequently Asked Questions interactive accordions */}
       <FAQ />
 
-      {/* 9. Bottom call to action banner */}
+      {/* 11. Immersive scenic call to action and VIP subscription banner */}
       <CTA />
     </div>
   );
 }
+

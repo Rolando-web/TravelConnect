@@ -173,7 +173,7 @@ function BookingCard({ booking, onViewDetails, onRequestCancel }) {
 ═══════════════════════════════════════════════════════════════════════ */
 function BookingsDashboard() {
   const { user } = useAuth();
-  const { bookings, cancelBookingTransaction, openBookingDetailsModal } = useBooking();
+  const { bookings, cancelBookingTransaction, openBookingDetailsModal, walletBalance } = useBooking();
   const [activeTab, setActiveTab] = useState("upcoming");
   
   // Quick cancel & refund modal state
@@ -200,7 +200,8 @@ function BookingsDashboard() {
       setRefundSuccessData({
         ...cancelModalBooking,
         refundReference: res.refundReference,
-        refundAmount: cancelModalBooking.amount || cancelModalBooking.totalAmount || 0,
+        refundAmount: res.refundAmount || cancelModalBooking.amount || cancelModalBooking.totalAmount || 0,
+        newWalletBalance: res.newWalletBalance,
       });
       setCancelModalBooking(null);
     } catch {
@@ -416,12 +417,12 @@ function BookingsDashboard() {
                 Refund Processed Successfully
               </span>
               <h3 className="text-xl font-black text-slate-900 mt-2">
-                ₱{(refundSuccessData.refundAmount || 0).toLocaleString()} refunded to your{" "}
-                <span className="text-emerald-600">{(refundSuccessData.paymentMethod || "GCASH").toUpperCase()}</span> account.
+                ₱{(refundSuccessData.refundAmount || 0).toLocaleString()} credited to your{" "}
+                <span className="text-amber-600">TravelConnect Money</span> wallet.
               </h3>
               <p className="text-xs text-slate-500 mt-2 leading-relaxed">
                 {refundSuccessData.name || refundSuccessData.packageName || "Your booking"} has been cancelled
-                and your refund is on its way.
+                and the refund has been added to your TravelConnect Money balance.
               </p>
             </div>
 
@@ -429,6 +430,14 @@ function BookingsDashboard() {
               <div className="flex items-center justify-between">
                 <span className="font-bold">Refund Reference:</span>
                 <span className="font-mono font-black">{refundSuccessData.refundReference || "RFND-PROCESSED"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-bold">Credited Amount:</span>
+                <span className="font-black text-emerald-600">PHP {(refundSuccessData.refundAmount || 0).toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-bold">New Wallet Balance:</span>
+                <span className="font-black text-emerald-600">PHP {(refundSuccessData.newWalletBalance ?? walletBalance ?? 0).toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="font-bold">Status:</span>

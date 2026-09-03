@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { hotelsApi } from "../services/api";
 import { useBooking } from "../context/BookingContext";
+import FavoriteButton from "../components/shared/FavoriteButton";
 
 const NIGHTS = 3;
 
@@ -109,6 +110,13 @@ export default function HotelDetails() {
                 {hotel.name}
               </h1>
 
+              <div className="flex items-center gap-3">
+                <FavoriteButton type="hotel" item={hotel} className="w-11 h-11" />
+                <span className="text-xs text-slate-300 font-medium">
+                  Save to your favorites to build your dream stay list
+                </span>
+              </div>
+
               <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-slate-200 font-medium">
                 <span className="flex items-center gap-1 text-amber-400 font-bold">
                   <Star size={16} className="fill-amber-400" /> {Number(hotel.rating || 0).toFixed(1)} ({hotel.reviews || 0} reviews)
@@ -191,6 +199,22 @@ export default function HotelDetails() {
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* What's included in your stay */}
+            <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/80 space-y-5">
+              <h2 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
+                <ShieldCheck size={24} className="text-[#008fe5]" /> What's Included in Your Stay
+              </h2>
+              <ul className="space-y-3 text-sm text-slate-600">
+                <li className="flex items-start gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" /> Room for <strong className="text-slate-800">{NIGHTS} nights</strong> at {hotel.name}</li>
+                <li className="flex items-start gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" /> Complimentary Wi-Fi and all amenities listed above</li>
+                <li className="flex items-start gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" /> Daily housekeeping and fresh towels</li>
+                <li className="flex items-start gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" /> Free cancellation up to 48 hours before check-in — full refund</li>
+                <li className="flex items-start gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" /> Check-in from 2:00 PM · Check-out by 12:00 NN</li>
+                <li className="flex items-start gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" /> {hotel.reviews || 0}+ verified guest reviews with a {Number(hotel.rating || 0).toFixed(1)}-star rating</li>
+                <li className="flex items-start gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" /> <strong className="text-slate-800">{hotel.roomsAvailable ?? 0} rooms</strong> currently available for this property</li>
+              </ul>
             </div>
           </div>
 

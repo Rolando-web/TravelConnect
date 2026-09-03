@@ -122,6 +122,19 @@ export default function Hero() {
             />
           ))}
         </div>
+
+        {/* Quick Travel Highlights Badges */}
+        <div className="hidden sm:flex items-center justify-center gap-3 pt-6 text-[11px] font-bold text-slate-200">
+          <span className="bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15">
+            🏖️ 500+ Curated Stays
+          </span>
+          <span className="bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15">
+            ✈️ Verified Airline Routes
+          </span>
+          <span className="bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15">
+            🛡️ 100% Instant Refund Guarantee
+          </span>
+        </div>
       </div>
 
       {/* ─── Overlapping Search Card (z-40 to sit above Stats) ─────── */}
@@ -131,3 +144,4 @@ export default function Hero() {
     </section>
   );
 }
+

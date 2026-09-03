@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
@@ -9,6 +10,7 @@ public class PayMongoOptions
     public string SecretKey { get; set; } = string.Empty;
     public string PublicKey { get; set; } = string.Empty;
     public string ApiBaseUrl { get; set; } = "https://api.paymongo.com";
+    public string WebhookSecretKey { get; set; } = string.Empty;
 }
 
 public record CreateSourceResult(string SourceId, string CheckoutUrl, string Status);
@@ -20,6 +22,7 @@ public class PayMongoService
     private readonly string _apiBase;
     private readonly string _publicKey;
     private readonly string _secretKey;
+    private readonly string _webhookSecretKey;
 
     public PayMongoService(HttpClient http, PayMongoOptions options)
     {
@@ -29,6 +32,7 @@ public class PayMongoService
         // source retrieval in some plans) with the secret key.
         _publicKey = options.PublicKey;
         _secretKey = options.SecretKey;
+        _webhookSecretKey = options.WebhookSecretKey;
     }
 
     private void SetAuth(string apiKey)
@@ -93,9 +97,16 @@ public class PayMongoService
         var amountCentavos = (long)Math.Round(amountPesos * 100);
         var root = await PostAsync("/v1/sources", SourcePayload(type, amountCentavos, successUrl, failedUrl), _publicKey);
 
-        var attrs = root.GetProperty("data").GetProperty("attributes");
-        var id = attrs.GetProperty("id").GetString() ?? string.Empty;
-        var status = attrs.GetProperty("status").GetString() ?? "pending";
+        var data = root.TryGetProperty("data", out var d) ? d : root;
+        var id = data.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? string.Empty : string.Empty;
+        var attrs = data.TryGetProperty("attributes", out var a) ? a : data;
+
+        if (string.IsNullOrWhiteSpace(id) && attrs.TryGetProperty("id", out var aid))
+        {
+            id = aid.GetString() ?? string.Empty;
+        }
+
+        var status = attrs.TryGetProperty("status", out var st) ? st.GetString() ?? "pending" : "pending";
         var checkoutUrl = string.Empty;
 
         if (attrs.TryGetProperty("redirect", out var redirect) &&
@@ -111,8 +122,9 @@ public class PayMongoService
     public async Task<SourceStatusResult> GetSourceAsync(string sourceId)
     {
         var root = await GetAsync($"/v1/sources/{sourceId}", _secretKey);
-        var attrs = root.GetProperty("data").GetProperty("attributes");
-        var status = attrs.GetProperty("status").GetString() ?? "unknown";
+        var data = root.TryGetProperty("data", out var d) ? d : root;
+        var attrs = data.TryGetProperty("attributes", out var a) ? a : data;
+        var status = attrs.TryGetProperty("status", out var st) ? st.GetString() ?? "unknown" : "unknown";
         string? failure = null;
         if (attrs.TryGetProperty("failure_reason", out var fr) && fr.ValueKind == JsonValueKind.String)
         {
@@ -148,7 +160,51 @@ public class PayMongoService
     {
         var amountCentavos = (long)Math.Round(amountPesos * 100);
         var root = await PostAsync("/v1/payments", PaymentPayload(amountCentavos, sourceId, description, statementDescriptor), _secretKey);
-        var attrs = root.GetProperty("data").GetProperty("attributes");
-        return attrs.GetProperty("id").GetString() ?? string.Empty;
+        var data = root.TryGetProperty("data", out var d) ? d : root;
+        var id = data.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? string.Empty : string.Empty;
+        if (string.IsNullOrWhiteSpace(id) && data.TryGetProperty("attributes", out var attrs) && attrs.TryGetProperty("id", out var aid))
+        {
+            id = aid.GetString() ?? string.Empty;
+        }
+        return id;
+    }
+
+    public async Task<(string SourceId, string Status)> GetPaymentAsync(string paymentId)
+    {
+        var root = await GetAsync($"/v1/payments/{paymentId}", _secretKey);
+        var data = root.TryGetProperty("data", out var d) ? d : root;
+        var attrs = data.TryGetProperty("attributes", out var a) ? a : data;
+        var status = attrs.TryGetProperty("status", out var st) && st.ValueKind == JsonValueKind.String
+            ? st.GetString() ?? string.Empty
+            : string.Empty;
+        var sourceId = string.Empty;
+        if (attrs.TryGetProperty("source", out var src) && src.ValueKind == JsonValueKind.Object)
+        {
+            sourceId = src.TryGetProperty("id", out var sid) ? sid.GetString() ?? string.Empty : string.Empty;
+        }
+        return (sourceId, status);
+    }
+
+    // PayMongo signs webhook payloads with HMAC-SHA256 using the payload
+    // body and the configured Webhook Secret Key (from the dashboard).
+    public bool VerifyWebhookSignature(string payloadBody, string signature, string timestamp)
+    {
+        if (string.IsNullOrWhiteSpace(_webhookSecretKey))
+            return false;
+
+        var dataToSign = $"{timestamp}.{payloadBody}";
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_webhookSecretKey));
+        var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(dataToSign));
+        var expected = Convert.ToHexString(hash);
+        return FixedTimeEquals(expected, signature?.Replace("-", "").ToUpperInvariant() ?? string.Empty);
+    }
+
+    private static bool FixedTimeEquals(string a, string b)
+    {
+        if (a.Length != b.Length) return false;
+        var result = 0;
+        for (var i = 0; i < a.Length; i++)
+            result |= a[i] ^ b[i];
+        return result == 0;
     }
 }

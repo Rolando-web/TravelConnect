@@ -2,9 +2,12 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
 import { AuthProvider } from "./context/AuthContext";
 import { BookingProvider } from "./context/BookingContext";
+import { FavoritesProvider } from "./context/FavoritesContext";
 import Layout from "./components/shared/Layout";
 import Home from "./pages/Home";
 import Explore from "./pages/Explore";
+import Flights from "./pages/Flights";
+import FlightDetails from "./pages/FlightDetails";
 import Hotels from "./pages/Hotels";
 import HotelDetails from "./pages/HotelDetails";
 import Cars from "./pages/Cars";
@@ -12,6 +15,7 @@ import CarDetails from "./pages/CarDetails";
 import Deals from "./pages/Deals";
 import DealDetails from "./pages/DealDetails";
 import Bookings from "./pages/Bookings";
+import Saved from "./pages/Saved";
 import { BookingCheckoutModal, BookingDetailsModal } from "./components/modals";
 import { testApi } from "./services/api";
 import AdminLayout from "./components/admin/AdminLayout";
@@ -39,6 +43,7 @@ export default function App() {
 
   return (
     <AuthProvider>
+      <FavoritesProvider>
       <BookingProvider>
         <BrowserRouter>
           <Routes>
@@ -61,6 +66,8 @@ export default function App() {
             <Route path="/" element={<Layout />}>
               <Route index element={<Home />} />
               <Route path="explore" element={<Explore />} />
+              <Route path="flights" element={<Flights />} />
+              <Route path="flights/:id" element={<FlightDetails />} />
               <Route path="hotels" element={<Hotels />} />
               <Route path="hotels/:id" element={<HotelDetails />} />
               <Route path="cars" element={<Cars />} />
@@ -68,6 +75,7 @@ export default function App() {
               <Route path="deals" element={<Deals />} />
               <Route path="deals/:id" element={<DealDetails />} />
               <Route path="bookings" element={<Bookings />} />
+              <Route path="saved" element={<Saved />} />
               <Route path="packages" element={<Deals />} />
               <Route path="packages/:id" element={<DealDetails />} />
               <Route path="destinations" element={<Explore />} />
@@ -78,6 +86,7 @@ export default function App() {
           <BookingDetailsModal />
         </BrowserRouter>
       </BookingProvider>
+      </FavoritesProvider>
     </AuthProvider>
   );
 }

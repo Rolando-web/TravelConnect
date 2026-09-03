@@ -1,4 +1,4 @@
-import { X, Printer, Shield, Plane, Hotel, Car, Ticket, CreditCard, MapPin } from "lucide-react";
+import { X, Printer, Shield, Plane, Hotel, Car, Ticket, CreditCard, MapPin, Wallet, RotateCcw } from "lucide-react";
 import { useBooking } from "../../../context/BookingContext";
 import InquiryFormSection from "./InquiryFormSection";
 import CancellationSection from "./CancellationSection";
@@ -110,6 +110,62 @@ export default function BookingDetailsModal() {
             <div>
               <span className="text-gray-400 block text-[10px] uppercase font-semibold">Guests</span>
               <span className="font-semibold text-gray-800">{b.travellers} Passenger{b.travellers > 1 ? "s" : ""}</span>
+            </div>
+          </div>
+
+          {/* Payment & Refund Breakdown (PHP) */}
+          <div className="bg-white border border-gray-100 rounded-2xl p-4">
+            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <Wallet size={13} className="text-emerald-600" /> Payment &amp; Refund Breakdown
+            </h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-500 font-semibold">Original Fare / Amount Paid (PHP)</span>
+                <span className="font-black text-gray-900">₱{(b.amount || b.totalAmount || 0).toLocaleString()}</span>
+              </div>
+              {Number(b.discountAmount || 0) > 0 && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-500 font-semibold">Promo Discount ({b.promoCodeUsed || ""})</span>
+                  <span className="font-bold text-emerald-600">-₱{Number(b.discountAmount || 0).toLocaleString()}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-500 font-semibold">Payment Status</span>
+                <span className={`font-black ${b.paid ? "text-emerald-600" : "text-amber-600"}`}>
+                  {b.paid ? "PAID & CONFIRMED" : (b.status === "refunded" || b.status === "cancelled") ? "REFUNDED" : "PENDING"}
+                </span>
+              </div>
+
+              {(b.status === "refunded" || b.status === "cancelled" || b.refundStatus) ? (
+                <div className="mt-2 pt-3 border-t border-emerald-100 bg-emerald-50/60 rounded-xl p-3 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-emerald-800 flex items-center gap-1.5">
+                      <RotateCcw size={13} /> Refunded Amount (PHP)
+                    </span>
+                    <span className="font-black text-emerald-700 text-sm">
+                      ₱{Number(b.refundAmount || b.amount || b.totalAmount || 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-emerald-700 font-semibold">Refund Reference</span>
+                    <span className="font-mono font-bold text-emerald-700">{b.refundReference || "RFND-PROCESSED"}</span>
+                  </div>
+                  {b.refundedAt && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-emerald-700 font-semibold">Refunded On</span>
+                      <span className="font-bold text-emerald-800">{new Date(b.refundedAt).toLocaleString()}</span>
+                    </div>
+                  )}
+                  <p className="text-[11px] text-emerald-700 pt-1">
+                    ✓ Funds credited to your <strong>TravelConnect Money</strong> wallet. Use it for your next booking.
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-2 pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
+                  <span className="text-gray-500 font-semibold">Refundable Amount</span>
+                  <span className="font-black text-emerald-600">₱{(b.amount || b.totalAmount || 0).toLocaleString()}</span>
+                </div>
+              )}
             </div>
           </div>
 

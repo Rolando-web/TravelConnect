@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TravelConnect.Server.Data;
@@ -8,7 +10,10 @@ namespace TravelConnect.Server.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class PaymentsController(TravelConnectDbContext db, PayMongoService payMongo) : ControllerBase
+public class PaymentsController(
+    TravelConnectDbContext db,
+    PayMongoService payMongo,
+    PayMongoOptions payMongoOptions) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Payment>>> GetAll()
@@ -148,10 +153,25 @@ public class PaymentsController(TravelConnectDbContext db, PayMongoService payMo
             var description = req.PackageName ?? "TravelConnect booking";
             var paymentId = await payMongo.CreatePaymentAsync(req.Amount, req.SourceId, description, statement);
 
+            // Link the payment to the matching booking (by reference + customer email)
+            // so that Payment.BookingId is no longer null.
+            Booking? booking = null;
+            if (!string.IsNullOrWhiteSpace(req.BookingReference))
+            {
+                booking = await db.Bookings
+                    .OrderByDescending(b => b.Id)
+                    .FirstOrDefaultAsync(b =>
+                        (b.ReferenceNumber == req.BookingReference ||
+                         b.PackageName == req.BookingReference) &&
+                        (req.CustomerEmail == "" || b.CustomerEmail.ToLower() == req.CustomerEmail.ToLower()));
+            }
+
+            paymentId = paymentId == string.Empty ? req.SourceId : paymentId;
+
             var payment = new Payment
             {
-                ReferenceId = req.SourceId,
-                BookingId = null,
+                ReferenceId = paymentId,
+                BookingId = booking?.Id,
                 CustomerName = req.CustomerName,
                 PackageName = req.PackageName ?? "Travel Package",
                 Amount = req.Amount,
@@ -164,6 +184,15 @@ public class PaymentsController(TravelConnectDbContext db, PayMongoService payMo
             db.Payments.Add(payment);
             await db.SaveChangesAsync();
 
+            // If we linked to a booking, mark it paid.
+            if (booking is not null)
+            {
+                booking.Paid = true;
+                booking.TransactionId = paymentId;
+                booking.UpdatedAt = DateTime.UtcNow;
+                await db.SaveChangesAsync();
+            }
+
             return Ok(new
             {
                 success = true,
@@ -172,12 +201,138 @@ public class PaymentsController(TravelConnectDbContext db, PayMongoService payMo
                 paymentMethod = method,
                 status = "completed",
                 amount = req.Amount,
+                bookingId = booking?.Id,
                 processedAt = DateTime.UtcNow
             });
         }
         catch (Exception ex)
         {
             return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    // ── PayMongo Webhooks ──────────────────────────────────────────────
+    // PayMongo calls this endpoint whenever a payment-related event occurs
+    // (e.g. source.chargeable, payment.paid). You must set this URL in the
+    // PayMongo dashboard and point it to a publicly reachable address
+    // (use a reverse proxy / ngrok in development; your @yourdomain in prod).
+    [HttpPost("paymongo/webhook")]
+    [AllowAnonymous]
+    public async Task<IActionResult> HandlePayMongoWebhook()
+    {
+        string body;
+        using (var reader = new StreamReader(Request.Body, System.Text.Encoding.UTF8))
+        {
+            body = await reader.ReadToEndAsync();
+        }
+
+        // PayMongo sends the webhook signature in the "Paymongo-Signature"
+        // header, formatted as: t=<timestamp>,v1=<hmac-sha256-signature>
+        var signatureHeader = Request.Headers["Paymongo-Signature"].FirstOrDefault()
+            ?? Request.Headers["paymongo-signature"].FirstOrDefault()
+            ?? string.Empty;
+
+        var timestamp = string.Empty;
+        var signature = string.Empty;
+        foreach (var part in signatureHeader.Split(','))
+        {
+            var kv = part.Trim();
+            if (kv.StartsWith("t=")) timestamp = kv[2..];
+            else if (kv.StartsWith("v1=")) signature = kv[3..];
+        }
+
+        // Verify the webhook signature when a webhook secret key is configured.
+        if (!string.IsNullOrWhiteSpace(payMongoOptions.WebhookSecretKey))
+        {
+            if (string.IsNullOrWhiteSpace(signature) ||
+                !payMongo.VerifyWebhookSignature(body, signature, timestamp))
+            {
+                return Unauthorized(new { success = false, message = "Invalid webhook signature." });
+            }
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            var root = doc.RootElement;
+
+            var data = root.TryGetProperty("data", out var d) ? d : root;
+            var type = root.TryGetProperty("type", out var t) && t.ValueKind == JsonValueKind.String
+                ? t.GetString() ?? string.Empty
+                : (data.TryGetProperty("type", out var dt) ? dt.GetString() ?? string.Empty : string.Empty);
+
+            var attributes = data.TryGetProperty("attributes", out var at) ? at : default;
+            string? sourceId = null;
+            string? paymentId = null;
+            var amount = 0m;
+            var status = string.Empty;
+
+            if (attributes.ValueKind == JsonValueKind.Object)
+            {
+                if (attributes.TryGetProperty("id", out var aid) && aid.ValueKind == JsonValueKind.String)
+                    paymentId = aid.GetString();
+
+                if (attributes.TryGetProperty("amount", out var amt))
+                    amount = amt.ValueKind == JsonValueKind.Number ? amt.GetDecimal() / 100m : 0m;
+
+                if (attributes.TryGetProperty("status", out var st) && st.ValueKind == JsonValueKind.String)
+                    status = st.GetString() ?? string.Empty;
+
+                if (attributes.TryGetProperty("source", out var src) && src.ValueKind == JsonValueKind.Object &&
+                    src.TryGetProperty("id", out var sid))
+                    sourceId = sid.GetString();
+
+                // Fallback for source events
+                if (string.IsNullOrWhiteSpace(sourceId) && string.IsNullOrWhiteSpace(paymentId))
+                    sourceId = attributes.TryGetProperty("id", out var rid) ? rid.GetString() : null;
+            }
+
+            // Payment events that signal success.
+            if (type.Contains("payment") || type.Contains("charge") || type.Contains("source.chargeable"))
+            {
+                var statusKey = (status ?? "unknown").ToLowerInvariant() is "paid" or "chargeable" or "charged"
+                    ? "Paid"
+                    : (status ?? "unknown").ToLowerInvariant() is "failed" or "cancelled"
+                        ? "Failed"
+                        : "Pending";
+
+                // Try to locate an existing pending payment (by PayMongo source id or payment id)
+                Payment? payment = null;
+                if (!string.IsNullOrWhiteSpace(paymentId))
+                    payment = await db.Payments.FirstOrDefaultAsync(p => p.ReferenceId == paymentId);
+                if (payment is null && !string.IsNullOrWhiteSpace(sourceId))
+                    payment = await db.Payments.FirstOrDefaultAsync(p => p.ReferenceId == sourceId);
+
+                if (payment is not null)
+                {
+                    payment.Status = statusKey;
+                    payment.UpdatedAt = DateTime.UtcNow;
+                    if (statusKey == "Paid")
+                        payment.PaymentDate = DateTime.UtcNow.ToString("yyyy-MM-dd");
+
+                    if (payment.BookingId is int bid)
+                    {
+                        var booking = await db.Bookings.FirstOrDefaultAsync(b => b.Id == bid);
+                        if (booking is not null)
+                        {
+                            booking.Paid = statusKey == "Paid";
+                            booking.Status = statusKey == "Paid" ? "upcoming" : booking.Status;
+                            booking.TransactionId = paymentId ?? booking.TransactionId;
+                            booking.UpdatedAt = DateTime.UtcNow;
+                        }
+                    }
+                    await db.SaveChangesAsync();
+                }
+
+                return Ok(new { success = true, received = true, type, status = statusKey });
+            }
+
+            // No-op for other events (payment_method, source.pending, etc.)
+            return Ok(new { success = true, received = true, type });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = ex.Message });
         }
     }
 }

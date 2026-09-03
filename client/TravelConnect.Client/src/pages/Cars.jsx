@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Car, Fuel, Users, Gauge, Filter, Eye
 } from "lucide-react";
 import { useBooking } from "../context/BookingContext";
 import PageHeroCarousel from "../components/shared/PageHeroCarousel";
+import FavoriteButton from "../components/shared/FavoriteButton";
 import { carsApi } from "../services/api";
 
 const CAR_HERO_SLIDES = [
@@ -40,9 +41,13 @@ const TYPE_FILTERS = ["All", "SUV", "Sedan", "Van", "Convertible", "MPV"];
 
 export default function Cars() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { openCheckoutModal } = useBooking();
   const [selectedType, setSelectedType] = useState("All");
   const [cars, setCars] = useState([]);
+
+  const queryFrom = (searchParams.get("from") || "").toLowerCase().trim();
+  const appliedFrom = queryFrom || "";
 
   useEffect(() => {
     let active = true;
@@ -54,7 +59,9 @@ export default function Cars() {
   }, []);
 
   const filteredCars = cars.filter(
-    (car) => selectedType === "All" || (car.type || "").toLowerCase().includes(selectedType.toLowerCase())
+    (car) =>
+      (selectedType === "All" || (car.type || "").toLowerCase().includes(selectedType.toLowerCase())) &&
+      (!appliedFrom || (car.location || "").toLowerCase().includes(appliedFrom))
   );
 
   return (
@@ -76,8 +83,8 @@ export default function Cars() {
                 key={t}
                 onClick={() => setSelectedType(t)}
                 className={`px-3 py-1.5 rounded-xl font-bold transition ${selectedType === t
-                    ? "bg-[#008fe5] text-white shadow-md"
-                    : "bg-white/10 hover:bg-white/20 text-slate-200"
+                  ? "bg-[#008fe5] text-white shadow-md"
+                  : "bg-white/10 hover:bg-white/20 text-slate-200"
                   }`}
               >
                 {t}
@@ -120,6 +127,11 @@ export default function Cars() {
                     <span className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md text-white text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">
                       {car.type || "Rental"}
                     </span>
+                    <FavoriteButton
+                      type="car"
+                      item={car}
+                      className="absolute top-3 right-3"
+                    />
                   </div>
 
                   <div className="p-5 space-y-3">

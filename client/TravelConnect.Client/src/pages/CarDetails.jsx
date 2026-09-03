@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { carsApi } from "../services/api";
 import { useBooking } from "../context/BookingContext";
+import FavoriteButton from "../components/shared/FavoriteButton";
 
 const DAYS = 3;
 
@@ -102,6 +103,13 @@ export default function CarDetails() {
                 {car.name}
               </h1>
 
+              <div className="flex items-center gap-3">
+                <FavoriteButton type="car" item={car} className="w-11 h-11" />
+                <span className="text-xs text-slate-300 font-medium">
+                  Save this vehicle to your favorites for easy booking
+                </span>
+              </div>
+
               <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-slate-200 font-medium">
                 <span className="flex items-center gap-1">
                   <Users size={15} className="text-[#008fe5]" /> {car.seats} Seats
@@ -184,6 +192,21 @@ export default function CarDetails() {
                   <Car size={16} className="text-[#008fe5] shrink-0" /> {car.type}
                 </div>
               </div>
+            </div>
+
+            {/* What's included */}
+            <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/80 space-y-5">
+              <h2 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
+                <ShieldCheck size={24} className="text-[#008fe5]" /> What's Included in Your Rental
+              </h2>
+              <ul className="space-y-3 text-sm text-slate-600">
+                <li className="flex items-start gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" /> {car.name} for <strong className="text-slate-800">{DAYS} days</strong> — {car.transmission}, {car.fuelType}, {car.seats} seats</li>
+                <li className="flex items-start gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" /> Comprehensive insurance coverage included (no excess for basic damage)</li>
+                <li className="flex items-start gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" /> Free airport or hotel pick-up &amp; drop-off at {car.location}</li>
+                <li className="flex items-start gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" /> 24/7 roadside assistance and emergency support</li>
+                <li className="flex items-start gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" /> Unlimited kilometers within {car.location} metro area</li>
+                <li className="flex items-start gap-2"><CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" /> Free cancellation with full refund up to 24 hours before pickup</li>
+              </ul>
             </div>
           </div>
 

@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
-  Menu, X, User, LogOut, Calendar, Tag, Heart, Headset, ChevronDown, Coins, ShieldCheck, LayoutDashboard
+  Menu, X, User, LogOut, Calendar, Tag, Heart, Headset, ChevronDown, Coins, ShieldCheck, LayoutDashboard, Wallet
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { useBooking } from "../../context/BookingContext";
 import { ADMIN_ROLES } from "../../pages/admin/adminConfig";
 import logoImg from "../../assets/logo.png";
 
@@ -14,6 +15,7 @@ export default function Header() {
   const [supportModalOpen, setSupportModalOpen] = useState(false);
 
   const { isLoggedIn, user, logout, openLoginModal } = useAuth();
+  const { walletBalance = 0 } = useBooking();
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
@@ -39,6 +41,7 @@ export default function Header() {
   const navLinks = [
     { name: "Home", path: "/" },
     { name: "Explore", path: "/explore" },
+    { name: "Flights", path: "/flights" },
     { name: "Hotels", path: "/hotels" },
     { name: "Cars", path: "/cars" },
     { name: "Deals", path: "/deals" },
@@ -71,12 +74,23 @@ export default function Header() {
             <Link to="/deals" className="underline text-[#008fe5] hover:text-blue-300 font-semibold">View Deals</Link>
           </div>
 
-          {/* Right Utilities (Currency, Support, Coins, Profile Avatar) */}
-          <div className="flex items-center gap-4 sm:gap-6 ml-auto">
+          {/* Right Utilities (Currency, TravelConnect Money, Support, Coins, Profile Avatar) */}
+          <div className="flex items-center gap-3 sm:gap-5 ml-auto">
             {/* Country / Currency Indicator */}
             <div className="flex items-center gap-1.5 cursor-pointer text-slate-200 hover:text-white transition">
               <span className="text-sm">🇵🇭</span>
               <span className="font-bold text-xs">| PHP</span>
+            </div>
+
+            {/* TravelConnect Money / Wallet Balance Indicator */}
+            <div
+              onClick={() => navigate("/bookings")}
+              className="flex items-center gap-1.5 cursor-pointer bg-slate-800 hover:bg-slate-700/80 border border-slate-700/90 px-2.5 py-1 rounded-full text-slate-200 transition shadow-inner group"
+              title="TravelConnect Money (Refunds & Wallet Credits)"
+            >
+              <Coins size={13} className="text-amber-400 group-hover:scale-110 transition-transform" />
+              <span className="text-[11px] text-slate-300 font-medium hidden md:inline">TravelConnect Money:</span>
+              <span className="font-black text-xs text-emerald-400">PHP {walletBalance.toLocaleString()}</span>
             </div>
 
             {/* Customer Support Link */}
@@ -85,7 +99,7 @@ export default function Header() {
               className="flex items-center gap-1.5 text-slate-200 hover:text-[#008fe5] transition font-medium text-xs"
             >
               <Headset size={14} className="text-[#008fe5]" />
-              <span>Customer support</span>
+              <span className="hidden sm:inline">Customer support</span>
             </button>
 
             {/* User Profile Avatar Button */}
@@ -131,8 +145,8 @@ export default function Header() {
               {profileDropdownOpen && isLoggedIn && (
                 <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 text-slate-800 animate-in fade-in slide-in-from-top-2 duration-200">
                   {/* Dropdown Header */}
-                  <div className="p-4 bg-gradient-to-br from-blue-50/80 to-sky-50/50 border-b border-slate-100">
-                    <div className="flex items-center justify-between mb-3">
+                  <div className="p-4 bg-gradient-to-br from-blue-50/80 to-sky-50/50 border-b border-slate-100 space-y-3">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#008fe5] to-blue-600 text-white font-bold flex items-center justify-center text-sm shadow-md">
                           {userInitial}
@@ -143,6 +157,22 @@ export default function Header() {
                           </p>
                         </div>
                       </div>
+                    </div>
+
+                    {/* TravelConnect Money Wallet Card */}
+                    <div className="bg-white/90 border border-blue-100 rounded-xl p-2.5 flex items-center justify-between shadow-xs">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                          <Coins size={15} />
+                        </div>
+                        <div>
+                          <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-400 block">TravelConnect Money</span>
+                          <span className="text-xs font-black text-emerald-600">PHP {walletBalance.toLocaleString()}</span>
+                        </div>
+                      </div>
+                      <span className="text-[9px] bg-emerald-50 text-emerald-700 font-bold px-1.5 py-0.5 rounded">
+                        Refund Wallet
+                      </span>
                     </div>
                   </div>
 
@@ -175,7 +205,7 @@ export default function Header() {
                     </button>
 
                     <button
-                      onClick={() => { navigate("/explore"); setProfileDropdownOpen(false); }}
+                      onClick={() => { navigate("/saved"); setProfileDropdownOpen(false); }}
                       className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-slate-100/80 text-slate-700 hover:text-[#008fe5] transition text-left"
                     >
                       <Heart size={16} className="text-slate-400" />

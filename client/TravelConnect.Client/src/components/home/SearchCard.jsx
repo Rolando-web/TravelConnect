@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { MapPin, Calendar, Users, Search, Hotel, Plane, Car } from "lucide-react";
 import DestinationsDropdown from "./DestinationsDropdown";
 import DateRangeCalendar, { formatDateLabel } from "./DateRangeCalendar";
@@ -8,6 +9,7 @@ import TravelersPopover from "./TravelersPopover";
    SEARCH CARD — tabbed booking form (Flights · Flight+Hotel · Car Rental)
 ═══════════════════════════════════════════════════════════════════════ */
 export default function SearchCard() {
+  const navigate = useNavigate();
   const [searchTab, setSearchTab] = useState("flights");
 
   // ─── Flight states ─────────────────────────────────────────────────
@@ -66,14 +68,22 @@ export default function SearchCard() {
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchTab === "cars") {
-      alert(`Car Rental Search:\nPick-up: ${selectedCarFrom.city}\nDrop-off: ${selectedCarTo.city}\nDates: ${departureDate} to ${returnDate}`);
+      const params = new URLSearchParams();
+      if (selectedCarFrom?.city) params.set("from", selectedCarFrom.city);
+      navigate(`/cars?${params.toString()}`);
+      return;
+    }
+
+    const params = new URLSearchParams();
+    if (selectedFrom?.city) params.set("from", selectedFrom.city);
+    if (selectedTo?.city) params.set("to", selectedTo.city);
+    if (departureDate) params.set("date", departureDate);
+    params.set("class", cabinClass);
+
+    if (searchTab === "flight-hotel") {
+      navigate(`/explore?${params.toString()}`);
     } else {
-      alert(
-        `${searchTab === "flight-hotel" ? "Flight + Hotel" : "Flight"} Search:\n` +
-        `From: ${selectedFrom.city} (${selectedFrom.code})\nTo: ${selectedTo.city} (${selectedTo.code})\n` +
-        `Type: ${tripType}\nDates: ${departureDate} → ${tripType === "round-trip" ? returnDate : "N/A"}\n` +
-        `Passengers: Adults (${adults}), Children (${children}), Infants (${infants})\nClass: ${cabinClass}\nNonstop: ${nonstop ? "Yes" : "No"}`
-      );
+      navigate(`/flights?${params.toString()}`);
     }
   };
 

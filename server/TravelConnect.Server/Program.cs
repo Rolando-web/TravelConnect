@@ -7,10 +7,19 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddTravelConnectSql(builder.Configuration);
 
+var payMongoConfig = builder.Configuration.GetSection("PayMongo");
+
 builder.Services.AddOptions<PayMongoOptions>()
-    .Bind(builder.Configuration.GetSection("PayMongo"))
+    .Bind(payMongoConfig)
     .Validate(o => !string.IsNullOrWhiteSpace(o.SecretKey), "PayMongo SecretKey is required.")
     .Validate(o => !string.IsNullOrWhiteSpace(o.PublicKey), "PayMongo PublicKey is required.");
+
+// PayMongoService takes the concrete PayMongoOptions in its constructor, so it
+// must be resolvable directly (not only as IOptions<PayMongoOptions>). Without
+// this, DI throws "Unable to resolve service for type PayMongoOptions" and the
+// PayMongo checkout never opens.
+builder.Services.AddSingleton(payMongoConfig.Get<PayMongoOptions>() ?? new PayMongoOptions());
+
 builder.Services.AddHttpClient<PayMongoService>();
 
 builder.Services.AddCors(options =>

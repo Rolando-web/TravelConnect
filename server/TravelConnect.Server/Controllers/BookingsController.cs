@@ -59,6 +59,33 @@ public class BookingsController(TravelConnectDbContext db) : ControllerBase
         booking.UpdatedAt = DateTime.UtcNow;
         db.Bookings.Add(booking);
         await db.SaveChangesAsync();
+
+        // Link any matching pending PayMongo payment to this booking so the
+        // Payment and Booking records are connected (Payment.BookingId != null).
+        var reference = booking.ReferenceNumber;
+        if (string.IsNullOrWhiteSpace(reference))
+            reference = booking.PackageName;
+        if (!string.IsNullOrWhiteSpace(reference) &&
+            !string.IsNullOrWhiteSpace(booking.CustomerName))
+        {
+            var pending = await db.Payments
+                .Where(p => p.BookingId == null &&
+                            p.CustomerName.ToLower() == booking.CustomerName.ToLower() &&
+                            (p.PackageName == reference))
+                .OrderByDescending(p => p.Id)
+                .FirstOrDefaultAsync();
+
+            if (pending is not null)
+            {
+                pending.BookingId = booking.Id;
+                pending.UpdatedAt = DateTime.UtcNow;
+                if (!string.IsNullOrWhiteSpace(booking.TransactionId))
+                    pending.ReferenceId = booking.TransactionId;
+                booking.Paid = true;
+                await db.SaveChangesAsync();
+            }
+        }
+
         return CreatedAtAction(nameof(GetById), new { id = booking.Id }, booking);
     }
 

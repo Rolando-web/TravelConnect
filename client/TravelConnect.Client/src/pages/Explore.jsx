@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { Search, Package, Star, ArrowRight, Globe, TrendingUp, Users } from "lucide-react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Search, Package, Star, ArrowRight, Globe, TrendingUp, Users, Plane } from "lucide-react";
 import { useBooking } from "../context/BookingContext";
 import PageHeroCarousel from "../components/shared/PageHeroCarousel";
-import { destinationsApi, packagesApi } from "../services/api";
+import { destinationsApi, packagesApi, flightsApi } from "../services/api";
 
 const EXPLORE_HERO_SLIDES = [
   {
@@ -68,9 +68,9 @@ const tagColors = {
 const toBooking = (item) => ({
   id: item.id,
   name: item.name,
-  location: item.location || item.region || "",
-  price: Number(item.price || 0),
-  duration: item.duration || "",
+  location: item.location || item.region || item.route || "",
+  price: Number(item.price || item.pricePerDay || 0),
+  duration: item.duration || item.schedule || "",
   img: item.imageUrl,
   category: "package",
 });
@@ -78,11 +78,18 @@ const toBooking = (item) => ({
 /* ─── Component ────────────────────────────────────────────────────── */
 export default function Explore() {
   const { openCheckoutModal } = useBooking();
-  const [activeTab, setActiveTab] = useState("Destinations");
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const queryFrom = (searchParams.get("from") || "").toLowerCase().trim();
+  const queryTo = (searchParams.get("to") || "").toLowerCase().trim();
+
+  const [activeTab, setActiveTab] = useState(queryFrom || queryTo ? "Flights" : "Destinations");
   const [activeRegion, setActiveRegion] = useState("All");
   const [search, setSearch] = useState("");
   const [destinations, setDestinations] = useState([]);
   const [packages, setPackages] = useState([]);
+  const [flights, setFlights] = useState([]);
 
   useEffect(() => {
     let active = true;
@@ -94,6 +101,10 @@ export default function Explore() {
       .list()
       .then((data) => { if (active) setPackages(Array.isArray(data) ? data : []); })
       .catch(() => { if (active) setPackages([]); });
+    flightsApi
+      .list()
+      .then((data) => { if (active) setFlights(Array.isArray(data) ? data : []); })
+      .catch(() => { if (active) setFlights([]); });
     return () => { active = false; };
   }, []);
 
@@ -117,7 +128,24 @@ export default function Explore() {
     return matchRegion && matchSearch;
   });
 
-  const list = activeTab === "Destinations" ? filteredDestinations : filteredPackages;
+  const filteredFlights = flights.filter((f) => {
+    if (queryFrom && !f.departureCity?.toLowerCase().includes(queryFrom)) return false;
+    if (queryTo && !f.arrivalCity?.toLowerCase().includes(queryTo)) return false;
+    const q = search.toLowerCase();
+    return (
+      !search.trim() ||
+      f.airline?.toLowerCase().includes(q) ||
+      f.flightNumber?.toLowerCase().includes(q) ||
+      f.departureCity?.toLowerCase().includes(q) ||
+      f.arrivalCity?.toLowerCase().includes(q)
+    );
+  });
+
+  const list = activeTab === "Destinations"
+    ? filteredDestinations
+    : activeTab === "Flights"
+      ? filteredFlights
+      : filteredPackages;                    
 
   return (
     <div className="w-full bg-slate-50 min-h-screen">
@@ -159,15 +187,14 @@ export default function Explore() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         {/* Tabs */}
         <div className="flex gap-3 mb-6">
-          {["Destinations", "Packages"].map((tab) => (
+          {["Destinations", "Packages", "Flights"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-5 py-2 rounded-full text-sm font-semibold border transition-all duration-200 ${
-                activeTab === tab
+              className={`px-5 py-2 rounded-full text-sm font-semibold border transition-all duration-200 ${activeTab === tab
                   ? "bg-[#008fe5] text-white border-[#008fe5] shadow-md shadow-blue-400/30"
                   : "bg-white text-gray-600 border-gray-200 hover:border-[#008fe5] hover:text-[#008fe5]"
-              }`}
+                }`}
             >
               {tab}
             </button>
@@ -180,11 +207,10 @@ export default function Explore() {
             <button
               key={r}
               onClick={() => setActiveRegion(r)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-200 ${
-                activeRegion === r
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-200 ${activeRegion === r
                   ? "bg-gray-900 text-white border-gray-900"
                   : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
-              }`}
+                }`}
             >
               {r}
             </button>
@@ -207,6 +233,75 @@ export default function Explore() {
         {list.length === 0 ? (
           <div className="text-center py-20 text-gray-400 text-lg font-medium">
             No {activeTab.toLowerCase()} available yet.
+          </div>
+        ) : activeTab === "Flights" ? (
+          <div className="space-y-5">
+            {list.map((f) => {
+              const route = `${f.airline} ${f.flightNumber}`;
+              return (
+                <div
+                  key={f.id}
+                  onClick={() => navigate(`/flights/${f.id}`)}
+                  className="bg-white rounded-3xl overflow-hidden border border-slate-200/80 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col sm:flex-row"
+                >
+                  <div className="relative sm:w-56 h-36 sm:h-auto overflow-hidden bg-slate-100 shrink-0">
+                    <img
+                      src={f.imageUrl || "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&q=80"}
+                      alt={route}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <span className="absolute top-3 left-3 bg-[#008fe5] text-white text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">
+                      {f.class || "Economy"}
+                    </span>
+                  </div>
+
+                  <div className="flex-1 p-5">
+                    <h3 className="font-extrabold text-slate-900 text-lg leading-tight">
+                      {f.airline} <span className="text-xs text-slate-400 font-bold">({f.flightNumber})</span>
+                    </h3>
+                    <p className="text-sm text-slate-500 font-semibold mt-1 flex items-center gap-1.5">
+                      <Plane size={14} className="text-[#008fe5]" />
+                      {f.departureCity} → {f.arrivalCity}
+                    </p>
+                    <p className="text-xs text-slate-400 font-medium mt-1">
+                      {f.departureTime} – {f.arrivalTime} · {f.departureDate || "Flexible"}
+                    </p>
+                  </div>
+
+                  <div className="sm:w-60 p-5 border-t sm:border-t-0 sm:border-l border-slate-100 flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3 bg-slate-50/50">
+                    <div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase">Per traveler</div>
+                      <div className="text-2xl font-black text-slate-900">₱{Number(f.price || 0).toLocaleString()}</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); navigate(`/flights/${f.id}`); }}
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold px-3 py-2.5 rounded-xl text-xs transition"
+                      >
+                        View Details
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openCheckoutModal({
+                            id: `FLIGHT-${f.id}`,
+                            name: `${f.airline} ${f.flightNumber} • ${f.departureCity} → ${f.arrivalCity}`,
+                            location: `${f.departureCity} → ${f.arrivalCity}`,
+                            price: Number(f.price || 0),
+                            duration: "1 Flight",
+                            img: f.imageUrl,
+                            category: "package",
+                          });
+                        }}
+                        className="bg-[#008fe5] hover:bg-blue-600 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-md transition"
+                      >
+                        Book
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-[220px]">
@@ -232,9 +327,8 @@ export default function Explore() {
 
                   {/* Tag badge */}
                   <span
-                    className={`absolute top-3 left-3 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white ${
-                      tagColors[tag] || "bg-gray-600"
-                    }`}
+                    className={`absolute top-3 left-3 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white ${tagColors[tag] || "bg-gray-600"
+                      }`}
                   >
                     {tag}
                   </span>
@@ -296,9 +390,8 @@ export default function Explore() {
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                 />
                 <span
-                  className={`absolute top-3 left-3 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white ${
-                    tagColors[a.tag] || "bg-gray-600"
-                  }`}
+                  className={`absolute top-3 left-3 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white ${tagColors[a.tag] || "bg-gray-600"
+                    }`}
                 >
                   {a.tag}
                 </span>

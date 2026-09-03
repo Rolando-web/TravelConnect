@@ -15,13 +15,16 @@ const BookingContext = createContext();
 const LEGACY_KEY = "travelconnect_user_bookings";
 
 const storageKeyFor = (email) => `travelconnect_user_bookings:${(email || "guest").toLowerCase()}`;
+const walletStorageKeyFor = (email) => `travelconnect_wallet:${(email || "guest").toLowerCase()}`;
 
 export function BookingProvider({ children }) {
   const { user } = useAuth();
   const customerKey = user?.email || null;
   const storageKey = storageKeyFor(customerKey);
+  const walletStorageKey = walletStorageKeyFor(customerKey);
 
   const [bookings, setBookings] = useState([]);
+  const [walletBalance, setWalletBalance] = useState(0);
 
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
   const [checkoutPackage, setCheckoutPackage] = useState(null);
@@ -39,12 +42,20 @@ export function BookingProvider({ children }) {
     }
   }, []);
 
-  // Load this customer's bookings whenever their identity changes.
+  // Load this customer's bookings & wallet balance whenever their identity changes.
   useEffect(() => {
     let active = true;
 
     setBookings([]);
     if (selectedBookingDetails) setSelectedBookingDetails(null);
+
+    // Load wallet balance from storage
+    try {
+      const savedWallet = localStorage.getItem(walletStorageKey);
+      setWalletBalance(savedWallet !== null ? Number(savedWallet) : 0);
+    } catch {
+      setWalletBalance(0);
+    }
 
     if (!customerKey) return () => { active = false; };
 
@@ -116,9 +127,12 @@ export function BookingProvider({ children }) {
   };
 
   const processAndCreateBooking = async (bookingData, paymentData) => {
-    const methodKey = ["gcash", "paymaya", "card", "bank"].includes(paymentData.paymentMethod)
-      ? paymentData.paymentMethod
-      : "gcash";
+    const isWalletPayment = paymentData.paymentMethod === "wallet";
+    const methodKey = isWalletPayment
+      ? "wallet"
+      : ["gcash", "paymaya"].includes(paymentData.paymentMethod)
+        ? paymentData.paymentMethod
+        : "gcash";
 
     // Ensure the booking is tied to the signed-in customer
     const customerEmail = bookingData.customerEmail || customerKey || "";
@@ -126,8 +140,21 @@ export function BookingProvider({ children }) {
 
     let transactionId = `TXN-${Math.floor(100000 + Math.random() * 900000)}`;
 
-    // 1. Attempt real PayMongo transaction (GCash / PayMaya)
-    if (["gcash", "paymaya"].includes(methodKey)) {
+    if (isWalletPayment) {
+      if (walletBalance < bookingData.totalAmount) {
+        throw new Error(
+          `Insufficient TravelConnect Money (PHP ${walletBalance.toLocaleString()}). Required: PHP ${bookingData.totalAmount.toLocaleString()}.`
+        );
+      }
+      // Deduct from wallet
+      const nextBal = Math.max(0, walletBalance - bookingData.totalAmount);
+      setWalletBalance(nextBal);
+      try {
+        localStorage.setItem(walletStorageKey, String(nextBal));
+      } catch {}
+      transactionId = `TCM-${Math.floor(100000 + Math.random() * 900000)}`;
+    } else if (["gcash", "paymaya"].includes(methodKey)) {
+      // 1. Attempt real PayMongo transaction (GCash / PayMaya)
       try {
         const source = await createPayMongoSource({
           method: methodKey,
@@ -137,9 +164,9 @@ export function BookingProvider({ children }) {
           bookingReference: bookingData.promoCodeUsed || customerName
         });
 
+        // Collect the real status so we know whether payment truly completed.
         if (source.checkoutUrl) {
           const popup = window.open(source.checkoutUrl, "_blank", "noopener,noreferrer,width=520,height=640");
-          const hasPopup = !popup;
 
           // Poll source for resolution
           const deadline = Date.now() + Number(import.meta.env.VITE_PAYMONGO_POLL_TIMEOUT_MS || 90000);
@@ -165,7 +192,18 @@ export function BookingProvider({ children }) {
           }
         }
       } catch (err) {
-        console.warn("PayMongo offline/mock mode fallback:", err.message);
+        const msg = String(err?.message || err).toLowerCase();
+        const isOffline = /failed to fetch|networkerror|network request failed|fetch failed|offline/i.test(msg);
+        if (isOffline) {
+          console.warn("PayMongo backend offline — using local mock mode:", err.message);
+        } else {
+          // PayMongo/server genuinely rejected the payment. Do NOT silently
+          // book a "paid" trip — let the user see why it failed.
+          throw new Error(
+            (err?.message || "PayMongo payment could not be started.") +
+            " Your booking was NOT created. Please try again or contact support."
+          );
+        }
       }
     }
 
@@ -193,6 +231,9 @@ export function BookingProvider({ children }) {
     const refundRef = `RFND-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
     const refundedAt = new Date().toISOString();
 
+    const target = bookings.find((b) => b.id === bookingId) || selectedBookingDetails;
+    const refundAmount = Number(target?.amount || target?.totalAmount || target?.price || 0);
+
     try {
       await cancelBookingApi(bookingId);
     } catch {
@@ -210,7 +251,7 @@ export function BookingProvider({ children }) {
             refundReference: refundRef,
             refundedAt,
             cancellationReason: reason,
-            refundAmount: b.amount || b.totalAmount || 0,
+            refundAmount: b.amount || b.totalAmount || refundAmount,
           };
         }
         return b;
@@ -226,19 +267,33 @@ export function BookingProvider({ children }) {
         refundReference: refundRef,
         refundedAt,
         cancellationReason: reason,
-        refundAmount: prev.amount || prev.totalAmount || 0,
+        refundAmount: prev.amount || prev.totalAmount || refundAmount,
       }));
+    }
+
+    // Credit refund to TravelConnect Money (PHP Wallet)
+    let newBalance = walletBalance;
+    if (refundAmount > 0) {
+      newBalance = Number(walletBalance || 0) + refundAmount;
+      setWalletBalance(newBalance);
+      try {
+        localStorage.setItem(walletStorageKey, String(newBalance));
+      } catch {}
     }
 
     return {
       success: true,
       refundReference: refundRef,
       refundedAt,
+      refundAmount,
+      newWalletBalance: newBalance
     };
   };
 
   const value = {
     bookings,
+    walletBalance,
+    setWalletBalance,
     checkoutModalOpen,
     checkoutPackage,
     appliedPromo,

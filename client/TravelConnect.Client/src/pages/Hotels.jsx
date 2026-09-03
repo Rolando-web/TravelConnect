@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { useBooking } from "../context/BookingContext";
 import PageHeroCarousel from "../components/shared/PageHeroCarousel";
+import FavoriteButton from "../components/shared/FavoriteButton";
 import { hotelsApi } from "../services/api";
 
 const HOTEL_HERO_SLIDES = [
@@ -99,6 +100,11 @@ export default function Hotels() {
                     <div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-full text-xs font-black text-slate-900 flex items-center gap-1 shadow-md">
                       <Star size={13} className="text-amber-500 fill-amber-500" /> {Number(hotel.rating || 0).toFixed(1)}
                     </div>
+                    <FavoriteButton
+                      type="hotel"
+                      item={hotel}
+                      className="absolute top-3 right-3"
+                    />
                   </div>
 
                   <div className="p-5 space-y-3">
