@@ -1,11 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  Plane, ArrowRight, Star, MapPin, Clock, Calendar, Eye, Wifi, Luggage
+  Plane, ArrowRight, Star, MapPin, Clock, Calendar, Eye, Wifi, Luggage, AlertTriangle
 } from "lucide-react";
 import { useBooking } from "../context/BookingContext";
+import { useCurrency } from "../context/CurrencyContext";
+import { useAvailable } from "../context/AvailableContext";
 import PageHeroCarousel from "../components/shared/PageHeroCarousel";
 import FavoriteButton from "../components/shared/FavoriteButton";
+import FlightFareTierModal from "../components/modals/booking/FlightFareTierModal";
 import { flightsApi } from "../services/api";
 
 const FLIGHT_HERO_SLIDES = [
@@ -30,7 +33,21 @@ const toFlightBooking = (flight) => ({
   price: Number(flight.price || 0),
   duration: "1 Flight",
   img: flight.imageUrl,
-  category: "package",
+  category: "flight",
+  flight: {
+    id: flight.id,
+    flightNumber: flight.flightNumber,
+    airline: flight.airline,
+    departureCity: flight.departureCity,
+    arrivalCity: flight.arrivalCity,
+    departureTime: flight.departureTime,
+    arrivalTime: flight.arrivalTime,
+    departureDate: flight.departureDate,
+    price: Number(flight.price || 0),
+    class: flight.class || "Economy",
+    imageUrl: flight.imageUrl,
+    seatsAvailable: Number(flight.seatsAvailable || 0)
+  },
   services: {
     flight: `${flight.airline} ${flight.flightNumber} (${flight.departureCity} → ${flight.arrivalCity})`,
     hotel: "Excluded — flight only",
@@ -43,8 +60,11 @@ export default function Flights() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { openCheckoutModal } = useBooking();
+  const { flightRoutes, reachableCities } = useAvailable();
+  const { displayPrice, selectedCurrency } = useCurrency();
   const [flights, setFlights] = useState([]);
   const [search, setSearch] = useState("");
+  const [selectedFlightForModal, setSelectedFlightForModal] = useState(null);
 
   const queryFrom = (searchParams.get("from") || "").toLowerCase().trim();
   const queryTo = (searchParams.get("to") || "").toLowerCase().trim();
@@ -63,21 +83,34 @@ export default function Flights() {
     return () => { active = false; };
   }, []);
 
-  const filteredFlights = flights.filter((f) => {
-    const q = search.toLowerCase();
+  const filteredFlights = useMemo(() => {
+    return flights.filter((f) => {
+      const q = search.toLowerCase();
 
-    if (appliedFrom && !f.departureCity?.toLowerCase().includes(appliedFrom)) return false;
-    if (appliedTo && !f.arrivalCity?.toLowerCase().includes(appliedTo)) return false;
-    if (appliedDate && f.departureDate && f.departureDate !== appliedDate) return false;
+      if (appliedFrom && !f.departureCity?.toLowerCase().includes(appliedFrom)) return false;
+      if (appliedTo && !f.arrivalCity?.toLowerCase().includes(appliedTo)) return false;
+      // Date is a soft preference: only exclude when a flight actually carries a date
+      // that explicitly does not match. Flights with a flexible/empty date are kept.
+      if (appliedDate && f.departureDate && f.departureDate.trim() !== "" && f.departureDate !== appliedDate) return false;
 
-    return (
-      !search.trim() ||
-      f.airline?.toLowerCase().includes(q) ||
-      f.flightNumber?.toLowerCase().includes(q) ||
-      f.departureCity?.toLowerCase().includes(q) ||
-      f.arrivalCity?.toLowerCase().includes(q)
-    );
-  });
+      return (
+        !search.trim() ||
+        f.airline?.toLowerCase().includes(q) ||
+        f.flightNumber?.toLowerCase().includes(q) ||
+        f.departureCity?.toLowerCase().includes(q) ||
+        f.arrivalCity?.toLowerCase().includes(q)
+      );
+    });
+  }, [flights, search, appliedFrom, appliedTo, appliedDate]);
+
+  // Did the user search for a route that simply isn't served?
+  const routeHasNoFlight =
+    (appliedFrom || appliedTo) && filteredFlights.length === 0 && flights.length > 0;
+
+  // Available origin → destination route chips.
+  const routeChips = useMemo(() => {
+    return flightRoutes.slice(0, 8).map((r) => `${r.from.city} → ${r.to.city}`);
+  }, [flightRoutes]);
 
   return (
     <div className="w-full bg-slate-50 min-h-screen pb-16">
@@ -107,9 +140,33 @@ export default function Flights() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-extrabold text-slate-900">Available Flights</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Showing {filteredFlights.length} flights in PHP (₱)</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Showing {filteredFlights.length} flights in {selectedCurrency} ({displayPrice(1).replace(/\s?\d.*/, "").trim()})
+            </p>
           </div>
         </div>
+
+        {/* Available route quick chips */}
+        {routeChips.length > 0 && !(appliedFrom || appliedTo) && (
+          <div className="flex flex-wrap items-center gap-2 mb-6">
+            <span className="text-xs font-bold text-slate-500">Popular routes:</span>
+            {routeChips.map((route) => (
+              <button
+                key={route}
+                onClick={() => {
+                  const [from, to] = route.split(" → ");
+                  const params = new URLSearchParams();
+                  params.set("from", from);
+                  params.set("to", to);
+                  navigate(`/flights?${params.toString()}`);
+                }}
+                className="text-xs font-bold text-[#008fe5] bg-blue-50 hover:bg-blue-100 border border-blue-100 px-3 py-1 rounded-full transition"
+              >
+                {route}
+              </button>
+            ))}
+          </div>
+        )}
 
         {(appliedFrom || appliedTo || appliedDate) && (
           <div className="flex flex-wrap items-center gap-2 mb-6">
@@ -140,7 +197,30 @@ export default function Flights() {
 
         {filteredFlights.length === 0 ? (
           <div className="text-center py-20 text-slate-400 text-lg font-medium">
-            No flights available yet.
+            {routeHasNoFlight ? (
+              <div className="max-w-xl mx-auto space-y-4">
+                <AlertTriangle size={40} className="mx-auto text-amber-500" />
+                <p className="text-slate-600 font-semibold">
+                  No available flights on this route yet.
+                </p>
+                <p className="text-sm text-slate-400">
+                  Our flight network is focused on the routes below. Choose one to see real fares.
+                </p>
+                <div className="flex flex-wrap justify-center gap-2 mt-2">
+                  {reachableCities.map((c) => (
+                    <button
+                      key={c.code || c.city}
+                      onClick={() => navigate(`/flights?to=${encodeURIComponent(c.city)}`)}
+                      className="text-xs font-bold text-[#008fe5] bg-blue-50 hover:bg-blue-100 border border-blue-100 px-3 py-1.5 rounded-full transition"
+                    >
+                      {c.city} ({c.code})
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              "No flights available yet."
+            )}
           </div>
         ) : (
           <div className="space-y-5">
@@ -228,11 +308,16 @@ export default function Flights() {
                   </div>
 
                   {/* Price + CTA */}
-                  <div className="lg:w-56 p-5 border-t lg:border-t-0 lg:border-l border-slate-100 flex flex-row lg:flex-col items-center lg:items-end justify-between lg:justify-center gap-3 bg-slate-50/50">
+                  <div className="lg:w-60 p-5 border-t lg:border-t-0 lg:border-l border-slate-100 flex flex-row lg:flex-col items-center lg:items-end justify-between lg:justify-center gap-3 bg-slate-50/50">
                     <div>
                       <div className="text-[10px] text-slate-400 font-bold uppercase">Per traveler</div>
                       <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-black text-slate-900">₱{Number(flight.price || 0).toLocaleString()}</span>
+                        <span className="text-2xl font-black text-slate-900">{displayPrice(Number(flight.price || 0))}</span>
+                      </div>
+                      <div className="flex items-center gap-1 mt-1 text-[10px] font-extrabold text-emerald-700">
+                        <span>Accepts:</span>
+                        <span className="bg-blue-100/70 text-blue-700 px-1.5 py-0.5 rounded">GCash</span>
+                        <span className="bg-emerald-100/70 text-emerald-700 px-1.5 py-0.5 rounded">Maya</span>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -243,10 +328,13 @@ export default function Flights() {
                         <Eye size={14} /> Details
                       </button>
                       <button
-                        onClick={(e) => { e.stopPropagation(); openCheckoutModal(toFlightBooking(flight)); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedFlightForModal(flight);
+                        }}
                         className="bg-[#008fe5] hover:bg-blue-600 text-white font-extrabold px-4 py-2.5 rounded-xl shadow-md text-xs hover:-translate-y-0.5 transition flex items-center gap-1"
                       >
-                        Book <ArrowRight size={13} />
+                        Select Fares <ArrowRight size={13} />
                       </button>
                     </div>
                   </div>
@@ -256,6 +344,13 @@ export default function Flights() {
           </div>
         )}
       </section>
+
+      {/* Flight Fare Tier Comparison Modal */}
+      <FlightFareTierModal
+        isOpen={Boolean(selectedFlightForModal)}
+        flight={selectedFlightForModal}
+        onClose={() => setSelectedFlightForModal(null)}
+      />
     </div>
   );
 }

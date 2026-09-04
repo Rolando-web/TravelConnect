@@ -166,7 +166,7 @@ export function BookingProvider({ children }) {
 
         // Collect the real status so we know whether payment truly completed.
         if (source.checkoutUrl) {
-          const popup = window.open(source.checkoutUrl, "_blank", "noopener,noreferrer,width=520,height=640");
+          window.open(source.checkoutUrl, "_blank", "noopener,noreferrer,width=520,height=640");
 
           // Poll source for resolution
           const deadline = Date.now() + Number(import.meta.env.VITE_PAYMONGO_POLL_TIMEOUT_MS || 90000);
@@ -178,24 +178,57 @@ export function BookingProvider({ children }) {
             if (["chargeable", "paid", "charged", "cancelled", "failed", "expired"].includes(status)) break;
           }
 
-          if (["charged", "paid", "chargeable"].includes(status)) {
-            const payment = await finalizePayMongoPayment({
-              sourceId: source.sourceId,
-              method: methodKey,
-              amount: bookingData.totalAmount,
-              customerName,
-              customerEmail,
-              bookingReference: bookingData.promoCodeUsed || customerName,
-              packageName: bookingData.name
-            });
-            transactionId = payment.transactionId || payment.paymentId || transactionId;
+          const normalizedStatus = (status || "pending").toLowerCase();
+
+          // Explicit uptake: a cancelled / failed / expired / unknown payment must
+          // NOT create a presumed-“paid” booking. Only truly completed payments
+          // proceed; anything else raises a clear error so the user can retry.
+          if (normalizedStatus === "cancelled") {
+            throw Object.assign(
+              new Error("Your payment was cancelled in the GCash/PayMaya window. Your booking was NOT created. You can retry whenever you're ready."),
+              { paymentRejected: true }
+            );
           }
+          if (normalizedStatus === "failed") {
+            throw Object.assign(
+              new Error("Your payment failed (GCash/PayMaya could not complete the charge). Your booking was NOT created. Please check your e-wallet and try again."),
+              { paymentRejected: true }
+            );
+          }
+          if (normalizedStatus === "expired") {
+            throw Object.assign(
+              new Error("Your payment link expired before it was completed. Your booking was NOT created. Please try again."),
+              { paymentRejected: true }
+            );
+          }
+          if (!["charged", "paid", "chargeable"].includes(normalizedStatus)) {
+            throw Object.assign(
+              new Error("We didn't receive confirmation that your payment completed in time. Your booking was NOT created; nothing was charged. Please try again."),
+              { paymentRejected: true }
+            );
+          }
+
+          const payment = await finalizePayMongoPayment({
+            sourceId: source.sourceId,
+            method: methodKey,
+            amount: bookingData.totalAmount,
+            customerName,
+            customerEmail,
+            bookingReference: bookingData.promoCodeUsed || customerName,
+            packageName: bookingData.name
+          });
+          transactionId = payment.transactionId || payment.paymentId || transactionId;
         }
       } catch (err) {
         const msg = String(err?.message || err).toLowerCase();
         const isOffline = /failed to fetch|networkerror|network request failed|fetch failed|offline/i.test(msg);
         if (isOffline) {
           console.warn("PayMongo backend offline — using local mock mode:", err.message);
+        } else if (err?.paymentRejected) {
+          // A cancelled / failed / expired / unconfirmed payment already has a
+          // complete, user-facing message — pass it through untouched so the
+          // checkout UI can show exactly why the booking wasn't created.
+          throw err;
         } else {
           // PayMongo/server genuinely rejected the payment. Do NOT silently
           // book a "paid" trip — let the user see why it failed.
@@ -216,7 +249,10 @@ export function BookingProvider({ children }) {
       paymentMethod: methodKey,
       paid: true,
       status: "upcoming",
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      // Multi-segment flight itinerary (up to 6 segments). The server persists
+      // these into the BookingFlights child table via CreateBookingRequest.
+      flightSegments: Array.isArray(bookingData.flightSegments) ? bookingData.flightSegments : []
     };
 
     const createdResult = await createBooking(payload);

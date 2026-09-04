@@ -14,6 +14,31 @@ public static class DatabaseInitializer
         // Create database if it doesn't exist
         await db.Database.EnsureCreatedAsync();
 
+        // Ensure the BookingFlights child table exists even on a pre-existing
+        // database that was created before this table was introduced. Fresh
+        // databases get it automatically via EnsureCreatedAsync.
+        await db.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'dbo.BookingFlights', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.BookingFlights (
+                    Id              int            NOT NULL IDENTITY(1,1) CONSTRAINT PK_BookingFlights PRIMARY KEY,
+                    BookingId       int            NOT NULL,
+                    SegmentOrder    int            NOT NULL,
+                    Airline         nvarchar(max)  NOT NULL,
+                    FlightNumber    nvarchar(max)  NOT NULL,
+                    DepartureCity   nvarchar(max)  NOT NULL,
+                    ArrivalCity     nvarchar(max)  NOT NULL,
+                    DepartureTime   nvarchar(max)  NOT NULL,
+                    ArrivalTime     nvarchar(max)  NOT NULL,
+                    DepartureDate   nvarchar(max)  NOT NULL,
+                    Class           nvarchar(max)  NOT NULL,
+                    Price           decimal(18,2)  NOT NULL,
+                    CONSTRAINT FK_BookingFlights_Bookings_BookingId
+                        FOREIGN KEY (BookingId) REFERENCES dbo.Bookings (Id) ON DELETE CASCADE
+                );
+                CREATE INDEX IX_BookingFlights_BookingId ON dbo.BookingFlights (BookingId);
+            END");
+
         // Optionally wipe seed tables before re-seeding
         if (reseed)
         {
@@ -47,7 +72,7 @@ public static class DatabaseInitializer
             await db.SaveChangesAsync();
         }
 
-        // Destinations (10)
+        // Destinations (15)
         if (!await db.Destinations.AnyAsync())
         {
             db.Destinations.AddRange(new[]
@@ -62,6 +87,11 @@ public static class DatabaseInitializer
                 new Destination { Name = "Dubai", Region = "Middle East", Category = "Urban", Description = "Futuristic skyscrapers, desert safaris, and record-breaking attractions.", ImageUrl = "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=800&q=80", Status = "Active" },
                 new Destination { Name = "Queenstown", Region = "Oceania", Category = "Adventure", Description = "The adventure capital of the world, set on the shores of crystal-clear Lake Wakatipu.", ImageUrl = "https://images.unsplash.com/photo-1507699622108-4be3abd695ad?w=800&q=80", Status = "Active" },
                 new Destination { Name = "New York", Region = "North America", Category = "Urban", Description = "The city that never sleeps — Broadway, skyscrapers, and endless energy.", ImageUrl = "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=800&q=80", Status = "Active" },
+                new Destination { Name = "Siargao", Region = "Caraga", Category = "Island", Description = "Surf capital of the Philippines with coconut-lined roads and turquoise lagoons.", ImageUrl = "https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=800&q=80", Status = "Active" },
+                new Destination { Name = "El Nido", Region = "Visayas", Category = "Island", Description = "Dramatic limestone cliffs, hidden lagoons and some of the world's best island hopping.", ImageUrl = "https://images.unsplash.com/photo-1516876437184-593fda40c7ce?w=800&q=80", Status = "Active" },
+                new Destination { Name = "Singapore", Region = "Asia", Category = "Urban", Description = "A gleaming city-state of gardens, hawker food and futuristic skyline.", ImageUrl = "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=800&q=80", Status = "Active" },
+                new Destination { Name = "Bangkok", Region = "Asia", Category = "Urban", Description = "Golden temples, floating markets and legendary street food.", ImageUrl = "https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=800&q=80", Status = "Active" },
+                new Destination { Name = "Taipei", Region = "Asia", Category = "Urban", Description = "Night markets, hot springs and Taipei 101 — a friendly gateway to Taiwan.", ImageUrl = "https://images.unsplash.com/photo-1470004914212-05527e49370b?w=800&q=80", Status = "Active" },
             });
             await db.SaveChangesAsync();
         }
@@ -119,6 +149,15 @@ public static class DatabaseInitializer
                 new Package { Name = "Dubai Luxury Escape", Location = "Dubai, UAE", Description = "Desert safaris, Burj Khalifa views, and premium city living.", Duration = "4D / 3N", Price = 38500m, Rating = 4.6m, Reviews = 221, Tag = "LUXURY", ImageUrl = "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival|Day 2: Burj Khalifa & City Tour|Day 3: Desert Safari|Day 4: Departure", Inclusions = "3 nights hotel|Daily breakfast|Desert safari|Airport transfers", Exclusions = "Airfare|Meals|Optional tours" },
                 new Package { Name = "Queenstown Adventure Week", Location = "Queenstown, New Zealand", Description = "Thrills, lakes, and landscapes — world-class adventure in the Southern Alps.", Duration = "7D / 6N", Price = 51200m, Rating = 4.8m, Reviews = 143, Tag = "ADVENTURE", ImageUrl = "https://images.unsplash.com/photo-1507699622108-4be3abd695ad?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival|Day 2: Lake Cruise|Day 3: Bungy & Jet Boating|Day 4: Milford Sound|Day 5: Ski Day|Day 6: Freedom Day|Day 7: Departure", Inclusions = "6 nights lodge|Daily breakfast|Milford Sound tour|Adventure pass", Exclusions = "Airfare|Meals|Gear rental" },
                 new Package { Name = "New York City Break", Location = "New York, USA", Description = "Broadway, Central Park, and the bustling energy of Manhattan.", Duration = "5D / 4N", Price = 46800m, Rating = 4.6m, Reviews = 290, Tag = "URBAN", ImageUrl = "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival|Day 2: Central Park & Times Square|Day 3: Statue of Liberty|Day 4: Broadway Show|Day 5: Departure", Inclusions = "4 nights hotel|Broadway ticket|Liberty cruise|City passes", Exclusions = "Airfare|Meals|Extras" },
+                // ── Affordable Manila/PHP-origin flight + hotel combos ────────
+                new Package { Name = "Cebu City Lights & Mactan Beach", Location = "Cebu, Visayas", Description = "A quick, budget-friendly city-and-beach escape — the perfect weekend break from Manila.", Duration = "3D / 2N", Price = 12900m, Rating = 4.6m, Reviews = 134, Tag = "BUDGET", ImageUrl = "https://images.unsplash.com/photo-1559399274-6fd2e29cb54a?w=800&q=80", Status = "Featured", Itinerary = "Day 1: Arrival & City Tour|Day 2: Mactan Beach & Island Hop|Day 3: Departure", Inclusions = "2 nights beachfront hotel|Daily breakfast|City tour|Airport transfers", Exclusions = "Airfare|Lunch & dinner|Souvenirs" },
+                new Package { Name = "Boracay Budget Beach Break", Location = "Boracay, Visayas", Description = "White sand, island hopping and sunshine at a price that fits any traveler's wallet.", Duration = "3D / 2N", Price = 11900m, Rating = 4.5m, Reviews = 189, Tag = "BEST VALUE", ImageUrl = "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival & White Beach|Day 2: Island Hopping|Day 3: Departure", Inclusions = "2 nights beach resort|Daily breakfast|Island hopping|Transfers", Exclusions = "Airfare|Meals not included|Extras" },
+                new Package { Name = "El Nido Island-Hopping Adventure", Location = "El Nido, Palawan", Description = "Pristine lagoons, hidden beaches and towering limestone cliffs on a classic island-hopping route.", Duration = "4D / 3N", Price = 18900m, Rating = 4.9m, Reviews = 167, Tag = "ADVENTURE", ImageUrl = "https://images.unsplash.com/photo-1516876437184-593fda40c7ce?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival & Town|Day 2: Tour A Lagoons|Day 3: Tour C & Nacpan Beach|Day 4: Departure", Inclusions = "3 nights beach lodge|Daily breakfast|2 island-hopping tours|Transfers", Exclusions = "Airfare|Lunch & dinner|Eco fees" },
+                new Package { Name = "Siargao Surf & Island Break", Location = "Siargao, Caraga", Description = "Surf the legendary Cloud 9 and unwind on turquoise lagoons on the Philippines' surf capital.", Duration = "4D / 3N", Price = 17500m, Rating = 4.8m, Reviews = 112, Tag = "CHILL", ImageUrl = "https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival & Cloud 9|Day 2: Island Hopping|Day 3: Sugba Lagoon|Day 4: Departure", Inclusions = "3 nights surf villa|Daily breakfast|Island-hopping tour|Transfers", Exclusions = "Airfare|Meals|Surf board rental" },
+                new Package { Name = "Singapore City Lights", Location = "Singapore", Description = "Gardens by the Bay, hawker feasts and world-class skyline — a short, value-packed Asian city break.", Duration = "4D / 3N", Price = 29500m, Rating = 4.7m, Reviews = 213, Tag = "TRENDING", ImageUrl = "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival & Marina Bay|Day 2: Gardens by the Bay & Sentosa|Day 3: Chinatown & Shopping|Day 4: Departure", Inclusions = "3 nights city hotel|Daily breakfast|Sentosa pass|Airport transfers", Exclusions = "Airfare|Meals|Visa (if applicable)" },
+                new Package { Name = "Bangkok Temples & Street Food", Location = "Bangkok, Thailand", Description = "Gilded temples, floating markets and legendary street food on an affordable Thailand city break.", Duration = "4D / 3N", Price = 24800m, Rating = 4.6m, Reviews = 176, Tag = "BEST VALUE", ImageUrl = "https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival & Grand Palace|Day 2: Floating Market|Day 3: Chatuchak & Night Market|Day 4: Departure", Inclusions = "3 nights city hotel|Daily breakfast|Grand Palace ticket|Airport transfers", Exclusions = "Airfare|Meals|Visa (if applicable)" },
+                new Package { Name = "Taipei Foodie & City Tour", Location = "Taipei, Taiwan", Description = "Night markets, hot springs and skyline views in one of Asia's easiest and most wallet-friendly cities.", Duration = "4D / 3N", Price = 22500m, Rating = 4.7m, Reviews = 143, Tag = "FOODIE", ImageUrl = "https://images.unsplash.com/photo-1470004914212-05527e49370b?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival & Taipei 101|Day 2: Shifen & Jiufen|Day 3: Yangmingshan & Night Market|Day 4: Departure", Inclusions = "3 nights city hotel|Daily breakfast|Day tour to Jiufen|Airport transfers", Exclusions = "Airfare|Meals|Extras" },
+                new Package { Name = "Tokyo Value Escape", Location = "Tokyo, Japan", Description = "Neon districts, temples and iconic sights — a friendly-priced first taste of Japan for savvy travelers.", Duration = "5D / 4N", Price = 30900m, Rating = 4.6m, Reviews = 157, Tag = "BUDGET", ImageUrl = "https://images.unsplash.com/photo-1516549655169-df83a0774514?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival|Day 2: Asakusa & Shibuya|Day 3: Mt. Fuji Day Trip|Day 4: Akihabara & Ginza|Day 5: Departure", Inclusions = "4 nights budget hotel|Daily breakfast|Mt. Fuji day tour|Public transport pass", Exclusions = "Airfare|Meals|Extras" },
             });
             await db.SaveChangesAsync();
         }
@@ -138,6 +177,14 @@ public static class DatabaseInitializer
                 new Flight { Airline = "KLM", FlightNumber = "KL 806", DepartureCity = "Manila", ArrivalCity = "Amsterdam", DepartureTime = "01:30", ArrivalTime = "09:15", DepartureDate = "2026-09-22", Price = 58000m, Class = "Economy", SeatsAvailable = 160, ImageUrl = "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&q=80", Status = "Active" },
                 new Flight { Airline = "Qantas", FlightNumber = "QF 20", DepartureCity = "Manila", ArrivalCity = "Sydney", DepartureTime = "08:45", ArrivalTime = "19:30", DepartureDate = "2026-09-23", Price = 52000m, Class = "Economy", SeatsAvailable = 140, ImageUrl = "https://images.unsplash.com/photo-1540339832862-474599807a5e?w=800&q=80", Status = "Active" },
                 new Flight { Airline = "Delta", FlightNumber = "DL 440", DepartureCity = "Manila", ArrivalCity = "New York", DepartureTime = "23:55", ArrivalTime = "11:00", DepartureDate = "2026-09-24", Price = 82000m, Class = "Business", SeatsAvailable = 40, ImageUrl = "https://images.unsplash.com/photo-1540339832862-474599807a5e?w=800&q=80", Status = "Active" },
+                // ── Affordable Manila-origin routes for the budget flight combos ──
+                new Flight { Airline = "Cebu Pacific", FlightNumber = "5J 585", DepartureCity = "Manila", ArrivalCity = "Cebu", DepartureTime = "06:30", ArrivalTime = "07:45", DepartureDate = "2026-09-25", Price = 2900m, Class = "Economy", SeatsAvailable = 140, ImageUrl = "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&q=80", Status = "Active" },
+                new Flight { Airline = "Air Swift", FlightNumber = "DG 712", DepartureCity = "Manila", ArrivalCity = "Siargao", DepartureTime = "10:00", ArrivalTime = "11:40", DepartureDate = "2026-09-25", Price = 5200m, Class = "Economy", SeatsAvailable = 72, ImageUrl = "https://images.unsplash.com/photo-1540339832862-474599807a5e?w=800&q=80", Status = "Active" },
+                new Flight { Airline = "Air Swift", FlightNumber = "DG 624", DepartureCity = "Manila", ArrivalCity = "El Nido", DepartureTime = "08:15", ArrivalTime = "09:45", DepartureDate = "2026-09-26", Price = 6300m, Class = "Economy", SeatsAvailable = 60, ImageUrl = "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&q=80", Status = "Active" },
+                new Flight { Airline = "Scoot", FlightNumber = "TR 395", DepartureCity = "Manila", ArrivalCity = "Singapore", DepartureTime = "12:10", ArrivalTime = "15:40", DepartureDate = "2026-09-27", Price = 8900m, Class = "Economy", SeatsAvailable = 130, ImageUrl = "https://images.unsplash.com/photo-1558389186-4386d1bea007?w=800&q=80", Status = "Active" },
+                new Flight { Airline = "Thai Airways", FlightNumber = "TG 621", DepartureCity = "Manila", ArrivalCity = "Bangkok", DepartureTime = "21:30", ArrivalTime = "23:50", DepartureDate = "2026-09-28", Price = 8200m, Class = "Economy", SeatsAvailable = 120, ImageUrl = "https://images.unsplash.com/photo-1558389186-4386d1bea007?w=800&q=80", Status = "Active" },
+                new Flight { Airline = "EVA Air", FlightNumber = "BR 272", DepartureCity = "Manila", ArrivalCity = "Taipei", DepartureTime = "14:05", ArrivalTime = "16:20", DepartureDate = "2026-09-29", Price = 7800m, Class = "Economy", SeatsAvailable = 110, ImageUrl = "https://images.unsplash.com/photo-1558389186-4386d1bea007?w=800&q=80", Status = "Active" },
+                new Flight { Airline = "ZIPAIR", FlightNumber = "ZG 24", DepartureCity = "Manila", ArrivalCity = "Tokyo", DepartureTime = "09:45", ArrivalTime = "15:20", DepartureDate = "2026-09-30", Price = 24000m, Class = "Economy", SeatsAvailable = 100, ImageUrl = "https://images.unsplash.com/photo-1558389186-4386d1bea007?w=800&q=80", Status = "Active" },
             });
             await db.SaveChangesAsync();
         }

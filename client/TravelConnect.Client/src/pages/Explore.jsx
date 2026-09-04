@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Search, Package, Star, ArrowRight, Globe, TrendingUp, Users, Plane } from "lucide-react";
+import { Search, Package, Star, ArrowRight, Globe, TrendingUp, Users, Plane, AlertTriangle, MapPin } from "lucide-react";
 import { useBooking } from "../context/BookingContext";
+import { useCurrency } from "../context/CurrencyContext";
+import { useAvailable } from "../context/AvailableContext";
 import PageHeroCarousel from "../components/shared/PageHeroCarousel";
-import { destinationsApi, packagesApi, flightsApi } from "../services/api";
+import { destinationsApi, packagesApi, flightsApi, hotelsApi } from "../services/api";
 
 const EXPLORE_HERO_SLIDES = [
   {
@@ -80,6 +82,8 @@ export default function Explore() {
   const { openCheckoutModal } = useBooking();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { reachableCities, availableForTrip } = useAvailable();
+  const { displayPrice } = useCurrency();
 
   const queryFrom = (searchParams.get("from") || "").toLowerCase().trim();
   const queryTo = (searchParams.get("to") || "").toLowerCase().trim();
@@ -90,6 +94,7 @@ export default function Explore() {
   const [destinations, setDestinations] = useState([]);
   const [packages, setPackages] = useState([]);
   const [flights, setFlights] = useState([]);
+  const [hotels, setHotels] = useState([]);
 
   useEffect(() => {
     let active = true;
@@ -105,6 +110,10 @@ export default function Explore() {
       .list()
       .then((data) => { if (active) setFlights(Array.isArray(data) ? data : []); })
       .catch(() => { if (active) setFlights([]); });
+    hotelsApi
+      .list()
+      .then((data) => { if (active) setHotels(Array.isArray(data) ? data : []); })
+      .catch(() => { if (active) setHotels([]); });
     return () => { active = false; };
   }, []);
 
@@ -141,11 +150,27 @@ export default function Explore() {
     );
   });
 
+  const filteredHotels = hotels.filter((h) => {
+    const matchRegion = activeRegion === "All" || (h.location || "").toLowerCase().includes(activeRegion.toLowerCase());
+    const matchSearch =
+      !search ||
+      (h.name || "").toLowerCase().includes(search.toLowerCase()) ||
+      (h.location || "").toLowerCase().includes(search.toLowerCase());
+    // Respect the flight-hotel destination when searching.
+    const matchTo = !queryTo || (h.location || "").toLowerCase().includes(queryTo);
+    return matchRegion && matchSearch && matchTo;
+  });
+
+  const routeNoFlight =
+    (queryFrom || queryTo) && filteredFlights.length === 0 && flights.length > 0;
+
   const list = activeTab === "Destinations"
     ? filteredDestinations
     : activeTab === "Flights"
       ? filteredFlights
-      : filteredPackages;                    
+      : activeTab === "Hotels"
+        ? filteredHotels
+        : filteredPackages;                    
 
   return (
     <div className="w-full bg-slate-50 min-h-screen">
@@ -187,7 +212,7 @@ export default function Explore() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         {/* Tabs */}
         <div className="flex gap-3 mb-6">
-          {["Destinations", "Packages", "Flights"].map((tab) => (
+          {["Destinations", "Packages", "Flights", "Hotels"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -232,7 +257,32 @@ export default function Explore() {
         {/* ── Item Grid ─────────────────────────────────────── */}
         {list.length === 0 ? (
           <div className="text-center py-20 text-gray-400 text-lg font-medium">
-            No {activeTab.toLowerCase()} available yet.
+            {routeNoFlight ? (
+              <div className="max-w-xl mx-auto space-y-4">
+                <AlertTriangle size={40} className="mx-auto text-amber-500" />
+                <p className="text-gray-600 font-semibold">No available flights on this route yet.</p>
+                <p className="text-sm">We currently serve these flight destinations:</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {reachableCities.map((c) => (
+                    <button
+                      key={c.code || c.city}
+                      onClick={() => navigate(`/explore?to=${encodeURIComponent(c.city)}`)}
+                      className="text-xs font-bold text-[#008fe5] bg-blue-50 hover:bg-blue-100 border border-blue-100 px-3 py-1.5 rounded-full transition"
+                    >
+                      {c.city} ({c.code})
+                    </button>
+                  ))}
+                </div>
+                {availableForTrip.length > 0 && (
+                  <p className="text-sm text-gray-500 mt-2">
+                    Bundle-ready (flight + hotel):{" "}
+                    {availableForTrip.map((c) => c.city).join(", ")}
+                  </p>
+                )}
+              </div>
+            ) : (
+              `No ${activeTab.toLowerCase()} available yet.`
+            )}
           </div>
         ) : activeTab === "Flights" ? (
           <div className="space-y-5">
@@ -271,7 +321,7 @@ export default function Explore() {
                   <div className="sm:w-60 p-5 border-t sm:border-t-0 sm:border-l border-slate-100 flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3 bg-slate-50/50">
                     <div>
                       <div className="text-[10px] text-slate-400 font-bold uppercase">Per traveler</div>
-                      <div className="text-2xl font-black text-slate-900">₱{Number(f.price || 0).toLocaleString()}</div>
+                      <div className="text-2xl font-black text-slate-900">{displayPrice(Number(f.price || 0))}</div>
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -290,7 +340,21 @@ export default function Explore() {
                             price: Number(f.price || 0),
                             duration: "1 Flight",
                             img: f.imageUrl,
-                            category: "package",
+                            category: "flight",
+                            flight: {
+                              id: f.id,
+                              flightNumber: f.flightNumber,
+                              airline: f.airline,
+                              departureCity: f.departureCity,
+                              arrivalCity: f.arrivalCity,
+                              departureTime: f.departureTime,
+                              arrivalTime: f.arrivalTime,
+                              departureDate: f.departureDate,
+                              price: Number(f.price || 0),
+                              class: f.class || "Economy",
+                              imageUrl: f.imageUrl,
+                              seatsAvailable: Number(f.seatsAvailable || 0)
+                            },
                           });
                         }}
                         className="bg-[#008fe5] hover:bg-blue-600 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-md transition"
@@ -302,6 +366,39 @@ export default function Explore() {
                 </div>
               );
             })}
+          </div>
+        ) : activeTab === "Hotels" ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {list.map((h) => (
+              <div
+                key={h.id}
+                onClick={() => navigate(`/hotels/${h.id}`)}
+                className="bg-white rounded-3xl overflow-hidden border border-slate-200/80 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col justify-between"
+              >
+                <div>
+                  <div className="relative h-48 overflow-hidden">
+                    <img
+                      src={h.imageUrl || "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80"}
+                      alt={h.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <span className="absolute bottom-3 right-3 bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-full text-xs font-black text-slate-900 flex items-center gap-1 shadow">
+                      <Star size={13} className="text-amber-500 fill-amber-500" /> {Number(h.rating || 0).toFixed(1)}
+                    </span>
+                  </div>
+                  <div className="p-5 space-y-2">
+                    <h3 className="font-extrabold text-slate-900 text-lg leading-tight">{h.name}</h3>
+                    <p className="text-xs text-slate-500 font-medium flex items-center gap-1">
+                      <MapPin size={14} className="text-[#008fe5] shrink-0" /> {h.location}
+                    </p>
+                  </div>
+                </div>
+                <div className="p-5 pt-0 border-t border-slate-100 flex items-center justify-between mt-2">
+                  <span className="text-2xl font-black text-slate-900">{displayPrice(Number(h.pricePerNight || 0))}</span>
+                  <span className="text-[11px] text-slate-500 font-semibold">/ night</span>
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-[220px]">
@@ -349,7 +446,7 @@ export default function Explore() {
                       <span className="text-white/80 text-xs">{duration}</span>
                       {price > 0 && (
                         <span className="text-white font-bold text-sm">
-                          from ₱{price.toLocaleString()}
+                          from {displayPrice(price)}
                         </span>
                       )}
                     </div>

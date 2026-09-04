@@ -4,6 +4,7 @@ import {
   Car, Fuel, Users, Gauge, Filter, Eye
 } from "lucide-react";
 import { useBooking } from "../context/BookingContext";
+import { useCurrency } from "../context/CurrencyContext";
 import PageHeroCarousel from "../components/shared/PageHeroCarousel";
 import FavoriteButton from "../components/shared/FavoriteButton";
 import { carsApi } from "../services/api";
@@ -43,6 +44,7 @@ export default function Cars() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { openCheckoutModal } = useBooking();
+  const { displayPrice, selectedCurrency, currentCurrency } = useCurrency();
   const [selectedType, setSelectedType] = useState("All");
   const [cars, setCars] = useState([]);
 
@@ -98,7 +100,7 @@ export default function Cars() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-extrabold text-slate-900">Available Rental Vehicles</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Showing {filteredCars.length} models in PHP (₱)</p>
+            <p className="text-xs text-slate-500 mt-0.5">Showing {filteredCars.length} models in {selectedCurrency} ({currentCurrency.symbol})</p>
           </div>
         </div>
 
@@ -152,7 +154,7 @@ export default function Cars() {
                 <div className="p-5 pt-0 border-t border-slate-100 flex items-end justify-between mt-4 gap-2">
                   <div>
                     <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-black text-slate-900">₱{Number(car.pricePerDay || 0).toLocaleString()}</span>
+                      <span className="text-2xl font-black text-slate-900">{displayPrice(Number(car.pricePerDay || 0))}</span>
                       <span className="text-[11px] text-slate-500 font-semibold">/ day</span>
                     </div>
                   </div>

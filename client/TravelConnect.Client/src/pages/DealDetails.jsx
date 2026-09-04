@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { packagesApi } from "../services/api";
 import { useBooking } from "../context/BookingContext";
+import { useCurrency } from "../context/CurrencyContext";
 
 const toBooking = (deal) => ({
   id: `PKG-${deal.id}`,
@@ -26,6 +27,7 @@ export default function DealDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { openCheckoutModal } = useBooking();
+  const { displayPrice } = useCurrency();
   const [deal, setDeal] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -130,7 +132,7 @@ export default function DealDetails() {
 
               <div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-black text-slate-900">₱{Number(deal.price || 0).toLocaleString()}</span>
+                  <span className="text-3xl font-black text-slate-900">{displayPrice(Number(deal.price || 0))}</span>
                   <span className="text-xs text-slate-500 font-semibold">/ person</span>
                 </div>
                 <p className="text-[11px] text-slate-400 mt-0.5">Taxes, fees &amp; all bundle inclusions covered</p>
@@ -234,7 +236,7 @@ export default function DealDetails() {
               <div className="space-y-3 text-xs">
                 <div className="pt-1 border-t border-slate-100 flex items-center justify-between">
                   <span className="font-black text-slate-900 text-sm">Total Deal Price</span>
-                  <span className="font-black text-[#008fe5] text-2xl">₱{Number(deal.price || 0).toLocaleString()}</span>
+                  <span className="font-black text-[#008fe5] text-2xl">{displayPrice(Number(deal.price || 0))}</span>
                 </div>
               </div>
 

@@ -139,7 +139,12 @@ export async function createBooking(bookingPayload) {
   try {
     return await request(`/api/bookings`, {
       method: "POST",
-      body: JSON.stringify(bookingPayload)
+      body: JSON.stringify({
+        booking: bookingPayload,
+        ...(Array.isArray(bookingPayload.flightSegments)
+          ? { flightSegments: bookingPayload.flightSegments }
+          : {})
+      })
     });
   } catch {
     const ref = `TC-2026-${Math.floor(1000 + Math.random() * 9000)}`;

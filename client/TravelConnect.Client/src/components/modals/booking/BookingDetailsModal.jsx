@@ -1,5 +1,6 @@
 import { X, Printer, Shield, Plane, Hotel, Car, Ticket, CreditCard, MapPin, Wallet, RotateCcw } from "lucide-react";
 import { useBooking } from "../../../context/BookingContext";
+import { useCurrency } from "../../../context/CurrencyContext";
 import InquiryFormSection from "./InquiryFormSection";
 import CancellationSection from "./CancellationSection";
 
@@ -10,6 +11,7 @@ export default function BookingDetailsModal() {
     closeBookingDetailsModal,
     cancelBookingTransaction
   } = useBooking();
+  const { displayPrice } = useCurrency();
 
   if (!detailsModalOpen || !selectedBookingDetails) return null;
 
@@ -84,7 +86,7 @@ export default function BookingDetailsModal() {
 
             <div className="text-right">
               <span className="text-[10px] uppercase font-bold text-gray-400 block">Total Transaction</span>
-              <span className="text-2xl font-black text-gray-900">₱{(b.amount || b.totalAmount || 0).toLocaleString()}</span>
+              <span className="text-2xl font-black text-gray-900">{displayPrice(b.amount || b.totalAmount || 0)}</span>
               {b.paid && (
                 <span className="block text-[10px] font-bold text-green-600">✓ PAYMENT CONFIRMED</span>
               )}
@@ -120,13 +122,13 @@ export default function BookingDetailsModal() {
             </h4>
             <div className="space-y-2 text-sm">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-500 font-semibold">Original Fare / Amount Paid (PHP)</span>
-                <span className="font-black text-gray-900">₱{(b.amount || b.totalAmount || 0).toLocaleString()}</span>
+                <span className="text-gray-500 font-semibold">Original Fare / Amount Paid</span>
+                <span className="font-black text-gray-900">{displayPrice(b.amount || b.totalAmount || 0)}</span>
               </div>
               {Number(b.discountAmount || 0) > 0 && (
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-gray-500 font-semibold">Promo Discount ({b.promoCodeUsed || ""})</span>
-                  <span className="font-bold text-emerald-600">-₱{Number(b.discountAmount || 0).toLocaleString()}</span>
+                  <span className="font-bold text-emerald-600">-{displayPrice(Number(b.discountAmount || 0))}</span>
                 </div>
               )}
               <div className="flex items-center justify-between text-xs">
@@ -140,10 +142,10 @@ export default function BookingDetailsModal() {
                 <div className="mt-2 pt-3 border-t border-emerald-100 bg-emerald-50/60 rounded-xl p-3 space-y-2 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-emerald-800 flex items-center gap-1.5">
-                      <RotateCcw size={13} /> Refunded Amount (PHP)
+                      <RotateCcw size={13} /> Refunded Amount
                     </span>
                     <span className="font-black text-emerald-700 text-sm">
-                      ₱{Number(b.refundAmount || b.amount || b.totalAmount || 0).toLocaleString()}
+                      {displayPrice(Number(b.refundAmount || b.amount || b.totalAmount || 0))}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -163,7 +165,7 @@ export default function BookingDetailsModal() {
               ) : (
                 <div className="mt-2 pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
                   <span className="text-gray-500 font-semibold">Refundable Amount</span>
-                  <span className="font-black text-emerald-600">₱{(b.amount || b.totalAmount || 0).toLocaleString()}</span>
+                  <span className="font-black text-emerald-600">{displayPrice(b.amount || b.totalAmount || 0)}</span>
                 </div>
               )}
             </div>

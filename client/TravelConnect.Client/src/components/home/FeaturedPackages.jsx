@@ -5,9 +5,8 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useBooking } from "../../context/BookingContext";
+import { useCurrency } from "../../context/CurrencyContext";
 import { packagesApi } from "../../services/api";
-
-const fmtPrice = (p) => `₱${Number(p || 0).toLocaleString()}`;
 
 const badge = (pkg) => {
   const map = {
@@ -24,6 +23,7 @@ const badge = (pkg) => {
 export default function FeaturedPackages() {
   const navigate = useNavigate();
   const { openCheckoutModal } = useBooking();
+  const { displayPrice } = useCurrency();
   const [packages, setPackages] = useState([]);
   const [activeCategory, setActiveCategory] = useState("all");
 
@@ -189,7 +189,7 @@ export default function FeaturedPackages() {
                     <div>
                       <div className="flex items-center gap-1.5">
                         <span className="text-[11px] text-slate-400 line-through font-bold">
-                          {fmtPrice(originalPrice)}
+                          {displayPrice(originalPrice)}
                         </span>
                         <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
                           SAVE 25%
@@ -197,7 +197,7 @@ export default function FeaturedPackages() {
                       </div>
                       <div className="flex items-baseline gap-1">
                         <span className="text-2xl font-black text-slate-900">
-                          {fmtPrice(pkg.price)}
+                          {displayPrice(pkg.price)}
                         </span>
                         <span className="text-[11px] font-bold text-slate-400">/ person</span>
                       </div>

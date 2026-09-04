@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { ArrowRight, Sparkles, MapPin, Compass, Flame } from "lucide-react";
 import { Link } from "react-router-dom";
 import { destinationsApi } from "../../services/api";
+import { useCurrency } from "../../context/CurrencyContext";
 
 function parseName(name) {
   const parts = (name || "").split(",").map((s) => s.trim());
@@ -9,6 +10,7 @@ function parseName(name) {
 }
 
 export default function PopularDestinations() {
+  const { displayPrice } = useCurrency();
   const [destinations, setDestinations] = useState([]);
 
   useEffect(() => {
@@ -98,7 +100,7 @@ export default function PopularDestinations() {
                     <div>
                       <span className="text-[10px] text-slate-400 uppercase font-bold block">Fares From</span>
                       <span className="font-extrabold text-amber-300 text-sm">
-                        ₱{Math.round(2400 + (idx * 650)).toLocaleString()}
+                        {displayPrice(Math.round(2400 + (idx * 650)))}
                       </span>
                     </div>
 

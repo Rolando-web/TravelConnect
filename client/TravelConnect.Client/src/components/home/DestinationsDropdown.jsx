@@ -1,18 +1,55 @@
-import { useRef } from "react";
-import DESTINATIONS_DATA from "../../data/destinations.json";
+import { useRef, useMemo } from "react";
+import { useAvailable } from "../../context/AvailableContext";
+import { groupDestinations } from "../../data/destinationMeta";
 
-/* ─── Reusable categorised city-picker dropdown ─────────────────────── */
-export default function DestinationsDropdown({ searchVal, onSearchChange, onSelect, showAnywhere = false }) {
+const REGION_ORDER = [
+  { key: "asia", label: "Asia" },
+  { key: "europe", label: "Europe" },
+  { key: "north_america", label: "North America" },
+  { key: "south_america", label: "South America" },
+  { key: "middle_east", label: "Middle East" },
+  { key: "oceania", label: "Oceania" },
+  { key: "international", label: "International" },
+];
+
+/* ─── Reusable categorised city-picker dropdown ───────────────────────
+   `mode` controls which destinations are shown:
+     - "flight" : only cities reachable by an available flight (arrival cities)
+     - "hotel"  : only cities with an available hotel
+     - "trip"   : cities reachable by flight AND with a hotel (bundle-ready)
+     - default  : every destination that has any service
+   `showAnywhere` adds an "Anywhere" inspiration option (flight mode only).
+─────────────────────────────────────────────────────────────────────── */
+export default function DestinationsDropdown({
+  searchVal,
+  onSearchChange,
+  onSelect,
+  showAnywhere = false,
+  mode = "all",
+}) {
   const ref = useRef(null);
+  const { originCities, reachableCities, hotelCities, availableForTrip, availableDestinations, popularCodes } =
+    useAvailable();
+
+  const sourceList = useMemo(() => {
+    if (mode === "origin") return originCities;
+    if (mode === "flight") return reachableCities;
+    if (mode === "hotel") return hotelCities;
+    if (mode === "trip") return availableForTrip;
+    return availableDestinations;
+  }, [mode, originCities, reachableCities, hotelCities, availableForTrip, availableDestinations]);
+
+  const buckets = useMemo(() => groupDestinations(sourceList, popularCodes), [sourceList, popularCodes]);
 
   const filterList = (search) => {
+    const q = search.toLowerCase();
     const filtered = {};
-    Object.keys(DESTINATIONS_DATA).forEach((key) => {
-      filtered[key] = DESTINATIONS_DATA[key].filter(
+    Object.keys(buckets).forEach((key) => {
+      filtered[key] = (buckets[key] || []).filter(
         (item) =>
-          item.city.toLowerCase().includes(search.toLowerCase()) ||
-          item.country.toLowerCase().includes(search.toLowerCase()) ||
-          item.code.toLowerCase().includes(search.toLowerCase())
+          item.city.toLowerCase().includes(q) ||
+          item.country.toLowerCase().includes(q) ||
+          item.code.toLowerCase().includes(q)
       );
     });
     return filtered;
@@ -26,34 +63,14 @@ export default function DestinationsDropdown({ searchVal, onSearchChange, onSele
     onSearchChange(`${item.city} (${item.code})`);
   };
 
-  /* ─── Region grid renderer ─────────────────────────────────────────── */
-  const RegionGrid = ({ label, items }) =>
-    items?.length > 0 ? (
-      <div>
-        <span className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{label}</span>
-        <div className="grid grid-cols-3 gap-3">
-          {items.slice(0, 6).map((item) => (
-            <button
-              key={item.code}
-              type="button"
-              onClick={() => handleSelect(item)}
-              className="text-left py-2 px-3 hover:bg-blue-50 rounded-xl transition"
-            >
-              <span className="font-bold text-sm text-gray-900 block truncate">{item.city}</span>
-              <span className="text-[10px] text-gray-400 block truncate">{item.airport}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    ) : null;
-
   return (
     <div ref={ref} className="absolute left-0 mt-2 bg-white border border-gray-200 shadow-2xl rounded-2xl p-6 z-[60] w-[550px] max-h-[500px] overflow-y-auto">
       {searchVal && !hasResults ? (
-        <div className="text-gray-400 text-center py-6 text-sm">No cities found</div>
+        <div className="text-gray-400 text-center py-6 text-sm">
+          No available {mode === "flight" ? "flight destinations" : mode === "hotel" ? "hotel cities" : "destinations"} found
+        </div>
       ) : (
         <div className="space-y-6 text-left">
-          {/* Anywhere option */}
           {!searchVal && showAnywhere && (
             <button
               type="button"
@@ -65,11 +82,41 @@ export default function DestinationsDropdown({ searchVal, onSearchChange, onSele
             </button>
           )}
 
-          <RegionGrid label="Popular cities" items={filtered.popular} />
-          <RegionGrid label="Asia"           items={filtered.asia} />
-          <RegionGrid label="Europe"         items={filtered.europe} />
-          <RegionGrid label="North America"  items={filtered.north_america} />
-          <RegionGrid label="South America"  items={filtered.south_america} />
+          {!searchVal && sourceList.length > 0 && (mode === "flight" || mode === "all") && (
+            <div>
+              <span className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Available routes</span>
+              <p className="text-[11px] text-emerald-600 font-semibold">
+                Showing destinations you can book right now
+              </p>
+            </div>
+          )}
+
+          {REGION_ORDER.map(({ key, label }) => {
+            const items = filtered[key] || [];
+            if (items.length === 0) return null;
+            return (
+              <div key={key}>
+                <span className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{label}</span>
+                <div className="grid grid-cols-3 gap-3">
+                  {items.slice(0, 9).map((item) => (
+                    <button
+                      key={item.code || item.city}
+                      type="button"
+                      onClick={() => handleSelect(item)}
+                      className="text-left py-2 px-3 hover:bg-blue-50 rounded-xl transition"
+                    >
+                      <span className="font-bold text-sm text-gray-900 block truncate">{item.city}</span>
+                      <span className="text-[10px] text-gray-400 block truncate">{item.airport}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+
+          {!hasResults && searchVal && (
+            <div className="text-gray-400 text-center py-6 text-sm">No cities found</div>
+          )}
         </div>
       )}
     </div>

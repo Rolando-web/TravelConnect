@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { carsApi } from "../services/api";
 import { useBooking } from "../context/BookingContext";
+import { useCurrency } from "../context/CurrencyContext";
 import FavoriteButton from "../components/shared/FavoriteButton";
 
 const DAYS = 3;
@@ -23,6 +24,7 @@ export default function CarDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { openCheckoutModal } = useBooking();
+  const { displayPrice } = useCurrency();
   const [car, setCar] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -140,11 +142,11 @@ export default function CarDetails() {
 
               <div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-black text-slate-900">₱{daily.toLocaleString()}</span>
+                  <span className="text-3xl font-black text-slate-900">{displayPrice(daily)}</span>
                   <span className="text-xs text-slate-500 font-semibold">/ day</span>
                 </div>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  Estimated total · ₱{total.toLocaleString()} for {DAYS} days
+                  Estimated total · {displayPrice(total)} for {DAYS} days
                 </p>
               </div>
 
@@ -218,7 +220,7 @@ export default function CarDetails() {
               <div className="space-y-3 text-xs">
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                   <span className="font-black text-slate-900 text-sm">Total</span>
-                  <span className="font-black text-[#008fe5] text-2xl">₱{total.toLocaleString()}</span>
+                  <span className="font-black text-[#008fe5] text-2xl">{displayPrice(total)}</span>
                 </div>
               </div>
               <button

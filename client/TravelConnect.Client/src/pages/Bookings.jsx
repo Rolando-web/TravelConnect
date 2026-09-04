@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useBooking } from "../context/BookingContext";
+import { useCurrency } from "../context/CurrencyContext";
 
 /* ─── Status helpers ─────────────────────────────────────────────────── */
 const STATUS_CONFIG = {
@@ -66,6 +67,7 @@ function LoginGate() {
    BOOKING CARD
 ═══════════════════════════════════════════════════════════════════════ */
 function BookingCard({ booking, onViewDetails, onRequestCancel }) {
+  const { displayPrice } = useCurrency();
   const isRefunded = booking.status === "refunded" || booking.status === "cancelled";
   const st = STATUS_CONFIG[booking.status] || STATUS_CONFIG.upcoming;
   const bookingAmount = booking.amount || booking.totalAmount || 0;
@@ -126,7 +128,7 @@ function BookingCard({ booking, onViewDetails, onRequestCancel }) {
             <div className="mt-3 bg-emerald-50 border border-emerald-200/80 rounded-2xl p-2.5 flex items-center justify-between text-xs text-emerald-800">
               <div className="flex items-center gap-2">
                 <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
-                <span className="font-bold">Refund of ₱{bookingAmount.toLocaleString()} credited back.</span>
+                <span className="font-bold">Refund of {displayPrice(bookingAmount)} credited back.</span>
               </div>
               <span className="font-mono text-[10px] font-bold text-emerald-700">{booking.refundReference || "RFND-PROCESSED"}</span>
             </div>
@@ -137,8 +139,7 @@ function BookingCard({ booking, onViewDetails, onRequestCancel }) {
         <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
           <div>
             <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-black text-slate-900">₱{bookingAmount.toLocaleString()}</span>
-              <span className="text-xs text-slate-400 font-bold uppercase">PHP</span>
+              <span className="text-2xl font-black text-slate-900">{displayPrice(bookingAmount)}</span>
             </div>
             <p className="text-[11px] text-slate-400 font-semibold flex items-center gap-1">
               <CreditCard size={11} /> {booking.paymentMethod?.toUpperCase() || "GCASH"}
@@ -174,6 +175,7 @@ function BookingCard({ booking, onViewDetails, onRequestCancel }) {
 function BookingsDashboard() {
   const { user } = useAuth();
   const { bookings, cancelBookingTransaction, openBookingDetailsModal, walletBalance } = useBooking();
+  const { displayPrice } = useCurrency();
   const [activeTab, setActiveTab] = useState("upcoming");
   
   // Quick cancel & refund modal state
@@ -367,15 +369,15 @@ function BookingsDashboard() {
             <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-4 space-y-2 text-xs text-emerald-900">
               <div className="flex items-center justify-between">
                 <span className="font-bold">Original Paid Amount:</span>
-                <span className="font-black text-sm">₱{(cancelModalBooking.amount || cancelModalBooking.totalAmount || 0).toLocaleString()}</span>
+                <span className="font-black text-sm">{displayPrice(cancelModalBooking.amount || cancelModalBooking.totalAmount || 0)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="font-bold">Cancellation Penalty / Fee:</span>
-                <span className="font-black text-emerald-600">₱0.00 (Zero Fee)</span>
+                <span className="font-black text-emerald-600">{displayPrice(0)} (Zero Fee)</span>
               </div>
               <div className="pt-2 border-t border-emerald-200 flex items-center justify-between text-sm">
                 <span className="font-black">Total Refund Credited:</span>
-                <span className="font-black text-emerald-600 text-base">₱{(cancelModalBooking.amount || cancelModalBooking.totalAmount || 0).toLocaleString()}</span>
+                <span className="font-black text-emerald-600 text-base">{displayPrice(cancelModalBooking.amount || cancelModalBooking.totalAmount || 0)}</span>
               </div>
               <p className="text-[11px] text-emerald-700 pt-1">
                 ✓ Funds will be returned instantly to your <strong>{cancelModalBooking.paymentMethod?.toUpperCase() || "GCASH"}</strong> account.
@@ -417,7 +419,7 @@ function BookingsDashboard() {
                 Refund Processed Successfully
               </span>
               <h3 className="text-xl font-black text-slate-900 mt-2">
-                ₱{(refundSuccessData.refundAmount || 0).toLocaleString()} credited to your{" "}
+                {displayPrice(refundSuccessData.refundAmount || 0)} credited to your{" "}
                 <span className="text-amber-600">TravelConnect Money</span> wallet.
               </h3>
               <p className="text-xs text-slate-500 mt-2 leading-relaxed">
@@ -433,11 +435,11 @@ function BookingsDashboard() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="font-bold">Credited Amount:</span>
-                <span className="font-black text-emerald-600">PHP {(refundSuccessData.refundAmount || 0).toLocaleString()}</span>
+                <span className="font-black text-emerald-600">{displayPrice(refundSuccessData.refundAmount || 0)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="font-bold">New Wallet Balance:</span>
-                <span className="font-black text-emerald-600">PHP {(refundSuccessData.newWalletBalance ?? walletBalance ?? 0).toLocaleString()}</span>
+                <span className="font-black text-emerald-600">{displayPrice(refundSuccessData.newWalletBalance ?? walletBalance ?? 0)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="font-bold">Status:</span>

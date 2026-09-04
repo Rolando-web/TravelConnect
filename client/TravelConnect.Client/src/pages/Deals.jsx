@@ -4,6 +4,7 @@ import {
   Tag, Clock, Copy, CheckCheck, Zap, Shield, CreditCard, HeadphonesIcon, RefreshCcw, Star, Eye
 } from "lucide-react";
 import { useBooking } from "../context/BookingContext";
+import { useCurrency } from "../context/CurrencyContext";
 import { packagesApi } from "../services/api";
 import PageHeroCarousel from "../components/shared/PageHeroCarousel";
 
@@ -54,6 +55,7 @@ const toBooking = (deal) => ({
 
 export default function Deals() {
   const { openCheckoutModal } = useBooking();
+  const { displayPrice, selectedCurrency, currentCurrency } = useCurrency();
   const navigate = useNavigate();
   const [copiedCode, setCopiedCode] = useState(null);
   const [sortBy, setSortBy] = useState("Low Price");
@@ -98,7 +100,7 @@ export default function Deals() {
             Handpicked Travel Bundles
           </h1>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-amber-400 drop-shadow">
-            Flight + Hotel + Car Packages in PHP (₱)
+            Flight + Hotel + Car Packages in {selectedCurrency} ({currentCurrency.symbol})
           </h2>
           <p className="text-slate-200 text-sm max-w-xl mx-auto pt-1 drop-shadow">
             Click on any deal card to inspect full inclusions and day-by-day itineraries!
@@ -109,7 +111,7 @@ export default function Deals() {
             {[
               { val: `${deals.length}`, label: "Active Deals" },
               { val: "Up to 25%", label: "Max Discount" },
-              { val: "PHP (₱)", label: "Currency" },
+              { val: `${selectedCurrency} (${currentCurrency.symbol})`, label: "Currency" },
               { val: "Dec 31", label: "Latest Expiry" },
             ].map(({ val, label }) => (
               <div key={label} className="text-center">
@@ -165,7 +167,7 @@ export default function Deals() {
             className="relative rounded-3xl overflow-hidden min-h-[220px] flex items-end cursor-pointer group shadow-xl border border-slate-200/80"
           >
             <img
-              src={featured.imageUrl}
+              src={featured.imageUrl || "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1600&q=80"}
               alt={featured.name}
               className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
             />
@@ -182,7 +184,7 @@ export default function Deals() {
               </div>
               <div className="flex flex-col items-end gap-2">
                 <div className="text-right">
-                  <span className="font-black text-3xl text-white">₱{Number(featured.price || 0).toLocaleString()}</span>
+                  <span className="font-black text-3xl text-white">{displayPrice(Number(featured.price || 0))}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -282,7 +284,7 @@ export default function Deals() {
                 <div className="flex items-end justify-between mb-4">
                   <div>
                     <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-black text-slate-900">₱{Number(deal.price || 0).toLocaleString()}</span>
+                      <span className="text-2xl font-black text-slate-900">{displayPrice(Number(deal.price || 0))}</span>
                       <span className="text-xs text-slate-500 font-semibold">/ person</span>
                     </div>
                   </div>

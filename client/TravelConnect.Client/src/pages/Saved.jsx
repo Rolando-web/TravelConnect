@@ -3,6 +3,7 @@ import { Heart, MapPin, Plane, Hotel, Car, Trash2, ArrowRight, LogIn } from "luc
 import { useFavorites } from "../context/FavoritesContext";
 import { useAuth } from "../context/AuthContext";
 import { useBooking } from "../context/BookingContext";
+import { useCurrency } from "../context/CurrencyContext";
 
 const typeMeta = {
   flight: { label: "Flights", icon: Plane, path: "/flights", color: "text-[#008fe5]" },
@@ -21,6 +22,7 @@ export default function Saved() {
   const { favorites, removeFavorite, favoriteCount } = useFavorites();
   const { isLoggedIn, openLoginModal } = useAuth();
   const { openCheckoutModal } = useBooking();
+  const { displayPrice } = useCurrency();
   const navigate = useNavigate();
 
   if (!isLoggedIn) {
@@ -107,7 +109,7 @@ export default function Saved() {
                         )}
                         <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
                           <div className="text-base font-black text-slate-900">
-                            ₱{Number(fav.price || 0).toLocaleString()}
+                            {displayPrice(Number(fav.price || 0))}
                             <span className="text-[10px] text-slate-400 font-semibold">
                               {fav.type === "hotel" ? "/ night" : fav.type === "car" ? "/ day" : ""}
                             </span>

@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
-  Menu, X, User, LogOut, Calendar, Tag, Heart, Headset, ChevronDown, Coins, ShieldCheck, LayoutDashboard, Wallet
+  Menu, X, User, LogOut, Calendar, Tag, Heart, Headset, ChevronDown, Coins, LayoutDashboard
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useBooking } from "../../context/BookingContext";
+import { useCurrency } from "../../context/CurrencyContext";
 import { ADMIN_ROLES } from "../../pages/admin/adminConfig";
 import logoImg from "../../assets/logo.png";
 
@@ -16,6 +17,7 @@ export default function Header() {
 
   const { isLoggedIn, user, logout, openLoginModal } = useAuth();
   const { walletBalance = 0 } = useBooking();
+  const { currentCurrency, displayPrice, openModal: openCurrencyModal } = useCurrency();
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
@@ -77,9 +79,12 @@ export default function Header() {
           {/* Right Utilities (Currency, TravelConnect Money, Support, Coins, Profile Avatar) */}
           <div className="flex items-center gap-3 sm:gap-5 ml-auto">
             {/* Country / Currency Indicator */}
-            <div className="flex items-center gap-1.5 cursor-pointer text-slate-200 hover:text-white transition">
+            <div 
+              onClick={openCurrencyModal}
+              className="flex items-center gap-1.5 cursor-pointer text-slate-200 hover:text-white transition"
+            >
               <span className="text-sm">🇵🇭</span>
-              <span className="font-bold text-xs">| PHP</span>
+              <span className="font-bold text-xs">| {currentCurrency.code}</span>
             </div>
 
             {/* TravelConnect Money / Wallet Balance Indicator */}
@@ -90,7 +95,7 @@ export default function Header() {
             >
               <Coins size={13} className="text-amber-400 group-hover:scale-110 transition-transform" />
               <span className="text-[11px] text-slate-300 font-medium hidden md:inline">TravelConnect Money:</span>
-              <span className="font-black text-xs text-emerald-400">PHP {walletBalance.toLocaleString()}</span>
+              <span className="font-black text-xs text-emerald-400">{displayPrice(walletBalance)}</span>
             </div>
 
             {/* Customer Support Link */}
@@ -167,7 +172,7 @@ export default function Header() {
                         </div>
                         <div>
                           <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-400 block">TravelConnect Money</span>
-                          <span className="text-xs font-black text-emerald-600">PHP {walletBalance.toLocaleString()}</span>
+                          <span className="text-xs font-black text-emerald-600">{displayPrice(walletBalance)}</span>
                         </div>
                       </div>
                       <span className="text-[9px] bg-emerald-50 text-emerald-700 font-bold px-1.5 py-0.5 rounded">

@@ -25,4 +25,5 @@ public class Booking
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public string SpecialRequests { get; set; } = string.Empty;
+    public List<BookingFlight> BookingFlights { get; set; } = new();
 }

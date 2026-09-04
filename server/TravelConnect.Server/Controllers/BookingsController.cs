@@ -22,13 +22,18 @@ public class BookingsController(TravelConnectDbContext db) : ControllerBase
                 b.CustomerName.ToLower().Contains(c) ||
                 b.CustomerEmail.ToLower().Contains(c));
         }
-        return await query.ToListAsync();
+        return await query
+            .Include(b => b.BookingFlights.OrderBy(f => f.SegmentOrder))
+            .ToListAsync();
     }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Booking>> GetById(int id)
     {
-        var booking = await db.Bookings.AsNoTracking().FirstOrDefaultAsync(b => b.Id == id);
+        var booking = await db.Bookings
+            .Include(b => b.BookingFlights.OrderBy(f => f.SegmentOrder))
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == id);
         if (booking is null) return NotFound(new { message = "Booking not found" });
         return Ok(booking);
     }
@@ -37,6 +42,7 @@ public class BookingsController(TravelConnectDbContext db) : ControllerBase
     public async Task<ActionResult<Booking>> GetByReference(string reference)
     {
         var booking = await db.Bookings
+            .Include(b => b.BookingFlights.OrderBy(f => f.SegmentOrder))
             .Where(b => b.ReferenceNumber == reference)
             .FirstOrDefaultAsync();
         if (booking is null) return NotFound(new { message = "Booking not found" });
@@ -48,15 +54,51 @@ public class BookingsController(TravelConnectDbContext db) : ControllerBase
     {
         return await db.Bookings
             .Where(b => b.CustomerEmail.ToLower() == email.ToLower())
+            .Include(b => b.BookingFlights.OrderBy(f => f.SegmentOrder))
             .AsNoTracking()
             .ToListAsync();
     }
 
+    public record FlightSegmentDto(
+        int SegmentOrder,
+        string Airline,
+        string FlightNumber,
+        string DepartureCity,
+        string ArrivalCity,
+        string DepartureTime,
+        string ArrivalTime,
+        string DepartureDate,
+        string Class,
+        decimal Price);
+
+    public record CreateBookingRequest(
+        Booking Booking,
+        List<FlightSegmentDto>? FlightSegments);
+
     [HttpPost]
-    public async Task<ActionResult<Booking>> Create(Booking booking)
+    public async Task<ActionResult<Booking>> Create(CreateBookingRequest req)
     {
+        var booking = req.Booking;
         booking.CreatedAt = DateTime.UtcNow;
         booking.UpdatedAt = DateTime.UtcNow;
+        booking.BookingFlights = req.FlightSegments?
+            .OrderBy(f => f.SegmentOrder)
+            .Take(6)
+            .Select(f => new BookingFlight
+            {
+                SegmentOrder = f.SegmentOrder,
+                Airline = f.Airline,
+                FlightNumber = f.FlightNumber,
+                DepartureCity = f.DepartureCity,
+                ArrivalCity = f.ArrivalCity,
+                DepartureTime = f.DepartureTime,
+                ArrivalTime = f.ArrivalTime,
+                DepartureDate = f.DepartureDate,
+                Class = f.Class,
+                Price = f.Price
+            })
+            .ToList() ?? new List<BookingFlight>();
+
         db.Bookings.Add(booking);
         await db.SaveChangesAsync();
 

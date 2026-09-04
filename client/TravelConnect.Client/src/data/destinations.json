@@ -5,7 +5,9 @@
     {"city": "Taipei", "country": "Taiwan", "code": "TPE", "airport": "Taoyuan Intl"},
     {"city": "Hong Kong", "country": "Hong Kong", "code": "HKG", "airport": "Hong Kong Intl"},
     {"city": "Bangkok", "country": "Thailand", "code": "BKK", "airport": "Suvarnabhumi"},
-    {"city": "Caticlan", "country": "Philippines", "code": "MPH", "airport": "Boracay Airport"}
+    {"city": "Caticlan", "country": "Philippines", "code": "MPH", "airport": "Boracay Airport"},
+    {"city": "Siargao", "country": "Philippines", "code": "IAO", "airport": "Siargao Airport"},
+    {"city": "El Nido", "country": "Philippines", "code": "ENI", "airport": "Lio Airport"}
   ],
   "asia": [
     {"city": "Manila", "country": "Philippines", "code": "MNL", "airport": "Ninoy Aquino Intl"},

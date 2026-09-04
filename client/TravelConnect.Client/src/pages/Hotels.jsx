@@ -4,6 +4,8 @@ import {
   Hotel, Star, MapPin, CheckCircle2, Eye
 } from "lucide-react";
 import { useBooking } from "../context/BookingContext";
+import { useCurrency } from "../context/CurrencyContext";
+import { useAvailable } from "../context/AvailableContext";
 import PageHeroCarousel from "../components/shared/PageHeroCarousel";
 import FavoriteButton from "../components/shared/FavoriteButton";
 import { hotelsApi } from "../services/api";
@@ -40,6 +42,8 @@ const toHotelBooking = (hotel, nights = 3) => ({
 export default function Hotels() {
   const navigate = useNavigate();
   const { openCheckoutModal } = useBooking();
+  const { displayPrice, selectedCurrency } = useCurrency();
+  const { hotelCities } = useAvailable();
   const [hotels, setHotels] = useState([]);
 
   useEffect(() => {
@@ -71,9 +75,23 @@ export default function Hotels() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-extrabold text-slate-900">Featured Resorts &amp; Hotels</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Showing {filteredHotels.length} accommodations in PHP (₱)</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Showing {filteredHotels.length} accommodations in {selectedCurrency}
+            </p>
           </div>
         </div>
+
+        {/* Available hotel cities */}
+        {hotelCities.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 mb-6">
+            <span className="text-xs font-bold text-slate-500">Available in:</span>
+            {hotelCities.map((c) => (
+              <span key={c.code || c.city} className="text-xs font-bold text-slate-600 bg-white border border-slate-200 px-3 py-1 rounded-full">
+                {c.city}
+              </span>
+            ))}
+          </div>
+        )}
 
         {filteredHotels.length === 0 ? (
           <div className="text-center py-20 text-slate-400 text-lg font-medium">
@@ -133,7 +151,7 @@ export default function Hotels() {
                 <div className="p-5 pt-0 border-t border-slate-100 flex items-end justify-between mt-4 gap-2">
                   <div>
                     <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-black text-slate-900">₱{Number(hotel.pricePerNight || 0).toLocaleString()}</span>
+                      <span className="text-2xl font-black text-slate-900">{displayPrice(Number(hotel.pricePerNight || 0))}</span>
                       <span className="text-[11px] text-slate-500 font-semibold">/ night</span>
                     </div>
                   </div>

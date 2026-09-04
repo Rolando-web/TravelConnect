@@ -1,4 +1,5 @@
 import { Tag, CheckCircle, AlertCircle, Smartphone, Wallet } from "lucide-react";
+import { useCurrency } from "../../../context/CurrencyContext";
 
 const WALLET_OPTIONS = [
   { key: "gcash", label: "GCash", desc: "Pay with your GCash wallet", Icon: Smartphone, accent: "from-blue-500 to-cyan-500" },
@@ -19,6 +20,7 @@ export default function PromoPaymentStep({
   discountAmount,
   totalAmount
 }) {
+  const { displayPrice } = useCurrency();
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Promo Code Input */}
@@ -46,7 +48,7 @@ export default function PromoPaymentStep({
 
         {promoResult && (
           <p className="mt-2 text-xs font-semibold text-green-600 flex items-center gap-1">
-            <CheckCircle size={13} /> Code {promoResult.code} applied! ({promoResult.description}) - Save ₱{promoResult.discountAmount}
+            <CheckCircle size={13} /> Code {promoResult.code} applied! ({promoResult.description}) - Save {displayPrice(promoResult.discountAmount)}
           </p>
         )}
 
@@ -101,19 +103,19 @@ export default function PromoPaymentStep({
       <div className="bg-slate-900 text-white rounded-2xl p-4 space-y-2 text-xs">
         <div className="flex justify-between text-gray-300">
           <span>Package Price ({travellers} Traveler{travellers > 1 ? "s" : ""})</span>
-          <span>₱{rawSubtotal.toLocaleString()}</span>
+          <span>{displayPrice(rawSubtotal)}</span>
         </div>
 
         {discountAmount > 0 && (
           <div className="flex justify-between text-green-400 font-semibold">
             <span>Promotion Discount ({promoResult?.code})</span>
-            <span>-₱{discountAmount.toLocaleString()}</span>
+            <span>-{displayPrice(discountAmount)}</span>
           </div>
         )}
 
         <div className="border-t border-white/10 pt-2 flex justify-between text-sm font-extrabold text-white">
           <span>Total Payment Transaction</span>
-          <span className="text-[#008fe5]">₱{totalAmount.toLocaleString()}</span>
+          <span className="text-[#008fe5]">{displayPrice(totalAmount)}</span>
         </div>
       </div>
     </div>

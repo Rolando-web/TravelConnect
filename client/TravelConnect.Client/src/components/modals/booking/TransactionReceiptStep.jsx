@@ -1,6 +1,8 @@
 import { CheckCircle } from "lucide-react";
+import { useCurrency } from "../../../context/CurrencyContext";
 
 export default function TransactionReceiptStep({ completedBooking, guestName }) {
+  const { displayPrice } = useCurrency();
   if (!completedBooking) return null;
 
   return (
@@ -31,7 +33,7 @@ export default function TransactionReceiptStep({ completedBooking, guestName }) 
         </div>
         <div className="flex justify-between border-b border-gray-200 pb-2">
           <span className="text-gray-400 font-medium">Total Paid Amount:</span>
-          <span className="font-bold text-gray-900 text-sm">₱{(completedBooking.totalAmount || completedBooking.amount || 0).toLocaleString()}</span>
+          <span className="font-bold text-gray-900 text-sm">{displayPrice(completedBooking.totalAmount || completedBooking.amount || 0)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-400 font-medium">Traveler:</span>

@@ -73,7 +73,7 @@ export default function BookingsPage() {
   const handleSave = async (form) => {
     setSaving(true);
     try {
-      if (modal.mode === "add") await bookingsApi.create(form);
+      if (modal.mode === "add") await bookingsApi.create({ booking: form, flightSegments: [] });
       else await bookingsApi.update(modal.data.id, { ...form, id: modal.data.id });
       setModal({ open: false, mode: "add", data: null });
       setLoading(true);
