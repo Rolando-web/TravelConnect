@@ -1,15 +1,52 @@
 import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Download, Plus, Search, SlidersHorizontal, Star, Inbox } from "lucide-react";
-import { suppliersApi, packagesApi } from "../../services/api";
+import {
+  Download,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  Star,
+  Inbox,
+  Mail,
+  Phone,
+  Package,
+  Pencil,
+  Eye,
+} from "lucide-react";
+import { suppliersApi, packagesApi, assetUrl } from "../../services/api";
 import CrudModal from "../../components/admin/CrudModal";
 
 const statusBadge = { Active: "badge-green", Review: "badge-orange", Inactive: "badge-red" };
 
 const statusFilters = ["All", "Active", "Review", "Inactive"];
 
+const typeEmoji = {
+  Hotel: "🏨",
+  Transport: "🚐",
+  "Tour Op.": "🧭",
+  Activity: "🎯",
+  Airline: "✈️",
+};
+
 function initials(name = "") {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "—";
+}
+
+function money(v) {
+  return `₱${Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+}
+
+function downloadCSV(filename, headers, rows) {
+  const csv = [headers.join(","), ...rows.map((r) =>
+    headers.map((h) => `"${String(r[h] ?? "").replace(/"/g, '""')}"`).join(",")
+  )].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export default function SuppliersPage() {
@@ -27,12 +64,17 @@ export default function SuppliersPage() {
       .then(([sRes, pRes]) => {
         const sups = sRes.status === "fulfilled" && Array.isArray(sRes.value) ? sRes.value : [];
         const pkgs = pRes.status === "fulfilled" && Array.isArray(pRes.value) ? pRes.value : [];
-        const withCount = sups.map((s) => ({
-          ...s,
-          initials: initials(s.contactName || s.companyName),
-          packageCount: pkgs.filter((p) => p.supplierId === s.id).length,
-        }));
-        setSuppliers(withCount);
+        const withInfo = sups.map((s) => {
+          const owned = pkgs.filter((p) => p.supplierId === s.id);
+          const sum = owned.reduce((acc, p) => acc + (p.price || 0), 0);
+          return {
+            ...s,
+            initials: initials(s.companyName || s.contactName),
+            packageCount: owned.length,
+            avgPackagePrice: owned.length ? sum / owned.length : 0,
+          };
+        });
+        setSuppliers(withInfo);
       })
       .catch(() => setSuppliers([]))
       .finally(() => setLoading(false));
@@ -60,12 +102,13 @@ export default function SuppliersPage() {
   };
 
   const modalFields = [
+    { key: "imageUrl", label: "Supplier Image", type: "image", placeholder: "Paste image URL..." },
     { key: "companyName", label: "Company Name", required: true },
     { key: "contactName", label: "Contact Name" },
     { key: "contactEmail", label: "Contact Email", type: "text" },
     { key: "contactPhone", label: "Contact Phone" },
     { key: "type", label: "Type", type: "select", options: ["Hotel", "Transport", "Tour Op.", "Activity", "Airline"] },
-    { key: "rating", label: "Rating", type: "number" },
+    { key: "rating", label: "Rating", type: "number", placeholder: "0.0 – 5.0" },
     { key: "status", label: "Status", type: "select", options: ["Active", "Review", "Inactive"] },
   ];
 
@@ -79,7 +122,8 @@ export default function SuppliersPage() {
       const matchQuery =
         !query ||
         (s.companyName || "").toLowerCase().includes(query.toLowerCase()) ||
-        (s.contactName || "").toLowerCase().includes(query.toLowerCase());
+        (s.contactName || "").toLowerCase().includes(query.toLowerCase()) ||
+        (s.contactEmail || "").toLowerCase().includes(query.toLowerCase());
       const matchStatus = activeStatus === "All" || s.status === activeStatus;
       const matchType = activeType === "All" || s.type === activeType;
       return matchQuery && matchStatus && matchType;
@@ -98,6 +142,14 @@ export default function SuppliersPage() {
     ["Total Packages", totalPackages.toLocaleString(), "Across suppliers"],
   ];
 
+  const handleExport = () => {
+    downloadCSV(
+      "suppliers.csv",
+      ["id", "companyName", "contactName", "contactEmail", "contactPhone", "type", "rating", "status", "packageCount", "avgPackagePrice"],
+      filtered
+    );
+  };
+
   return (
     <>
       <section className="flex flex-wrap gap-4 items-start justify-between mb-7">
@@ -107,7 +159,7 @@ export default function SuppliersPage() {
           <p className="text-text-secondary mt-2">Manage supplier partnerships and service agreements.</p>
         </div>
         <div className="flex gap-2">
-          <button className="btn-secondary"><Download size={16} /> Export</button>
+          <button className="btn-secondary" onClick={handleExport}><Download size={16} /> Export</button>
           <button onClick={() => openModal("add")} className="btn-primary"><Plus size={17} /> Add Supplier</button>
         </div>
       </section>
@@ -129,7 +181,7 @@ export default function SuppliersPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search suppliers..."
+              placeholder="Search by company, contact, email..."
               className="w-full bg-transparent outline-none text-sm text-text-primary placeholder:text-text-secondary"
             />
           </label>
@@ -149,56 +201,105 @@ export default function SuppliersPage() {
         </div>
       </div>
 
-      <section className="card overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-sm">
-            <thead className="bg-cyan-accent text-navy-900 text-left text-xs uppercase tracking-wider">
-              <tr>
-                {["Company", "Contact", "Type", "Packages", "Rating", "Status", "Actions"].map((c) => (
-                  <th key={c} className="px-5 py-3 font-semibold">{c}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={7} className="px-5 py-10 text-center text-text-secondary">Loading data...</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-5 py-14 text-center">
-                    <Inbox size={36} className="mx-auto text-text-secondary mb-3" />
-                    <p className="text-text-secondary font-semibold">No suppliers found</p>
-                    <p className="text-xs text-text-secondary mt-1">
-                      {query ? "Try a different search." : "No suppliers have been registered yet."}
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((s) => (
-                  <tr key={s.id ?? s.companyName} className="table-row">
-                    <td className="px-5 py-4 font-medium">{s.companyName || "—"}</td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-violet-500/15 flex items-center justify-center text-violet-400 text-xs font-bold">{s.initials}</div>
-                        <span>{s.contactName || "—"}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4"><span className="badge-cyan">{s.type || "—"}</span></td>
-                    <td className="px-5 py-4 text-cyan-accent font-semibold">{s.packageCount ?? 0}</td>
-                    <td className="px-5 py-4 text-badge-orange flex items-center gap-1"><Star size={14} fill="currentColor" /> {Number(s.rating || 0).toFixed(1)}</td>
-                    <td className="px-5 py-4"><span className={statusBadge[s.status] || "badge-green"}>{s.status || "—"}</span></td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => openModal("view", s)} className="text-xs text-cyan-accent hover:underline">View</button>
-                        <button onClick={() => openModal("edit", s)} className="text-xs text-text-secondary hover:text-badge-orange transition">Edit</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {loading ? (
+        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="card p-0 overflow-hidden animate-pulse">
+              <div className="h-40 bg-navy-700/70" />
+              <div className="p-5 space-y-3">
+                <div className="h-5 bg-navy-700/70 rounded w-2/3" />
+                <div className="h-4 bg-navy-700/70 rounded w-1/3" />
+                <div className="h-4 bg-navy-700/70 rounded w-full" />
+                <div className="h-4 bg-navy-700/70 rounded w-2/3" />
+              </div>
+            </div>
+          ))}
         </div>
-      </section>
+      ) : filtered.length === 0 ? (
+        <div className="card text-center py-14">
+          <Inbox size={36} className="mx-auto text-text-secondary mb-3" />
+          <p className="text-text-secondary font-semibold">No suppliers found</p>
+          <p className="text-xs text-text-secondary mt-1">
+            {query ? "Try a different search." : "No suppliers have been registered yet."}
+          </p>
+        </div>
+      ) : (
+        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filtered.map((s) => (
+            <article key={s.id ?? s.companyName} className="card p-0 overflow-hidden flex flex-col">
+              <div className="relative h-40 bg-navy-700">
+                {s.imageUrl ? (
+                  <img
+                    src={assetUrl(s.imageUrl)}
+                    alt={s.companyName}
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  />
+                ) : null}
+                <div className={`absolute inset-0 flex items-center justify-center ${s.imageUrl ? "bg-navy-900/40" : "bg-gradient-to-br from-navy-700 to-navy-900"}`}>
+                  {!s.imageUrl && (
+                    <span className="w-16 h-16 rounded-full bg-violet-500/20 flex items-center justify-center text-violet-300 text-2xl font-black">
+                      {s.initials}
+                    </span>
+                  )}
+                </div>
+                <div className="absolute top-3 right-3">
+                  <span className={statusBadge[s.status] || "badge-green"}>{s.status || "—"}</span>
+                </div>
+                <div className="absolute bottom-3 left-3 flex items-center gap-2">
+                  <span className="text-2xl">{typeEmoji[s.type] || "🏢"}</span>
+                  <span className="bg-navy-900/80 text-cyan-accent text-xs font-bold px-2.5 py-1 rounded-full backdrop-blur">{s.type || "Supplier"}</span>
+                </div>
+              </div>
+
+              <div className="p-5 flex-1 flex flex-col">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <h3 className="font-black text-lg leading-tight truncate">{s.companyName || "—"}</h3>
+                    <p className="text-sm text-text-secondary truncate">{s.contactName || "No contact assigned"}</p>
+                  </div>
+                  <span className="flex items-center gap-1 text-badge-orange text-sm font-semibold whitespace-nowrap">
+                    <Star size={14} fill="currentColor" /> {Number(s.rating || 0).toFixed(1)}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mt-4">
+                  <div className="rounded-xl bg-navy-900/70 border border-navy-700 p-3">
+                    <p className="flex items-center gap-1.5 text-xs text-text-secondary">
+                      <Package size={13} /> Packages
+                    </p>
+                    <p className="text-xl font-black text-cyan-accent mt-1">{s.packageCount ?? 0}</p>
+                  </div>
+                  <div className="rounded-xl bg-navy-900/70 border border-navy-700 p-3">
+                    <p className="text-xs text-text-secondary">Avg Package Price</p>
+                    <p className="text-xl font-black text-badge-green mt-1">
+                      {s.avgPackagePrice ? money(s.avgPackagePrice) : "—"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-1.5 text-sm text-text-secondary">
+                  {s.contactEmail && (
+                    <p className="flex items-center gap-2 truncate"><Mail size={14} className="shrink-0" /> {s.contactEmail}</p>
+                  )}
+                  {s.contactPhone && (
+                    <p className="flex items-center gap-2"><Phone size={14} className="shrink-0" /> {s.contactPhone}</p>
+                  )}
+                </div>
+
+                <div className="mt-auto pt-4 flex items-center gap-2">
+                  <button onClick={() => openModal("view", s)} className="flex-1 btn-secondary justify-center py-2">
+                    <Eye size={15} /> View
+                  </button>
+                  <button onClick={() => openModal("edit", s)} className="flex-1 btn-primary justify-center py-2">
+                    <Pencil size={15} /> Edit
+                  </button>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
 
       <CrudModal
         open={modal.open}

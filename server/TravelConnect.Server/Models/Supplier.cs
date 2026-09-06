@@ -3,6 +3,7 @@ namespace TravelConnect.Server.Models;
 public class Supplier : BaseEntity
 {
     public string CompanyName { get; set; } = string.Empty;
+    public string ImageUrl { get; set; } = string.Empty;
     public string ContactName { get; set; } = string.Empty;
     public string ContactEmail { get; set; } = string.Empty;
     public string ContactPhone { get; set; } = string.Empty;

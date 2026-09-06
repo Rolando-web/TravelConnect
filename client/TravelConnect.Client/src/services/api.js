@@ -1,5 +1,13 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5110";
 
+// Resolve stored image paths into absolute URLs.
+// e.g. "/api/images/5" -> "http://localhost:5110/api/images/5"
+export function assetUrl(path) {
+  if (!path) return "";
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${API_URL}${path}`;
+}
+
 async function request(url, options = {}) {
   const response = await fetch(`${API_URL}${url}`, {
     ...options,
@@ -40,6 +48,23 @@ export const flightsApi = crud("flights");
 export const hotelsApi = crud("hotels");
 export const carsApi = crud("cars");
 export const activitiesApi = crud("activities");
+
+// ── Image storage (stored in SQL Server via the backend) ─────────
+
+export async function uploadImage(file) {
+  const form = new FormData();
+  form.append("file", file);
+  const response = await fetch(`${API_URL}/api/images`, { method: "POST", body: form });
+  if (!response.ok) {
+    const errBody = await response.json().catch(() => null);
+    throw new Error(errBody?.message || "Image upload failed");
+  }
+  return await response.json();
+}
+
+export async function deleteImage(id) {
+  await request(`/api/images/${id}`, { method: "DELETE" });
+}
 
 export async function getDashboardSummary() {
   return request("/api/dashboard");

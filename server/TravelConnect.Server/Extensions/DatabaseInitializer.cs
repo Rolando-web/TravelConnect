@@ -39,6 +39,28 @@ public static class DatabaseInitializer
                 CREATE INDEX IX_BookingFlights_BookingId ON dbo.BookingFlights (BookingId);
             END");
 
+        // Ensure the Suppliers.ImageUrl column exists on pre-existing databases
+        // (fresh databases get it automatically via EnsureCreatedAsync).
+        await db.Database.ExecuteSqlRawAsync(@"
+            IF COL_LENGTH('dbo.Suppliers', 'ImageUrl') IS NULL
+            BEGIN
+                ALTER TABLE dbo.Suppliers ADD ImageUrl nvarchar(max) NOT NULL
+                    CONSTRAINT DF_Suppliers_ImageUrl DEFAULT ('');
+            END");
+
+        // Ensure the Images table exists even on a pre-existing database.
+        await db.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'dbo.Images', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.Images (
+                    Id           int            NOT NULL IDENTITY(1,1) CONSTRAINT PK_Images PRIMARY KEY,
+                    FileName     nvarchar(max)  NOT NULL,
+                    ContentType  nvarchar(64)   NOT NULL,
+                    Data         varbinary(max) NOT NULL,
+                    CreatedAt    datetime2      NOT NULL
+                );
+            END");
+
         // Optionally wipe seed tables before re-seeding
         if (reseed)
         {
@@ -159,6 +181,41 @@ public static class DatabaseInitializer
                 new Package { Name = "Taipei Foodie & City Tour", Location = "Taipei, Taiwan", Description = "Night markets, hot springs and skyline views in one of Asia's easiest and most wallet-friendly cities.", Duration = "4D / 3N", Price = 22500m, Rating = 4.7m, Reviews = 143, Tag = "FOODIE", ImageUrl = "https://images.unsplash.com/photo-1470004914212-05527e49370b?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival & Taipei 101|Day 2: Shifen & Jiufen|Day 3: Yangmingshan & Night Market|Day 4: Departure", Inclusions = "3 nights city hotel|Daily breakfast|Day tour to Jiufen|Airport transfers", Exclusions = "Airfare|Meals|Extras" },
                 new Package { Name = "Tokyo Value Escape", Location = "Tokyo, Japan", Description = "Neon districts, temples and iconic sights — a friendly-priced first taste of Japan for savvy travelers.", Duration = "5D / 4N", Price = 30900m, Rating = 4.6m, Reviews = 157, Tag = "BUDGET", ImageUrl = "https://images.unsplash.com/photo-1516549655169-df83a0774514?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival|Day 2: Asakusa & Shibuya|Day 3: Mt. Fuji Day Trip|Day 4: Akihabara & Ginza|Day 5: Departure", Inclusions = "4 nights budget hotel|Daily breakfast|Mt. Fuji day tour|Public transport pass", Exclusions = "Airfare|Meals|Extras" },
             });
+            await db.SaveChangesAsync();
+        }
+
+        // Suppliers (linked to their packages once both exist)
+        if (!await db.Suppliers.AnyAsync())
+        {
+            db.Suppliers.AddRange(new[]
+            {
+                new Supplier { CompanyName = "White Beach Resort Group", ImageUrl = "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80", ContactName = "Carlo Mendez", ContactEmail = "reservations@whitebeach.ph", ContactPhone = "+63 917 555 0101", Type = "Hotel", Rating = 4.8m, Status = "Active" },
+                new Supplier { CompanyName = "Palawan Island Escapes", ImageUrl = "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&q=80", ContactName = "Rica Salvador", ContactEmail = "hello@palawanescapes.ph", ContactPhone = "+63 918 555 0102", Type = "Hotel", Rating = 4.9m, Status = "Active" },
+                new Supplier { CompanyName = "Sakura Travel Partners", ImageUrl = "https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&q=80", ContactName = "Kenji Tanaka", ContactEmail = "bookings@sakuratravel.jp", ContactPhone = "+81 3 5555 0103", Type = "Hotel", Rating = 4.7m, Status = "Active" },
+                new Supplier { CompanyName = "Nusa Hospitality Group", ImageUrl = "https://images.unsplash.com/photo-1589391887305-86d93d8b0e62?w=800&q=80", ContactName = "Putu Wirya", ContactEmail = "stay@nusahospitality.id", ContactPhone = "+62 361 555 0104", Type = "Hotel", Rating = 4.8m, Status = "Active" },
+                new Supplier { CompanyName = "Paris Luxury Concierge", ImageUrl = "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&q=80", ContactName = "Éloise Moreau", ContactEmail = "concierge@parislux.fr", ContactPhone = "+33 1 55 55 0105", Type = "Hotel", Rating = 4.6m, Status = "Review" },
+                new Supplier { CompanyName = "Bluewater Tours & Transport", ImageUrl = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&q=80", ContactName = "Miguel Robles", ContactEmail = "ops@bluewatertours.ph", ContactPhone = "+63 919 555 0106", Type = "Tour Op.", Rating = 4.5m, Status = "Active" },
+            });
+            await db.SaveChangesAsync();
+
+            // Link recently seeded packages to suppliers by location keyword.
+            var supplierLinks = new[]
+            {
+                (Keyword: "boracay", SupplierId: 1),
+                (Keyword: "palawan", SupplierId: 2),
+                (Keyword: "el nido", SupplierId: 2),
+                (Keyword: "japan", SupplierId: 3),
+                (Keyword: "bali", SupplierId: 4),
+                (Keyword: "paris", SupplierId: 5),
+                (Keyword: "cebu", SupplierId: 6),
+            };
+            foreach (var link in supplierLinks)
+            {
+                var pkgs = await db.Packages
+                    .Where(p => p.Location != null && p.Location.ToLower().Contains(link.Keyword))
+                    .ToListAsync();
+                foreach (var p in pkgs) p.SupplierId = link.SupplierId;
+            }
             await db.SaveChangesAsync();
         }
 

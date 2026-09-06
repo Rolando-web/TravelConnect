@@ -93,11 +93,9 @@ function validateEmail(email) {
 
 function validatePassword(pw) {
   if (!pw || typeof pw !== "string") return false;
-  if (pw.length < 8) return false;
+  // Mirrors the app's login rule (SignInModal): minimum 6 chars.
+  if (pw.length < 6) return false;
   if (pw.length > 128) return false;
-  if (!/[A-Z]/.test(pw)) return false;
-  if (!/[a-z]/.test(pw)) return false;
-  if (!/[0-9]/.test(pw)) return false;
   return true;
 }
 
@@ -113,7 +111,7 @@ function hashPassword(password) {
 const ACCOUNTS = [
   {
     email: "superadmin@travelconnect.com",
-    password: "SuperAdmin@123",
+    password: "123123",
     displayName: "Juan Dela Cruz",
     role: "Super Admin",
     phone: "+63 917 123 4567",
@@ -122,7 +120,7 @@ const ACCOUNTS = [
   },
   {
     email: "admin@travelconnect.com",
-    password: "AgencyAdmin@123",
+    password: "123123",
     displayName: "Maria Santos",
     role: "Agency Staff",
     phone: "+63 918 234 5678",
@@ -131,7 +129,7 @@ const ACCOUNTS = [
   },
   {
     email: "finance@travelconnect.com",
-    password: "FinanceStaff@123",
+    password: "123123",
     displayName: "Pedro Reyes",
     role: "Finance Staff",
     phone: "+63 919 345 6789",
@@ -140,21 +138,12 @@ const ACCOUNTS = [
   },
   {
     email: "supplier@travelconnect.com",
-    password: "Supplier@123",
+    password: "123123",
     displayName: "Ana Garcia",
     role: "Supplier",
     phone: "+63 920 456 7890",
     department: "Supply Chain",
     avatar: "AG",
-  },
-  {
-    email: "customer@travelconnect.com",
-    password: "Customer@123",
-    displayName: "Carlo Mendoza",
-    role: "Customer",
-    phone: "+63 921 567 8901",
-    department: "N/A",
-    avatar: "CM",
   },
 ];
 
@@ -239,7 +228,15 @@ async function seed() {
       if (err.code === "auth/email-already-exists") {
         const existing = await auth.getUserByEmail(acct.email);
         uid = existing.uid;
-        warn(`Auth user already exists: ${acct.email} — reusing UID`);
+        // Sync password + profile so edits in ACCOUNTS apply on re-run.
+        await auth.updateUser(uid, {
+          password: acct.password,
+          displayName: acct.displayName,
+          phoneNumber: acct.phone,
+        });
+        success(
+          `Auth user exists — password/profile synced: ${acct.email} (${uid})`
+        );
       } else {
         error(`Failed to create ${acct.email}: ${err.message}`);
         continue;

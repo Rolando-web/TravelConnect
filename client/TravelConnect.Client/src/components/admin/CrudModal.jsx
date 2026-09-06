@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { Upload, Trash2 } from "lucide-react";
+import { uploadImage, assetUrl } from "../../services/api";
 
 export default function CrudModal({
   open,
@@ -37,6 +39,14 @@ export default function CrudModal({
 
   const isView = mode === "view";
 
+  // Primary keys can never be edited — surface them as read-only fields in
+  // edit/view mode so users can see them without being able to change them.
+  const primaryKeyField =
+    mode !== "add" && data?.id != null
+      ? [{ key: "id", label: "ID", readOnly: true }]
+      : [];
+  const allFields = [...primaryKeyField, ...fields];
+
   const set = (key, value) => {
     setForm((f) => ({ ...f, [key]: value }));
     if (errors[key]) setErrors((e) => ({ ...e, [key]: undefined }));
@@ -44,7 +54,7 @@ export default function CrudModal({
 
   const validate = () => {
     const errs = {};
-    for (const f of fields) {
+    for (const f of allFields) {
       if (f.required && (form[f.key] === undefined || form[f.key] === null || form[f.key] === "")) {
         errs[f.key] = `${f.label} is required`;
       }
@@ -63,10 +73,68 @@ export default function CrudModal({
   const viewBase = `${inputBase} bg-navy-900/60 text-text-secondary cursor-default`;
 
   const renderField = (f) => {
-    const disabled = isView;
+    const disabled = isView || f.readOnly;
     const cls = disabled ? viewBase : inputBase;
     const errCls = errors[f.key] ? " border-badge-red" : "";
 
+    if (f.type === "image") {
+      const url = form[f.key] || "";
+      const preview = url ? (
+        <img
+          src={assetUrl(url)}
+          alt={f.label}
+          className="h-36 w-full object-cover rounded-xl border border-navy-700 bg-navy-900"
+          onError={(e) => { e.currentTarget.style.display = "none"; }}
+        />
+      ) : (
+        <div className="h-36 w-full flex items-center justify-center rounded-xl border border-dashed border-navy-700 bg-navy-900 text-text-secondary text-sm">
+          No image set
+        </div>
+      );
+      const handleFile = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+          const res = await uploadImage(file);
+          set(f.key, res.url);
+        } catch (err) {
+          alert(err.message || "Image upload failed");
+        } finally {
+          e.target.value = "";
+        }
+      };
+      return (
+        <div className="space-y-2">
+          {preview}
+          {!disabled && (
+            <>
+              <div className="flex items-center gap-2">
+                <label className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-accent/60 px-3 py-2 text-xs font-bold text-cyan-accent hover:bg-cyan-accent/10 transition cursor-pointer">
+                  <Upload size={14} /> Upload Image
+                  <input type="file" accept="image/*" className="hidden" onChange={handleFile} />
+                </label>
+                {url && (
+                  <button
+                    type="button"
+                    onClick={() => set(f.key, "")}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-badge-red/50 px-3 py-2 text-xs font-bold text-badge-red hover:bg-badge-red/10 transition"
+                  >
+                    <Trash2 size={14} /> Remove
+                  </button>
+                )}
+              </div>
+              <input
+                type="text"
+                value={url}
+                onChange={(e) => set(f.key, e.target.value)}
+                placeholder={f.placeholder || "Paste image URL..."}
+                className={inputBase}
+              />
+            </>
+          )}
+        </div>
+      );
+    }
     if (f.type === "textarea") {
       return (
         <textarea
@@ -143,12 +211,17 @@ export default function CrudModal({
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
-          {fields.map((f) => (
+          {allFields.map((f) => (
             <div key={f.key}>
               {f.type !== "checkbox" && (
                 <label className="block text-xs font-semibold text-text-secondary mb-1.5">
                   {f.label}
                   {f.required && !isView && <span className="text-badge-red ml-0.5">*</span>}
+                  {f.readOnly && (
+                    <span className="ml-1 font-normal text-text-secondary/70">
+                      (auto — cannot be edited)
+                    </span>
+                  )}
                 </label>
               )}
               {renderField(f)}
