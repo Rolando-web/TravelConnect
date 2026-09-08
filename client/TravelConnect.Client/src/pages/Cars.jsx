@@ -521,7 +521,7 @@ export default function Cars() {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
                   {/* Left Column: Visual */}
                   <div
-                    className="lg:col-span-5 relative h-64 sm:h-72 lg:h-auto min-h-[260px] overflow-hidden bg-slate-100 dark:bg-[#0a0e17] cursor-pointer"
+                    className="lg:col-span-5 relative h-64 sm:h-72 lg:h-[320px] overflow-hidden bg-slate-100 dark:bg-[#0a0e17] cursor-pointer"
                     onClick={() => navigate(`/cars/${car.id}`)}
                   >
                     <img

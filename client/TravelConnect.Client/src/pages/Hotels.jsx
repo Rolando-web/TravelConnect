@@ -420,7 +420,7 @@ export default function Hotels() {
                 <div className="flex flex-col md:flex-row">
                   
                   {/* Left: Fixed Dimension Photo Frame */}
-                  <div className="w-full md:w-72 lg:w-80 h-52 md:h-auto shrink-0 relative overflow-hidden bg-slate-900">
+                  <div className="w-full md:w-72 lg:w-80 h-52 md:h-60 shrink-0 relative overflow-hidden bg-slate-900">
                     <img
                       src={hotel.imageUrl}
                       alt={hotel.name}
@@ -546,7 +546,7 @@ export default function Hotels() {
               >
                 <div>
                   {/* Photo Frame */}
-                  <div className="relative h-48 overflow-hidden bg-slate-900">
+                  <div className="relative h-52 overflow-hidden bg-slate-900">
                     <img
                       src={hotel.imageUrl}
                       alt={hotel.name}

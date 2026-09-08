@@ -187,7 +187,7 @@ export default function SignInModal() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email address"
-                className="w-full pl-4 pr-4 py-3.5 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#008fe5]/30 focus:border-[#008fe5] transition bg-white"
+                className="w-full pl-4 pr-4 py-3.5 border border-gray-200 rounded-2xl text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#008fe5]/30 focus:border-[#008fe5] transition bg-white placeholder:text-gray-400"
               />
             </div>
 
@@ -198,7 +198,7 @@ export default function SignInModal() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
-                className="w-full pl-4 pr-11 py-3.5 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#008fe5]/30 focus:border-[#008fe5] transition bg-white"
+                className="w-full pl-4 pr-11 py-3.5 border border-gray-200 rounded-2xl text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#008fe5]/30 focus:border-[#008fe5] transition bg-white placeholder:text-gray-400"
               />
               <button
                 type="button"
