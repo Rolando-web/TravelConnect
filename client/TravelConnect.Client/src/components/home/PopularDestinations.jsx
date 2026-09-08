@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowRight, Sparkles, MapPin, Compass, Flame } from "lucide-react";
+import { ArrowRight, MapPin, Compass, Flame } from "lucide-react";
 import { Link } from "react-router-dom";
 import { destinationsApi } from "../../services/api";
 import { useCurrency } from "../../context/CurrencyContext";
@@ -25,26 +25,26 @@ export default function PopularDestinations() {
   if (destinations.length === 0) return null;
 
   return (
-    <section id="destinations" className="py-24 bg-slate-50/80 scroll-mt-10">
+    <section id="destinations" className="py-24 bg-slate-50/80 dark:bg-[#070b13] scroll-mt-10 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-14 gap-6">
           <div>
-            <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.2em] text-[#008fe5] bg-blue-50 px-3.5 py-1 rounded-full mb-3 border border-blue-100">
+            <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.2em] text-[#008fe5] dark:text-cyan-300 bg-blue-50 dark:bg-blue-500/10 px-3.5 py-1 rounded-full mb-3 border border-blue-100 dark:border-blue-500/20">
               <Compass size={13} /> Global Escapes
             </div>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-heading font-black text-slate-900 dark:text-white tracking-tight">
               Trending Destinations
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 font-medium mt-2 max-w-lg">
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium mt-2 max-w-lg">
               Discover the most sought-after cities, tropical sanctuaries, and cultural centers booked this season.
             </p>
           </div>
 
           <Link
             to="/flights"
-            className="inline-flex items-center gap-2 text-xs font-black text-[#008fe5] hover:text-blue-600 group w-fit"
+            className="inline-flex items-center gap-2 text-xs font-black text-[#008fe5] dark:text-cyan-300 hover:text-blue-600 group w-fit"
           >
             <span>Search flights to all destinations</span>
             <ArrowRight size={15} className="group-hover:translate-x-1 transition-transform" />

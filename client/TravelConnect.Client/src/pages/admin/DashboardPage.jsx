@@ -6,9 +6,11 @@ import {
   UsersRound,
   TicketPercent,
   TrendingUp,
+  TrendingDown,
+  ArrowRight,
   Inbox,
 } from "lucide-react";
-import { getDashboardSummary, paymentsApi, bookingsApi } from "../../services/api";
+import { getDashboardSummary, paymentsApi, bookingsApi, packagesApi, destinationsApi, assetUrl } from "../../services/api";
 
 function money(v) {
   return `₱${Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -24,12 +26,21 @@ function dateStr(v) {
   return isNaN(d) ? String(v) : d.toISOString().slice(0, 10);
 }
 
+const STATUS_META = {
+  completed: { label: "Completed", badge: "badge-green", dot: "bg-badge-green", tint: "bg-badge-green/15", text: "text-badge-green" },
+  upcoming: { label: "Upcoming", badge: "badge-cyan", dot: "bg-badge-cyan", tint: "bg-badge-cyan/15", text: "text-badge-cyan" },
+  pending: { label: "Pending", badge: "badge-orange", dot: "bg-badge-orange", tint: "bg-badge-orange/15", text: "text-badge-orange" },
+  cancelled: { label: "Cancelled", badge: "badge-red", dot: "bg-badge-red", tint: "bg-badge-red/15", text: "text-badge-red" },
+};
+
 export default function DashboardPage() {
   const { role } = useOutletContext();
   const [dateFilter, setDateFilter] = useState("Last 14 days");
   const [summary, setSummary] = useState(null);
   const [payments, setPayments] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [packages, setPackages] = useState([]);
+  const [destinations, setDestinations] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,6 +58,16 @@ export default function DashboardPage() {
       .then((d) => !cancelled && setBookings(Array.isArray(d) ? d : []))
       .catch(() => !cancelled && setBookings([]));
 
+    packagesApi
+      .list()
+      .then((d) => !cancelled && setPackages(Array.isArray(d) ? d : []))
+      .catch(() => !cancelled && setPackages([]));
+
+    destinationsApi
+      .list()
+      .then((d) => !cancelled && setDestinations(Array.isArray(d) ? d : []))
+      .catch(() => !cancelled && setDestinations([]));
+
     return () => {
       cancelled = true;
     };
@@ -57,24 +78,16 @@ export default function DashboardPage() {
   const totalRevenue = b.revenue ?? payments.reduce((s, p) => s + (p.amount || 0), 0);
 
   const kpis = [
-    { label: "Total Bookings", value: totalBookings.toLocaleString(), subtitle: "All bookings", trend: b.upcoming ? `${b.upcoming} upcoming` : "0 upcoming", up: true, icon: CalendarDays, iconBg: "bg-cyan-accent/15 text-cyan-accent" },
-    { label: "Total Revenue", value: money(totalRevenue), subtitle: "Collected payments", trend: summary?.payments?.collected ? `₱${Number(summary.payments.collected).toLocaleString()} collected` : "0 collected", up: true, icon: CircleDollarSign, iconBg: "bg-badge-green/15 text-badge-green" },
-    { label: "Customers", value: (summary?.customers ?? 0).toLocaleString(), subtitle: "Registered customers", trend: "Active accounts", up: true, icon: UsersRound, iconBg: "bg-violet-500/15 text-violet-400" },
-    { label: "Active Promos", value: (summary?.activePromotions ?? 0).toLocaleString(), subtitle: "Live promotions", trend: `${summary?.leads ?? 0} leads`, up: true, icon: TicketPercent, iconBg: "bg-badge-orange/15 text-badge-orange" },
+    { label: "Total Bookings", value: totalBookings.toLocaleString(), subtitle: "All bookings", trend: b.upcoming ? `${b.upcoming} upcoming` : "0 upcoming", up: true, icon: CalendarDays },
+    { label: "Total Revenue", value: money(totalRevenue), subtitle: "Collected payments", trend: summary?.payments?.collected ? `₱${Number(summary.payments.collected).toLocaleString()} collected` : "0 collected", up: true, icon: CircleDollarSign },
+    { label: "Customers", value: (summary?.customers ?? 0).toLocaleString(), subtitle: "Registered customers", trend: "Active accounts", up: true, icon: UsersRound },
+    { label: "Active Promos", value: (summary?.activePromotions ?? 0).toLocaleString(), subtitle: "Live promotions", trend: `${summary?.leads ?? 0} leads`, up: true, icon: TicketPercent },
   ];
 
-  const statusColors = {
-    completed: "bg-badge-green",
-    upcoming: "bg-cyan-accent",
-    pending: "bg-badge-orange",
-    cancelled: "bg-badge-red",
-  };
-  const statusSegments = [
-    ["Completed", b.completed ?? 0, "bg-badge-green"],
-    ["Upcoming", b.upcoming ?? 0, "bg-cyan-accent"],
-    ["Pending", b.pending ?? 0, "bg-badge-orange"],
-    ["Cancelled", b.cancelled ?? 0, "bg-badge-red"],
-  ].filter(([, n]) => n > 0);
+  const statusKeys = Object.keys(STATUS_META);
+  const statusSegments = statusKeys
+    .map((k) => [STATUS_META[k].label, b[k] ?? 0, STATUS_META[k].dot, STATUS_META[k].badge, k])
+    .filter(([, n]) => n > 0);
   const totalSeg = statusSegments.reduce((s, [, n]) => s + n, 0);
   const donutSegments = statusSegments;
 
@@ -84,6 +97,7 @@ export default function DashboardPage() {
     initials: initials(p.customerName),
     date: dateStr(p.createdAt || p.paymentDate),
     amount: money(p.amount),
+    status: (p.status || "paid").toLowerCase(),
   }));
 
   const pkgRevenues = {};
@@ -93,10 +107,41 @@ export default function DashboardPage() {
     pkgRevenues[key].sales += 1;
     pkgRevenues[key].revenue += bk.totalAmount || 0;
   });
-  const topPackages = Object.entries(pkgRevenues)
-    .sort((a, b) => b[1].revenue - a[1].revenue)
-    .slice(0, 3)
-    .map(([name, v]) => ({ name, image: "🌏", sales: v.sales, revenue: money(v.revenue) }));
+const FALLBACK_IMAGES = [
+  "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400&q=60",
+  "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=400&q=60",
+  "https://images.unsplash.com/photo-1503220317375-aaad61436b1b?w=400&q=60",
+  "https://images.unsplash.com/photo-1500835556837-99ac94a94552?w=400&q=60",
+];
+
+const pkgImageFor = (name = "", idx = 0) => {
+  const n = (name || "").toLowerCase();
+  const foundPkg = packages.find(
+    (p) =>
+      p.imageUrl &&
+      ((p.name && n.includes(p.name.toLowerCase())) ||
+        (p.name && n.length > 2 && p.name.toLowerCase().includes(n)) ||
+        (p.location && n.includes(p.location.toLowerCase())) ||
+        (p.location && n.length > 2 && p.location.toLowerCase().includes(n)))
+  );
+  if (foundPkg?.imageUrl) return foundPkg.imageUrl;
+
+  const foundDest = destinations.find(
+    (d) =>
+      d.imageUrl &&
+      ((d.name && n.includes(d.name.toLowerCase())) ||
+        (d.name && n.length > 2 && d.name.toLowerCase().includes(n)) ||
+        (d.region && n.includes(d.region.toLowerCase())))
+  );
+  if (foundDest?.imageUrl) return foundDest.imageUrl;
+
+  return FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length];
+};
+
+const topPackages = Object.entries(pkgRevenues)
+  .sort((a, b) => b[1].revenue - a[1].revenue)
+  .slice(0, 3)
+  .map(([name, v], idx) => ({ name, imageUrl: pkgImageFor(name, idx), sales: v.sales, revenue: money(v.revenue) }));
 
   const donutPct = (n) => (totalSeg ? Math.round((n / totalSeg) * 100) : 0);
 
@@ -107,7 +152,9 @@ export default function DashboardPage() {
         <div>
           <p className="text-text-secondary text-sm">{role} &gt; Dashboard</p>
           <h1 className="text-3xl font-black mt-1 font-serif">Overview</h1>
-          <p className="text-text-secondary mt-2">Real-time business overview</p>
+          <p className="text-text-secondary mt-2">
+            {totalBookings.toLocaleString()} bookings · {payments.length.toLocaleString()} payments recorded
+          </p>
         </div>
         <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="input-field w-auto">
           <option>This month</option>
@@ -115,16 +162,35 @@ export default function DashboardPage() {
         </select>
       </section>
 
+      {/* Booking Status Strip */}
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {statusKeys.map((k) => (
+          <article key={k} className="card flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider">{STATUS_META[k].label}</p>
+              <p className={`text-3xl font-black mt-1 ${STATUS_META[k].text}`}>{b[k] ?? 0}</p>
+            </div>
+            <span className={`w-11 h-11 rounded-2xl ${STATUS_META[k].tint} grid place-items-center`}>
+              <span className={`w-3.5 h-3.5 rounded-full ${STATUS_META[k].dot}`} />
+            </span>
+          </article>
+        ))}
+      </section>
+
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-8">
-        {kpis.map(({ label, value, subtitle, trend, icon: Icon, iconBg }) => (
+        {kpis.map(({ label, value, subtitle, trend, up, icon: Icon }) => (
           <article key={label} className="card">
             <div className="flex items-center justify-between">
-              <div className={`w-11 h-11 grid place-items-center rounded-xl ${iconBg}`}>
+              <div className="w-11 h-11 grid place-items-center rounded-xl bg-cyan-accent/15 text-cyan-accent">
                 <Icon size={21} />
               </div>
-              <span className="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full bg-badge-green/15 text-badge-green">
-                <TrendingUp size={12} /> {trend}
+              <span
+                className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full ${
+                  up ? "bg-badge-green/15 text-badge-green" : "bg-badge-red/15 text-badge-red"
+                }`}
+              >
+                {up ? <TrendingUp size={12} /> : <TrendingDown size={12} />} {trend}
               </span>
             </div>
             <p className="text-2xl font-black mt-4">{value}</p>
@@ -159,7 +225,7 @@ export default function DashboardPage() {
                     <span className="text-text-secondary">{status}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span>{count}</span>
+                    <span className="font-semibold">{count}</span>
                     <span className="text-text-secondary w-8 text-right">{donutPct(count)}%</span>
                   </div>
                 </div>
@@ -167,11 +233,6 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-        {donutSegments.length === 0 && statusColors && (
-          <div className="mt-4 pt-4 border-t border-navy-700 text-xs text-text-secondary text-center">
-            Total bookings: 0
-          </div>
-        )}
       </section>
 
       {/* Tables Row */}
@@ -180,8 +241,8 @@ export default function DashboardPage() {
         <section className="card">
           <div className="flex items-center justify-between mb-6">
             <h2 className="font-bold text-lg">Recent Payments</h2>
-            <Link to="/admin/payments" className="text-xs text-cyan-accent hover:underline">
-              View all →
+            <Link to="/admin/payments" className="flex items-center gap-1 text-xs text-cyan-accent hover:underline">
+              View all <ArrowRight size={12} />
             </Link>
           </div>
           <div className="overflow-x-auto">
@@ -227,8 +288,8 @@ export default function DashboardPage() {
         <section className="card">
           <div className="flex items-center justify-between mb-6">
             <h2 className="font-bold text-lg">Top Packages</h2>
-            <Link to="/admin/packages" className="text-xs text-cyan-accent hover:underline">
-              View all →
+            <Link to="/admin/packages" className="flex items-center gap-1 text-xs text-cyan-accent hover:underline">
+              View all <ArrowRight size={12} />
             </Link>
           </div>
           <div className="overflow-x-auto">
@@ -252,9 +313,16 @@ export default function DashboardPage() {
                     <tr key={p.name} className="table-row">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-navy-700 flex items-center justify-center text-lg">
-                            {p.image}
-                          </div>
+                          {p.imageUrl ? (
+                            <img
+                              src={assetUrl(p.imageUrl)}
+                              alt={p.name}
+                              className="w-10 h-10 rounded-lg object-cover border border-navy-700 bg-navy-900"
+                              onError={(e) => { e.currentTarget.style.display = "none"; }}
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-navy-700 flex items-center justify-center text-lg">🌏</div>
+                          )}
                           <span className="font-medium">{p.name}</span>
                         </div>
                       </td>
@@ -276,7 +344,7 @@ function buildDonut(segments) {
   const total = segments.reduce((s, [, n]) => s + n, 0) || 1;
   const circ = 2 * Math.PI * 40;
   let offset = 0;
-  const colors = ["#00C853", "#00A8FF", "#FF9F00", "#FF3B30"];
+  const colors = ["#06D6A0", "#00B4D8", "#FFB703", "#EF476F"];
   return segments.map(([label, n], i) => {
     const frac = n / total;
     const dash = frac * circ;

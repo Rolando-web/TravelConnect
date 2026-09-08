@@ -78,3 +78,7 @@ coverage/
 *.ntvs*
 *.njsproj
 *.sln
+
+.vercel
+.ui-check/
+**/devcheck_out/

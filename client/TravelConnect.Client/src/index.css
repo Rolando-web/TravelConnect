@@ -1,17 +1,23 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-navy-900: #0B132B;
   --color-navy-800: #1C2541;
   --color-navy-700: #253453;
   --color-navy-600: #2E4068;
-  --color-cyan-accent: #00B4D8;
-  --color-cyan-glow: #00B4D840;
+  --color-cyan-accent: #06D6A0;
+  --color-cyan-glow: #06D6A040;
   --color-text-primary: #FFFFFF;
   --color-text-secondary: #8D99AE;
   --color-badge-green: #06D6A0;
   --color-badge-orange: #FFB703;
   --color-badge-red: #EF476F;
+  --color-badge-cyan: #00B4D8;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Outfit", ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer components {
@@ -44,7 +50,7 @@
   }
 
   .badge-cyan {
-    @apply rounded-full px-2.5 py-1 text-xs font-semibold bg-cyan-accent/15 text-cyan-accent;
+    @apply rounded-full px-2.5 py-1 text-xs font-semibold bg-badge-cyan/15 text-badge-cyan;
   }
 
   .badge-purple {

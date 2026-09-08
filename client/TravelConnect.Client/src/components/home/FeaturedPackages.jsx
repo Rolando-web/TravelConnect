@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Star, Clock, MapPin, ArrowRight, Plane, Hotel, Car, ShieldCheck,
-  CheckCircle2, Sparkles, Tag, Users, Eye
+  CheckCircle2, Tag, Users, Eye, Award
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useBooking } from "../../context/BookingContext";
@@ -54,34 +54,34 @@ export default function FeaturedPackages() {
   });
 
   return (
-    <section id="packages" className="py-24 bg-white scroll-mt-10">
+    <section id="packages" className="py-24 bg-white dark:bg-[#0a0f1d] scroll-mt-10 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between mb-12 gap-6">
           <div className="space-y-3">
-            <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.2em] text-[#008fe5] bg-blue-50 px-3.5 py-1 rounded-full border border-blue-100">
-              <Sparkles size={13} /> Complete Vacation Bundles
+            <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.2em] text-[#008fe5] dark:text-cyan-300 bg-blue-50 dark:bg-blue-500/10 px-3.5 py-1 rounded-full border border-blue-100 dark:border-blue-500/20">
+              <Award size={13} /> Complete Vacation Bundles
             </div>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-heading font-black text-slate-900 dark:text-white tracking-tight">
               Featured All-Inclusive Offers
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-xl">
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium max-w-xl">
               Every package includes guaranteed roundtrip flights, vetted luxury accommodations, rental transport, and instant TravelConnect refund protection.
             </p>
           </div>
           
           <Link
-            to="/explore"
-            className="inline-flex items-center gap-2 bg-slate-900 hover:bg-[#008fe5] text-white text-xs font-black px-6 py-3.5 rounded-2xl transition-all shadow-md hover:shadow-blue-500/20 active:scale-95 w-fit"
+            to="/deals"
+            className="inline-flex items-center gap-2 bg-[#008fe5] hover:bg-[#007bc4] text-white text-xs font-black px-6 py-3.5 rounded-2xl transition-all shadow-md shadow-blue-500/20 active:scale-95 w-fit"
           >
-            <span>Explore All 30+ Packages</span>
+            <span>View All Vacation Deals</span>
             <ArrowRight size={15} />
           </Link>
         </div>
 
         {/* Category Pill Filters */}
-        <div className="flex flex-wrap items-center gap-2 mb-10 pb-2 border-b border-slate-100">
+        <div className="flex flex-wrap items-center gap-2 mb-10 pb-2 border-b border-slate-100 dark:border-white/10">
           {categories.map((c) => (
             <button
               key={c.id}
@@ -89,7 +89,7 @@ export default function FeaturedPackages() {
               className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                 activeCategory === c.id
                   ? "bg-[#008fe5] text-white shadow-md shadow-blue-500/25 scale-105"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  : "bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10"
               }`}
             >
               {c.label}
@@ -106,10 +106,10 @@ export default function FeaturedPackages() {
             return (
               <div 
                 key={pkg.id}
-                className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 flex flex-col group relative"
+                className="bg-white dark:bg-[#0f172a] rounded-3xl border border-slate-200/80 dark:border-white/10 overflow-hidden shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 flex flex-col group relative"
               >
                 {/* Top Image Banner */}
-                <div className="relative h-64 w-full overflow-hidden bg-slate-100">
+                <div className="relative h-64 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
                   <img 
                     src={pkg.imageUrl || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=85"} 
                     alt={pkg.name} 
@@ -129,7 +129,7 @@ export default function FeaturedPackages() {
                   </div>
 
                   {/* Rating Badge */}
-                  <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-full flex items-center gap-1 text-xs font-black text-slate-900 shadow-md">
+                  <div className="absolute top-4 right-4 bg-white/95 dark:bg-slate-900/90 backdrop-blur-md px-2.5 py-1 rounded-full flex items-center gap-1 text-xs font-black text-slate-900 dark:text-white shadow-md">
                     <Star size={13} className="fill-amber-400 text-amber-400" />
                     <span>{Number(pkg.rating || 4.9).toFixed(1)}</span>
                     <span className="text-slate-400 text-[10px] font-semibold">({pkg.reviews || 48})</span>
@@ -151,20 +151,20 @@ export default function FeaturedPackages() {
                 {/* Body Details Section */}
                 <div className="p-6 flex-1 flex flex-col justify-between space-y-5">
                   <div>
-                    <h3 className="text-xl font-black text-slate-900 group-hover:text-[#008fe5] transition-colors leading-snug">
+                    <h3 className="text-xl font-heading font-black text-slate-900 dark:text-white group-hover:text-[#008fe5] dark:group-hover:text-cyan-300 transition-colors leading-snug">
                       {pkg.name}
                     </h3>
-                    <p className="text-xs text-slate-500 font-medium line-clamp-2 mt-1.5 leading-relaxed">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium line-clamp-2 mt-1.5 leading-relaxed">
                       {pkg.description || "Enjoy a premium bundled itinerary featuring scenic tours, private transit, and curated stays."}
                     </p>
                   </div>
 
                   {/* Inclusions Row (Informative Bundle Pill Icons) */}
-                  <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/60 space-y-2">
+                  <div className="bg-slate-50 dark:bg-white/5 rounded-2xl p-3.5 border border-slate-200/60 dark:border-white/10 space-y-2">
                     <span className="text-[10px] uppercase font-extrabold tracking-wider text-slate-400 block">
                       Guaranteed Package Inclusions:
                     </span>
-                    <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-slate-700">
+                    <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-slate-700 dark:text-slate-300">
                       <div className="flex items-center gap-1.5">
                         <Plane size={13} className="text-[#008fe5] shrink-0" />
                         <span className="truncate">Roundtrip Flights</span>
@@ -185,18 +185,18 @@ export default function FeaturedPackages() {
                   </div>
 
                   {/* Price & Action Section */}
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <div className="pt-3 border-t border-slate-100 dark:border-white/10 flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-1.5">
                         <span className="text-[11px] text-slate-400 line-through font-bold">
                           {displayPrice(originalPrice)}
                         </span>
-                        <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                        <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-500/20 dark:text-emerald-300 px-1.5 py-0.5 rounded">
                           SAVE 25%
                         </span>
                       </div>
                       <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-black text-slate-900">
+                        <span className="text-2xl font-heading font-black text-slate-900 dark:text-white">
                           {displayPrice(pkg.price)}
                         </span>
                         <span className="text-[11px] font-bold text-slate-400">/ person</span>

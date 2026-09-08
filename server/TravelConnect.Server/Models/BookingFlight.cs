@@ -20,4 +20,6 @@ public class BookingFlight
     public string DepartureDate { get; set; } = string.Empty;
     public string Class { get; set; } = "Economy";
     public decimal Price { get; set; }
+    public string SeatNumber { get; set; } = string.Empty; // e.g. "12A"
+    public string SeatStatus { get; set; } = "Available"; // Available, Reserved, Sold, Locked
 }

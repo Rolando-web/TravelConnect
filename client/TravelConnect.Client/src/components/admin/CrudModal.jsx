@@ -174,7 +174,7 @@ export default function CrudModal({
             checked={!!form[f.key]}
             onChange={(e) => set(f.key, e.target.checked)}
             disabled={disabled}
-            className="w-4 h-4 accent-[#00A8FF]"
+            className="w-4 h-4 accent-[#06D6A0]"
           />
           {f.checkboxLabel || f.label}
         </label>

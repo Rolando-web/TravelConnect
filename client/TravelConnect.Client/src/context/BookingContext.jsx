@@ -264,17 +264,27 @@ export function BookingProvider({ children }) {
 
   // ── Instant Cancellation & Automatic Refund ─────────────────────────────
   const cancelBookingTransaction = async (bookingId, reason = "User requested cancellation") => {
-    const refundRef = `RFND-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
-    const refundedAt = new Date().toISOString();
-
     const target = bookings.find((b) => b.id === bookingId) || selectedBookingDetails;
-    const refundAmount = Number(target?.amount || target?.totalAmount || target?.price || 0);
+    const fullAmount = Number(target?.amount || target?.totalAmount || target?.price || 0);
 
+    // 1. Call backend cancel endpoint. It applies the cancellation policy,
+    //    releases seat inventory, and generates the refund reference.
+    let refundAmount = fullAmount;
+    let refundRef = `RFND-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+    let policyTier = target?.cancellationPolicyTier || "full";
+    let backendResponse = null;
     try {
-      await cancelBookingApi(bookingId);
+      backendResponse = await cancelBookingApi(bookingId);
+      if (backendResponse && typeof backendResponse.refundAmount === "number") {
+        refundAmount = backendResponse.refundAmount;
+      }
+      if (backendResponse?.refundReference) refundRef = backendResponse.refundReference;
+      if (backendResponse?.policyTier) policyTier = backendResponse.policyTier;
     } catch {
-      /* offline fallback */
+      /* offline fallback — keep full refund */
     }
+
+    const refundedAt = new Date().toISOString();
 
     setBookings((prev) =>
       prev.map((b) => {
@@ -287,7 +297,8 @@ export function BookingProvider({ children }) {
             refundReference: refundRef,
             refundedAt,
             cancellationReason: reason,
-            refundAmount: b.amount || b.totalAmount || refundAmount,
+            cancellationPolicyTier: policyTier,
+            refundAmount,
           };
         }
         return b;
@@ -303,11 +314,12 @@ export function BookingProvider({ children }) {
         refundReference: refundRef,
         refundedAt,
         cancellationReason: reason,
-        refundAmount: prev.amount || prev.totalAmount || refundAmount,
+        cancellationPolicyTier: policyTier,
+        refundAmount,
       }));
     }
 
-    // Credit refund to TravelConnect Money (PHP Wallet)
+    // 2. Credit refund to TravelConnect Money (PHP Wallet)
     let newBalance = walletBalance;
     if (refundAmount > 0) {
       newBalance = Number(walletBalance || 0) + refundAmount;
@@ -317,11 +329,18 @@ export function BookingProvider({ children }) {
       } catch {}
     }
 
+    // 3. Best-effort email notification (backend sends its own on cancel; this
+    //    is a no-op offline).
+    if (backendResponse?.success === false) {
+      // still friendly — refunded locally
+    }
+
     return {
       success: true,
       refundReference: refundRef,
       refundedAt,
       refundAmount,
+      policyTier,
       newWalletBalance: newBalance
     };
   };
@@ -359,7 +378,12 @@ function normalizeBooking(b) {
     startDate: b.startDate ?? "",
     endDate: b.endDate ?? "",
     travellers: b.travellers ?? 1,
-    status: b.status ?? "upcoming"
+    status: b.status ?? "upcoming",
+    category: b.category ?? b.packageCategory ?? "",
+    refundAmount: b.refundAmount ?? 0,
+    refundReference: b.refundReference ?? "",
+    cancellationPolicyTier: b.cancellationPolicyTier ?? "",
+    bookingFlights: Array.isArray(b.bookingFlights) ? b.bookingFlights : []
   };
 }
 

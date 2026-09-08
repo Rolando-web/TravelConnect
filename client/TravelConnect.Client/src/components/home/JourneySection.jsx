@@ -20,20 +20,20 @@ export default function JourneySection() {
   ];
 
   return (
-    <section className="py-24 bg-white overflow-hidden">
+    <section className="py-24 bg-white dark:bg-[#0a0f1d] overflow-hidden transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
 
           {/* Left Column: Text & Features */}
           <div className="lg:col-span-5 space-y-8">
             <div className="space-y-4">
-              <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#008fe5] block">Crafting Memories</span>
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-950 tracking-tight leading-tight">
+              <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#008fe5] dark:text-cyan-300 block">Crafting Memories</span>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-heading font-extrabold text-gray-950 dark:text-white tracking-tight leading-tight">
                 Curating <br />
-                <span className="text-[#008fe5]">Extraordinary</span> <br />
+                <span className="text-[#008fe5] dark:text-cyan-300">Extraordinary</span> <br />
                 Journeys
               </h2>
-              <p className="text-sm sm:text-base text-gray-500 leading-relaxed pt-2">
+              <p className="text-sm sm:text-base text-gray-500 dark:text-slate-400 leading-relaxed pt-2">
                 We believe that travel is not just about visiting new places, but about collecting experiences that enrich your life. Our premium packages are fully loaded with luxury stays, guides, and secure transits.
               </p>
             </div>
@@ -42,18 +42,18 @@ export default function JourneySection() {
             <ul className="space-y-3">
               {points.map((point, idx) => (
                 <li key={idx} className="flex items-start gap-3">
-                  <CheckCircle2 className="text-[#008fe5] shrink-0 mt-0.5" size={18} />
-                  <span className="text-sm font-semibold text-gray-700">{point}</span>
+                  <CheckCircle2 className="text-[#008fe5] dark:text-cyan-400 shrink-0 mt-0.5" size={18} />
+                  <span className="text-sm font-semibold text-gray-700 dark:text-slate-300">{point}</span>
                 </li>
               ))}
             </ul>
 
             {/* Quick Metrics Grid */}
-            <div className="grid grid-cols-4 gap-4 py-4 border-y border-gray-100">
+            <div className="grid grid-cols-4 gap-4 py-4 border-y border-gray-100 dark:border-white/10">
               {statItems.map((stat, idx) => (
                 <div key={idx} className="text-center md:text-left">
-                  <span className="block text-xl sm:text-2xl font-black text-gray-950">{stat.value}</span>
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mt-0.5">{stat.label}</span>
+                  <span className="block text-xl sm:text-2xl font-heading font-black text-gray-950 dark:text-white">{stat.value}</span>
+                  <span className="text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider block mt-0.5">{stat.label}</span>
                 </div>
               ))}
             </div>
@@ -62,7 +62,7 @@ export default function JourneySection() {
             <div className="pt-2">
               <a
                 href="#packages"
-                className="inline-flex items-center gap-2 bg-gray-950 hover:bg-[#008fe5] text-white font-bold px-8 py-4 rounded-2xl shadow-lg hover:shadow-blue-500/20 active:scale-95 transition-all duration-300 text-sm cursor-pointer"
+                className="inline-flex items-center gap-2 bg-gray-950 dark:bg-white/10 hover:bg-[#008fe5] dark:hover:bg-[#008fe5] text-white font-bold px-8 py-4 rounded-2xl shadow-lg hover:shadow-blue-500/20 active:scale-95 transition-all duration-300 text-sm cursor-pointer"
               >
                 <span>Explore Packages</span>
                 <ArrowUpRight size={16} />

@@ -3,10 +3,31 @@ import { useNavigate } from "react-router-dom";
 import { X, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import { ADMIN_ROLES } from "../../../pages/admin/adminConfig";
+import { usePublicStats } from "../../../hooks/usePublicStats";
 import logoImg from "../../../assets/logo.png";
 
-const PANEL_IMAGE =
-  "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=900&q=85";
+const PANEL_SLIDES = [
+  {
+    image: "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=900&q=85",
+    place: "Santorini",
+    caption: "White-washed villages perched above the Aegean Sea",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1503177119275-0aa32b3a9368?w=900&q=85",
+    place: "Giza, Egypt",
+    caption: "Timeless pyramids rising from the golden desert",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=900&q=85",
+    place: "Bali, Indonesia",
+    caption: "Lush terraces, sacred temples, and ocean breezes",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=900&q=85",
+    place: "Maldives",
+    caption: "Crystal lagoons and overwater escapes",
+  },
+];
 
 export default function SignInModal() {
   const { loginModalOpen, closeLoginModal, loginWithEmail, loginWithGoogle } = useAuth();
@@ -17,6 +38,9 @@ export default function SignInModal() {
   const [showPw, setShowPw]     = useState(false);
   const [error, setError]       = useState("");
   const [loading, setLoading]   = useState(false);
+  const [slideIdx, setSlideIdx] = useState(0);
+
+  const { stats } = usePublicStats();
 
   const emailRef = useRef(null);
 
@@ -217,20 +241,23 @@ export default function SignInModal() {
           </p>
         </div>
 
-        {/* ── Right: image panel ───────────────────────────── */}
-        <div className="hidden sm:block relative w-[340px] flex-shrink-0">
-          <img
-            src={PANEL_IMAGE}
-            alt="Santorini"
-            className="absolute inset-0 w-full h-full object-cover"
-          />
+        {/* ── Right: image panel (carousel) ─────────────────── */}
+        <div className="hidden sm:block relative w-[340px] flex-shrink-0 overflow-hidden">
+          {PANEL_SLIDES.map((slide, i) => (
+            <img
+              key={slide.place}
+              src={slide.image}
+              alt={slide.place}
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${i === slideIdx ? "opacity-100" : "opacity-0"}`}
+            />
+          ))}
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
           <div className="absolute top-6 right-6 flex flex-col gap-3">
             {[
-              { val: "48k+", label: "Travelers" },
-              { val: "4.9★", label: "Rating" },
-              { val: "120+", label: "Destinations" },
+              { val: `${stats?.happyTravelers ? new Intl.NumberFormat("en-US").format(stats.happyTravelers) + "+" : "48k+"}`, label: "Travelers" },
+              { val: `${stats?.avgRating ? Number(stats.avgRating).toFixed(1) + "★" : "4.9★"}`, label: "Rating" },
+              { val: `${stats?.destinations ? `${stats.destinations}+` : "120+"}`, label: "Destinations" },
             ].map(({ val, label }) => (
               <div
                 key={label}
@@ -244,15 +271,21 @@ export default function SignInModal() {
 
           <div className="absolute bottom-6 left-5 right-5">
             <p className="text-[#f9a832] text-[10px] font-bold uppercase tracking-widest mb-1">
-              Santorini
+              {PANEL_SLIDES[slideIdx].place}
             </p>
             <p className="text-white font-extrabold text-xl leading-snug">
-              White-washed villages perched above the Aegean Sea
+              {PANEL_SLIDES[slideIdx].caption}
             </p>
             <div className="flex gap-1.5 mt-3">
-              <span className="w-5 h-1.5 rounded-full bg-[#f9a832]" />
-              <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
-              <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
+              {PANEL_SLIDES.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  aria-label={`Show slide ${i + 1}`}
+                  onClick={() => setSlideIdx(i)}
+                  className={`rounded-full cursor-pointer transition-all duration-300 ${i === slideIdx ? "w-5 h-1.5 bg-[#f9a832]" : "w-1.5 h-1.5 bg-white/40 hover:bg-white/70"}`}
+                />
+              ))}
             </div>
           </div>
         </div>

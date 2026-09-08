@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "cd client/TravelConnect.Client && npm install",
+  "buildCommand": "cd client/TravelConnect.Client && npm run build",
+  "outputDirectory": "client/TravelConnect.Client/dist",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}

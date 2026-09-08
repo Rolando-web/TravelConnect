@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
-  Plane, MapPin, ArrowLeft, CheckCircle2, ShieldCheck, Sparkles,
+  Plane, MapPin, ArrowLeft, CheckCircle2, ShieldCheck, Award, ArrowRight,
   Clock, Calendar, Users, Star, Luggage, Wifi, Utensils, Armchair, Ban,
   Check, CreditCard, ChevronDown, ChevronUp, Tag, Info, Building2, Car, Gift
 } from "lucide-react";
@@ -284,7 +284,7 @@ export default function FlightDetails() {
                 className="w-full bg-gradient-to-r from-[#008fe5] to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-extrabold py-4 rounded-2xl shadow-xl shadow-blue-500/25 hover:-translate-y-0.5 transition text-sm flex items-center justify-center gap-2"
               >
                 <span>Book This Flight ({activeTier.name})</span>
-                <Sparkles size={16} />
+                <ArrowRight size={16} />
               </button>
 
               <div className="flex items-center justify-center gap-3 text-[11px] text-slate-500 pt-1">
@@ -316,8 +316,8 @@ export default function FlightDetails() {
             </div>
 
             {/* Flyer Exclusive Banner Pill */}
-            <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 text-amber-900 px-3.5 py-1.5 rounded-2xl flex items-center gap-2 text-xs font-bold">
-              <Tag size={14} className="text-amber-600" />
+            <div className="bg-sky-500/10 border border-sky-500/30 text-sky-900 px-3.5 py-1.5 rounded-2xl flex items-center gap-2 text-xs font-bold">
+              <Tag size={14} className="text-[#008fe5]" />
               <span>Flyer Exclusive: Save up to 25% on your hotel</span>
             </div>
           </div>
@@ -336,7 +336,7 @@ export default function FlightDetails() {
                 {/* Recommended Badge */}
                 {tier.recommended && (
                   <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#008fe5] to-blue-600 text-white text-[11px] font-black px-4 py-1 rounded-full uppercase tracking-wider shadow-md flex items-center gap-1">
-                    <Sparkles size={12} /> Recommended
+                    <Award size={12} /> Recommended
                   </div>
                 )}
 

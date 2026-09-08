@@ -14,7 +14,7 @@ const kpis = [
     trend: "+8.7%",
     up: true,
     icon: CalendarDays,
-    color: "bg-cyan-accent/15 text-cyan-accent",
+    color: "bg-badge-green/15 text-badge-green",
   },
   {
     label: "Total Revenue",
@@ -30,7 +30,7 @@ const kpis = [
     trend: "+4.3%",
     up: true,
     icon: UsersRound,
-    color: "bg-violet-500/15 text-violet-400",
+    color: "bg-badge-green/15 text-badge-green",
   },
   {
     label: "New Customers",
@@ -38,7 +38,7 @@ const kpis = [
     trend: "-3.2%",
     up: false,
     icon: UsersRound,
-    color: "bg-badge-orange/15 text-badge-orange",
+    color: "bg-badge-green/15 text-badge-green",
   },
 ];
 
@@ -169,7 +169,7 @@ export default function AdminDashboard() {
                 cy="50"
                 r="40"
                 fill="none"
-                stroke="#FFB703"
+                stroke="#06D6A0"
                 strokeWidth="12"
                 strokeDasharray="20 231"
                 strokeDashoffset="-218"

@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Download, Plus, Search, SlidersHorizontal, Eye, Pencil, Trash2, Inbox } from "lucide-react";
-import { destinationsApi, packagesApi } from "../../services/api";
+import { Download, Plus, Search, SlidersHorizontal, Eye, Pencil, Trash2, Inbox, X, MapPin, Boxes } from "lucide-react";
+import { destinationsApi, packagesApi, assetUrl } from "../../services/api";
 import CrudModal from "../../components/admin/CrudModal";
 
 const statusBadge = { Featured: "badge-green", Active: "badge-cyan", Inactive: "badge-red" };
 
 const statusFilters = ["All", "Featured", "Active", "Inactive"];
-const avatarColors = ["bg-cyan-accent", "bg-violet-500", "bg-badge-orange", "bg-badge-green", "bg-badge-red"];
+
+const emojiFor = (name = "") => {
+  const map = { Bali: "🏝️", Paris: "🗼", Tokyo: "⛩️", Maldives: "🌊", Malta: "🏖️", Swiss: "🏔️", Switzerland: "🏔️", "New York": "🗽", Japan: "⛩️", Greece: "🏛️", Rome: "🏛️", Hawaii: "🌺", Santorini: "🇬🇷" };
+  for (const [k, v] of Object.entries(map)) if ((name || "").toLowerCase().includes(k.toLowerCase())) return v;
+  return "🌍";
+};
 
 function initials(name = "") {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "—";
@@ -21,6 +26,7 @@ export default function DestinationsPage() {
   const [destinations, setDestinations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState({ open: false, mode: "add", data: null });
+  const [viewing, setViewing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(null);
 
@@ -32,7 +38,6 @@ export default function DestinationsPage() {
         const withCount = dests.map((d) => ({
           ...d,
           initials: initials(d.name),
-          color: avatarColors[Math.floor(Math.random() * avatarColors.length)],
           packages: pkgs.filter((p) => p.location && (p.location === d.name || d.name.includes(p.location) || p.location.includes(d.name))).length,
         }));
         setDestinations(withCount);
@@ -78,6 +83,7 @@ export default function DestinationsPage() {
   };
 
   const modalFields = [
+    { key: "imageUrl", label: "Destination Image", type: "image", placeholder: "Paste image URL..." },
     { key: "name", label: "Destination", required: true },
     { key: "region", label: "Region", required: true },
     { key: "category", label: "Category" },
@@ -110,6 +116,24 @@ export default function DestinationsPage() {
     ["Total Packages", totalPackages.toLocaleString(), "Across destinations"],
   ];
 
+  const handleExport = () => {
+    const rows = [
+      ["id", "name", "region", "category", "description", "status"].join(","),
+      ...filtered.map((d) =>
+        [d.id, d.name, d.region, d.category, d.description, d.status]
+          .map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`)
+          .join(",")
+      )
+    ];
+    const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `destinations_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <>
       <section className="flex flex-wrap gap-4 items-start justify-between mb-7">
@@ -119,7 +143,7 @@ export default function DestinationsPage() {
           <p className="text-text-secondary mt-2">Manage and feature travel destinations around the world.</p>
         </div>
         <div className="flex gap-2">
-          <button className="btn-secondary"><Download size={16} /> Export</button>
+          <button className="btn-secondary" onClick={handleExport}><Download size={16} /> Export</button>
           <button onClick={() => openModal("add")} className="btn-primary"><Plus size={17} /> Add Destination</button>
         </div>
       </section>
@@ -189,8 +213,20 @@ export default function DestinationsPage() {
                   <tr key={d.id ?? d.name} className="table-row">
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-full ${d.color} flex items-center justify-center text-navy-900 text-xs font-bold`}>{d.initials}</div>
-                        <span className="font-medium">{d.name || "—"}</span>
+                        {d.imageUrl ? (
+                          <img
+                            src={assetUrl(d.imageUrl)}
+                            alt={d.name}
+                            className="w-11 h-11 rounded-xl object-cover border border-navy-700 bg-navy-900"
+                            onError={(e) => { e.currentTarget.style.display = "none"; }}
+                          />
+                        ) : (
+                          <div className="w-11 h-11 rounded-xl bg-cyan-accent/15 flex items-center justify-center text-xl shrink-0">{emojiFor(d.name)}</div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-medium text-text-primary truncate">{d.name || "—"}</p>
+                          <p className="text-xs text-text-secondary truncate">{d.region || "—"}</p>
+                        </div>
                       </div>
                     </td>
                     <td className="px-5 py-4 text-text-secondary">{d.region || "—"}</td>
@@ -199,8 +235,8 @@ export default function DestinationsPage() {
                     <td className="px-5 py-4"><span className={statusBadge[d.status] || "badge-cyan"}>{d.status || "—"}</span></td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-2">
-                        <button onClick={() => openModal("view", d)} className="p-1.5 rounded-lg hover:bg-navy-700 transition text-text-secondary hover:text-cyan-accent"><Eye size={15} /></button>
-                        <button onClick={() => openModal("edit", d)} className="p-1.5 rounded-lg hover:bg-navy-700 transition text-text-secondary hover:text-badge-orange"><Pencil size={15} /></button>
+                        <button onClick={() => setViewing(d)} className="p-1.5 rounded-lg hover:bg-navy-700 transition text-text-secondary hover:text-cyan-accent"><Eye size={15} /></button>
+                        <button onClick={() => openModal("edit", d)} className="p-1.5 rounded-lg hover:bg-navy-700 transition text-text-secondary hover:text-cyan-accent"><Pencil size={15} /></button>
                         <button onClick={() => setDeleting(d)} className="p-1.5 rounded-lg hover:bg-navy-700 transition text-text-secondary hover:text-badge-red"><Trash2 size={15} /></button>
                       </div>
                     </td>
@@ -215,13 +251,15 @@ export default function DestinationsPage() {
       <CrudModal
         open={modal.open}
         onClose={() => setModal({ open: false, mode: "add", data: null })}
-        title={modal.mode === "add" ? "Add Destination" : modal.mode === "edit" ? "Edit Destination" : "Destination Details"}
+        title={modal.mode === "add" ? "Add Destination" : "Edit Destination"}
         mode={modal.mode}
         fields={modalFields}
         data={modal.data || {}}
         onSave={handleSave}
         saving={saving}
       />
+
+      {viewing && <DestinationViewModal destination={viewing} onClose={() => setViewing(null)} onEdit={() => { openModal("edit", viewing); setViewing(null); }} />}
 
       {deleting && (
         <div
@@ -255,5 +293,90 @@ export default function DestinationsPage() {
         </div>
       )}
     </>
+  );
+}
+
+function DestinationViewModal({ destination: d, onClose, onEdit }) {
+  return (
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      style={{ background: "rgba(2,8,23,0.72)", backdropFilter: "blur(4px)" }}
+    >
+      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-navy-800 border border-navy-700 rounded-2xl shadow-2xl">
+        <article className="card p-0 overflow-hidden flex flex-col">
+          <div className="relative h-44 sm:h-52 bg-navy-700">
+            {d.imageUrl && (
+              <img
+                src={assetUrl(d.imageUrl)}
+                alt={d.name}
+                className="w-full h-full object-cover"
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
+              />
+            )}
+            <div className={`absolute inset-0 flex items-center justify-center ${d.imageUrl ? "bg-navy-900/40" : "bg-gradient-to-br from-navy-700 to-navy-900"}`}>
+              {!d.imageUrl && (
+                <span className="w-20 h-20 rounded-full bg-cyan-accent/15 flex items-center justify-center text-4xl">
+                  {emojiFor(d.name)}
+                </span>
+              )}
+            </div>
+            <div className="absolute top-3 right-3 flex items-center gap-2">
+              <span className={statusBadge[d.status] || "badge-cyan"}>{d.status || "—"}</span>
+              <button
+                onClick={onClose}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-navy-900/80 text-text-secondary hover:text-text-primary hover:bg-navy-900 transition"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="absolute bottom-3 left-3 flex items-center gap-2">
+              <span className="bg-navy-900/80 text-cyan-accent text-xs font-bold px-2.5 py-1 rounded-full backdrop-blur"><MapPin size={12} className="inline mr-1" />{d.region || "—"}</span>
+              {d.category && <span className="badge-cyan">{d.category}</span>}
+            </div>
+          </div>
+
+          <div className="p-6 flex-1 flex flex-col">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="font-black text-2xl leading-tight">{d.name || "—"}</h3>
+                <p className="text-sm text-text-secondary mt-0.5">{d.region || "Region not set"}</p>
+              </div>
+            </div>
+
+            {d.description && (
+              <p className="text-sm text-text-secondary mt-4 leading-relaxed">{d.description}</p>
+            )}
+
+            <div className="border-t border-navy-700 my-5" />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="rounded-xl bg-navy-900/70 border border-navy-700 p-4">
+                <p className="flex items-center gap-1.5 text-xs text-text-secondary">
+                  <MapPin size={13} /> Region
+                </p>
+                <p className="text-2xl font-black text-cyan-accent mt-1">{d.region || "—"}</p>
+              </div>
+              <div className="rounded-xl bg-navy-900/70 border border-navy-700 p-4">
+                <p className="flex items-center gap-1.5 text-xs text-text-secondary">
+                  <Boxes size={13} /> Packages
+                </p>
+                <p className="text-2xl font-black text-badge-green mt-1">{d.packages ?? 0}</p>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-5 border-t border-navy-700 flex items-center justify-end gap-2">
+              <button onClick={onClose} className="btn-secondary justify-center py-2">
+                Close
+              </button>
+              <button onClick={onEdit} className="btn-primary justify-center py-2">
+                <Pencil size={15} /> Edit
+              </button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
   );
 }

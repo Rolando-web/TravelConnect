@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Download, Plus, Search, SlidersHorizontal, Inbox } from "lucide-react";
-import { paymentsApi } from "../../services/api";
+import { Download, Plus, Search, SlidersHorizontal, Inbox, RefreshCcw, Check, X, ShieldCheck } from "lucide-react";
+import { paymentsApi, getPaymentReconciliation, refundPaymentToWallet } from "../../services/api";
 import CrudModal from "../../components/admin/CrudModal";
 
 const statusBadge = {
@@ -50,10 +50,23 @@ export default function PaymentsPage() {
   const [query, setQuery] = useState("");
   const [activeStatus, setActiveStatus] = useState("All");
   const [activeMethod, setActiveMethod] = useState("All");
+  const [activeTab, setActiveTab] = useState("transactions");
   const [payments, setPayments] = useState([]);
+  const [recon, setRecon] = useState([]);
+  const [reconFilter, setReconFilter] = useState("All");
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState({ open: false, mode: "add", data: null });
   const [saving, setSaving] = useState(false);
+  const [refundingId, setRefundingId] = useState(null);
+
+  const classifyRecon = (r) => {
+    if (!r.isMatched) {
+      if (r.matchStatus === "orphan") return { label: "Unmatched", cls: "badge-red" };
+      if (r.matchStatus === "mismatch") return { label: "Amount Mismatch", cls: "badge-orange" };
+      if (r.matchStatus === "duplicate") return { label: "Duplicate", cls: "badge-orange" };
+    }
+    return { label: "Matched", cls: "badge-green" };
+  };
 
   const load = () => {
     paymentsApi
@@ -63,9 +76,31 @@ export default function PaymentsPage() {
       .finally(() => setLoading(false));
   };
 
+  const loadRecon = () => {
+    getPaymentReconciliation()
+      .then((d) => setRecon(Array.isArray(d) ? d : []))
+      .catch(() => setRecon([]));
+  };
+
   useEffect(() => {
     load();
+    loadRecon();
   }, []);
+
+  const handleRefund = async (p) => {
+    if (!window.confirm(`Issue refund to wallet for ${money(p.amount)} (${p.referenceId || p.id})?`)) return;
+    setRefundingId(p.id ?? p.referenceId);
+    try {
+      await refundPaymentToWallet(p.id);
+      setLoading(true);
+      load();
+      loadRecon();
+    } catch (err) {
+      alert(err.message || "Failed to issue refund");
+    } finally {
+      setRefundingId(null);
+    }
+  };
 
   const openModal = (mode, data = null) => setModal({ open: true, mode, data });
 
@@ -135,6 +170,107 @@ export default function PaymentsPage() {
         </div>
       </section>
 
+      <div className="flex items-center gap-1 mb-5 bg-navy-900 border border-navy-700 rounded-xl p-1 w-fit">
+        <button
+          onClick={() => setActiveTab("transactions")}
+          className={activeTab === "transactions" ? "filter-pill-active" : "filter-pill"}
+        >
+          <RefreshCcw size={14} /> Transactions
+        </button>
+        <button
+          onClick={() => setActiveTab("reconciliation")}
+          className={activeTab === "reconciliation" ? "filter-pill-active" : "filter-pill"}
+        >
+          <ShieldCheck size={14} /> Reconciliation
+          {recon.filter((r) => !r.isMatched).length > 0 && (
+            <span className="ml-1.5 px-1.5 py-0.5 rounded-md bg-badge-red text-white text-[10px] font-black">
+              {recon.filter((r) => !r.isMatched).length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {activeTab === "reconciliation" ? (
+        <section className="card overflow-hidden p-0">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-navy-700">
+            <div>
+              <h2 className="text-lg font-black font-serif flex items-center gap-2">
+                <ShieldCheck size={16} className="text-cyan-accent" /> Payment Reconciliation
+              </h2>
+              <p className="text-xs text-text-secondary mt-1">
+                Cross-references captured payments against confirmed bookings to flag orphan, duplicate, or mismatched transactions.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-text-secondary font-medium">FILTER</span>
+              {["All", "Matched", "Mismatched", "Orphan", "Duplicate"].map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setReconFilter(f)}
+                  className={reconFilter === f ? "filter-pill-active" : "filter-pill"}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] text-sm">
+              <thead className="bg-cyan-accent text-navy-900 text-left text-xs uppercase tracking-wider">
+                <tr>
+                  {["Payment Ref", "Booking Ref", "Customer", "Amount", "Method", "Gateway", "Match Status", "Action"].map((c) => (
+                    <th key={c} className="px-5 py-3 font-semibold">{c}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {recon.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-5 py-14 text-center">
+                      <Inbox size={36} className="mx-auto text-text-secondary mb-3" />
+                      <p className="text-text-secondary font-semibold">No payments to reconcile</p>
+                    </td>
+                  </tr>
+                ) : (
+                  recon
+                    .filter((r) => {
+                      if (reconFilter === "All") return true;
+                      const who = classifyRecon(r);
+                      if (reconFilter === "Mismatched") return who.label === "Amount Mismatch";
+                      if (reconFilter === "Orphan") return who.label === "Unmatched";
+                      return who.label === reconFilter;
+                    })
+                    .map((r) => {
+                      const who = classifyRecon(r);
+                      return (
+                        <tr key={`${r.paymentId}-${r.bookingId}`} className="table-row">
+                          <td className="px-5 py-4 font-mono text-xs font-semibold text-cyan-accent">{r.paymentRef || `#PAY-${r.paymentId}`}</td>
+                          <td className="px-5 py-4 font-mono text-xs text-text-secondary">{r.bookingRef || "—"}</td>
+                          <td className="px-5 py-4">{r.customerName || "—"}</td>
+                          <td className="px-5 py-4 font-semibold text-badge-green">{money(r.amount)}</td>
+                          <td className="px-5 py-4"><span className={methodBadge[r.method] || "badge-cyan"}>{methodLabel(r.method)}</span></td>
+                          <td className="px-5 py-4 text-xs font-mono text-text-secondary">{r.gatewayRef || r.paymentRef || "—"}</td>
+                          <td className="px-5 py-4"><span className={who.cls}>{who.label}</span></td>
+                          <td className="px-5 py-4">
+                            {r.paymentId && (
+                              <button
+                                onClick={() => handleRefund({ id: r.paymentId, referenceId: r.paymentRef, amount: r.amount })}
+                                className="text-xs text-badge-red hover:underline flex items-center gap-1"
+                              >
+                                <RefreshCcw size={12} /> Refund
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : (
+      <>
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         {stats.map(([label, value, note]) => (
           <article key={label} className="card">
@@ -198,7 +334,7 @@ export default function PaymentsPage() {
               ) : (
                 filtered.map((p) => (
                   <tr key={p.id ?? p.referenceId} className="table-row">
-                    <td className="px-5 py-4 font-mono text-xs text-violet-400 font-semibold">{p.referenceId || `#PAY-${p.id}`}</td>
+                    <td className="px-5 py-4 font-mono text-xs text-badge-green font-semibold">{p.referenceId || `#PAY-${p.id}`}</td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-cyan-accent/15 flex items-center justify-center text-cyan-accent text-xs font-bold">{initials(p.customerName)}</div>
@@ -214,6 +350,15 @@ export default function PaymentsPage() {
                       <div className="flex items-center gap-2">
                         <button onClick={() => openModal("view", p)} className="text-xs text-cyan-accent hover:underline">View</button>
                         <button onClick={() => openModal("edit", p)} className="text-xs text-text-secondary hover:text-badge-orange transition">Edit</button>
+                        {p.status === "Paid" && (
+                          <button
+                            onClick={() => handleRefund(p)}
+                            disabled={refundingId !== null}
+                            className="text-xs text-badge-red hover:underline flex items-center gap-1 disabled:opacity-50"
+                          >
+                            {refundingId === (p.id ?? p.referenceId) ? <><Check size={12} /> Processing…</> : <><RefreshCcw size={12} /> Refund</>}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -223,6 +368,8 @@ export default function PaymentsPage() {
           </table>
         </div>
       </section>
+      </>
+      )}
 
       <CrudModal
         open={modal.open}

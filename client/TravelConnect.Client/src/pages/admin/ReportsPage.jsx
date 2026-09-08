@@ -99,12 +99,12 @@ function topPackages(filtered) {
 }
 
 const STATUS_COLORS = {
-  Upcoming: "#00B4D8",
-  Completed: "#06D6A0",
+  Upcoming: "#06D6A0",
+  Completed: "#2EE6B4",
   Cancelled: "#EF476F",
-  Pending: "#FFB703",
+  Pending: "#00B4D8",
 };
-const METHOD_COLORS = ["#00B4D8", "#06D6A0", "#FFB703", "#A78BFA", "#EF476F", "#8D99AE"];
+const METHOD_COLORS = ["#06D6A0", "#2EE6B4", "#00B4D8", "#8D99AE", "#EF476F", "#253453"];
 
 export default function ReportsPage() {
   const { role } = useOutletContext();
@@ -169,8 +169,8 @@ export default function ReportsPage() {
       {
         label: "Bookings",
         data: trend.counts,
-        borderColor: "#00B4D8",
-        backgroundColor: "rgba(0,180,216,0.15)",
+        borderColor: "#06D6A0",
+        backgroundColor: "rgba(6,214,160,0.15)",
         fill: true,
         tension: 0.3,
         yAxisID: "y",
@@ -178,8 +178,8 @@ export default function ReportsPage() {
       {
         label: "Revenue (₱)",
         data: trend.revenues,
-        borderColor: "#06D6A0",
-        backgroundColor: "rgba(6,214,160,0.15)",
+        borderColor: "#2EE6B4",
+        backgroundColor: "rgba(46,230,180,0.15)",
         fill: true,
         tension: 0.3,
         yAxisID: "y1",
@@ -192,7 +192,7 @@ export default function ReportsPage() {
     datasets: [{
       label: "Revenue (₱)",
       data: topPkgs.map((p) => p.revenue),
-      backgroundColor: "rgba(0,180,216,0.75)",
+      backgroundColor: "rgba(6,214,160,0.75)",
       borderRadius: 6,
     }],
   }), [topPkgs]);
@@ -246,9 +246,9 @@ export default function ReportsPage() {
 
   const kpis = [
     ["Total Revenue", money(stats.revenue), `${stats.paidCount} paid bookings`, "text-badge-green"],
-    ["Total Bookings", stats.total.toLocaleString(), "Within selected range", "text-cyan-accent"],
-    ["Avg Booking Value", money(stats.avgValue), "Per booking", "text-violet-400"],
-    ["Cancellation Rate", pct(stats.cancellationRate), `${stats.cancelled} cancelled`, "text-badge-orange"],
+    ["Total Bookings", stats.total.toLocaleString(), "Within selected range", "text-badge-green"],
+    ["Avg Booking Value", money(stats.avgValue), "Per booking", "text-badge-green"],
+    ["Cancellation Rate", pct(stats.cancellationRate), `${stats.cancelled} cancelled`, "text-badge-green"],
   ];
 
   return (
@@ -268,31 +268,32 @@ export default function ReportsPage() {
         </button>
       </section>
 
-      <div className="card mb-5 grid md:grid-cols-[1fr_1fr_auto_auto] gap-3 items-end">
-        <label className="text-xs text-text-secondary">
-          FROM DATE
+      <div className="card mb-5 px-4 py-3 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <CalendarRange size={15} className="text-text-secondary shrink-0" />
+          <span className="text-xs font-semibold text-text-secondary">FROM</span>
           <input
             type="date"
             value={fromDate}
             max={toDate}
             onChange={(e) => setFromDate(e.target.value)}
-            className="mt-2 input-field"
+            className="rounded-lg border border-navy-700 bg-navy-900 px-2 py-1 text-xs text-text-primary outline-none focus:border-cyan-accent transition"
           />
-        </label>
-        <label className="text-xs text-text-secondary">
-          TO DATE
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-text-secondary">TO</span>
           <input
             type="date"
             value={toDate}
             min={fromDate}
             onChange={(e) => setToDate(e.target.value)}
-            className="mt-2 input-field"
+            className="rounded-lg border border-navy-700 bg-navy-900 px-2 py-1 text-xs text-text-primary outline-none focus:border-cyan-accent transition"
           />
-        </label>
-        <div className="flex items-end gap-2">
-          <button className="btn-primary" onClick={load}>Apply Filter</button>
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="btn-primary !px-3 !py-1.5 !text-xs" onClick={load}>Apply Filter</button>
           <button
-            className="btn-secondary"
+            className="btn-secondary !px-3 !py-1.5 !text-xs"
             onClick={() => {
               setFromDate(localDateStr(new Date(Date.now() - 29 * 86400000)));
               setToDate(localDateStr(new Date()));
@@ -301,8 +302,7 @@ export default function ReportsPage() {
             Reset
           </button>
         </div>
-        <div className="md:col-span-4 flex items-center gap-2 mt-2 text-xs text-text-secondary">
-          <CalendarRange size={14} />
+        <div className="ml-auto flex items-center gap-2 text-xs text-text-secondary">
           {loading ? "Loading data..." : `Showing ${filtered.length} bookings · ${friendlyDate(fromDate)} → ${friendlyDate(toDate)}`}
         </div>
       </div>

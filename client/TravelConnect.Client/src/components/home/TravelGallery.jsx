@@ -1,4 +1,4 @@
-import { Camera, MapPin, Sparkles, Heart } from "lucide-react";
+import { Camera, MapPin, Compass, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const GALLERY_PHOTOS = [
@@ -55,22 +55,22 @@ const GALLERY_PHOTOS = [
 
 export default function TravelGallery() {
   return (
-    <section className="py-24 bg-gradient-to-b from-white via-slate-50 to-white relative overflow-hidden">
+    <section className="py-24 bg-gradient-to-b from-white via-slate-50 to-white dark:from-[#070b13] dark:via-[#0c1222] dark:to-[#070b13] relative overflow-hidden transition-colors duration-300">
       
       {/* Background ambient lighting */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[38rem] h-[38rem] bg-blue-100/40 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[38rem] h-[38rem] bg-blue-100/40 dark:bg-blue-600/10 rounded-full blur-[100px] pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
         {/* Center Title Section (Matching screenshot style) */}
         <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
-          <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.2em] text-[#008fe5] bg-blue-50 px-3.5 py-1 rounded-full border border-blue-100">
+          <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.2em] text-[#008fe5] dark:text-cyan-300 bg-blue-50 dark:bg-blue-500/10 px-3.5 py-1 rounded-full border border-blue-100 dark:border-blue-500/20">
             <Camera size={13} /> Visual Chronicle
           </div>
-          <h2 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight leading-tight">
+          <h2 className="text-3xl sm:text-5xl font-heading font-black text-slate-900 dark:text-white tracking-tight leading-tight">
             Moments from Around the World.
           </h2>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
             Real snaps from our adventurous travelers exploring pristine coastlines, ancient marvels, and breathtaking altitudes.
           </p>
         </div>
@@ -80,7 +80,7 @@ export default function TravelGallery() {
           {GALLERY_PHOTOS.map((photo, i) => (
             <div
               key={i}
-              className={`relative bg-white p-2.5 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-110 hover:z-20 cursor-pointer group border border-slate-100 ${photo.rotation}`}
+              className={`relative bg-white dark:bg-[#0f172a] p-2.5 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-110 hover:z-20 cursor-pointer group border border-slate-100 dark:border-white/10 ${photo.rotation}`}
             >
               <div className={`overflow-hidden rounded-2xl relative ${photo.size}`}>
                 <img
@@ -89,7 +89,7 @@ export default function TravelGallery() {
                   className="w-full h-full object-cover group-hover:scale-115 transition-transform duration-700"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3 text-white">
-                  <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1">
+                  <span className="text-[10px] font-bold text-sky-300 uppercase tracking-wider flex items-center gap-1">
                     <MapPin size={10} /> {photo.country}
                   </span>
                   <span className="text-xs font-black leading-tight">{photo.caption}</span>
@@ -97,7 +97,7 @@ export default function TravelGallery() {
               </div>
 
               {/* Polaroids corner stamp */}
-              <div className="absolute -top-2 -right-2 w-7 h-7 bg-white/95 rounded-full shadow-md flex items-center justify-center text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <div className="absolute -top-2 -right-2 w-7 h-7 bg-white/95 dark:bg-slate-900/95 rounded-full shadow-md flex items-center justify-center text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 <Heart size={14} className="fill-rose-500" />
               </div>
             </div>
@@ -107,11 +107,11 @@ export default function TravelGallery() {
         {/* Bottom Explorer Action */}
         <div className="text-center pt-14">
           <Link
-            to="/explore"
-            className="inline-flex items-center gap-2 bg-slate-900 hover:bg-[#008fe5] text-white font-extrabold px-8 py-4 rounded-2xl text-xs sm:text-sm shadow-xl hover:shadow-blue-500/25 transition-all active:scale-95 cursor-pointer"
+            to="/hotels"
+            className="inline-flex items-center gap-2 bg-[#008fe5] hover:bg-[#007bc4] text-white font-extrabold px-8 py-4 rounded-2xl text-xs sm:text-sm shadow-xl shadow-blue-500/25 transition-all active:scale-95 cursor-pointer"
           >
-            <Sparkles size={16} className="text-amber-400" />
-            <span>Discover All 50+ Destinations</span>
+            <Compass size={16} className="text-white" />
+            <span>Discover Curated Sanctuaries &amp; Stays</span>
           </Link>
         </div>
 

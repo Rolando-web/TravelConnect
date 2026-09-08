@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Download, Plus, Search, SlidersHorizontal, Star, Inbox } from "lucide-react";
-import { packagesApi } from "../../services/api";
+import { Download, Plus, Search, SlidersHorizontal, Star, Inbox, Pencil, Eye, X, Tag, MapPin, Clock, Users } from "lucide-react";
+import { packagesApi, assetUrl } from "../../services/api";
 import CrudModal from "../../components/admin/CrudModal";
 
 const tagBadge = {
@@ -23,6 +23,12 @@ function money(v) {
   return `₱${Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 }
 
+function avatarFor(name = "") {
+  const map = { Bali: "🏝️", Paris: "🗼", Tokyo: "⛩️", Maldives: "🌊", Malta: "🏖️", Swiss: "🏔️", Switzerland: "🏔️", "New York": "🗽", Japan: "⛩️", Greece: "🏛️" };
+  for (const [k, v] of Object.entries(map)) if ((name || "").toLowerCase().includes(k.toLowerCase())) return v;
+  return "🌍";
+}
+
 export default function PackagesPage() {
   const { role } = useOutletContext();
   const [query, setQuery] = useState("");
@@ -31,6 +37,7 @@ export default function PackagesPage() {
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState({ open: false, mode: "add", data: null });
+  const [viewing, setViewing] = useState(null);
   const [saving, setSaving] = useState(false);
 
   const load = () => {
@@ -63,6 +70,7 @@ export default function PackagesPage() {
   };
 
   const modalFields = [
+    { key: "imageUrl", label: "Package Image", type: "image", placeholder: "Paste image URL..." },
     { key: "name", label: "Package Name", required: true },
     { key: "location", label: "Location", required: true },
     { key: "description", label: "Description", type: "textarea", rows: 3 },
@@ -109,10 +117,22 @@ export default function PackagesPage() {
     ["Countries", new Set(packages.map((p) => p.location).filter(Boolean)).size.toLocaleString(), "Destinations covered"],
   ];
 
-  const avatarFor = (name = "") => {
-    const map = { Bali: "🏝️", Paris: "🗼", Tokyo: "⛩️", Maldives: "🌊", Malta: "🏖️", Swiss: "🏔️", Switzerland: "🏔️", "New York": "🗽", Japan: "⛩️", Greece: "🏛️" };
-    for (const [k, v] of Object.entries(map)) if ((name || "").toLowerCase().includes(k.toLowerCase())) return v;
-    return "🌍";
+  const handleExport = () => {
+    const rows = [
+      ["id", "name", "location", "description", "duration", "price", "rating", "reviews", "tag", "status"].join(","),
+      ...filtered.map((p) =>
+        [p.id, p.name, p.location, p.description, p.duration, p.price, p.rating, p.reviews, p.tag, p.status]
+          .map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`)
+          .join(",")
+      )
+    ];
+    const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `packages_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -124,7 +144,7 @@ export default function PackagesPage() {
           <p className="text-text-secondary mt-2">Create curated itineraries and package listings.</p>
         </div>
         <div className="flex gap-2">
-          <button className="btn-secondary"><Download size={16} /> Export</button>
+          <button className="btn-secondary" onClick={handleExport}><Download size={16} /> Export</button>
           <button onClick={() => openModal("add")} className="btn-primary"><Plus size={17} /> Add Package</button>
         </div>
       </section>
@@ -194,10 +214,19 @@ export default function PackagesPage() {
                   <tr key={p.id ?? p.name} className="table-row">
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-lg bg-navy-700 flex items-center justify-center text-xl shrink-0">{avatarFor(p.location)}</div>
-                        <div>
-                          <p className="font-medium">{p.name || "—"}</p>
-                          <p className="text-xs text-text-secondary">{p.location || "—"}</p>
+                        {p.imageUrl ? (
+                          <img
+                            src={assetUrl(p.imageUrl)}
+                            alt={p.name}
+                            className="w-11 h-11 rounded-xl object-cover border border-navy-700 bg-navy-900"
+                            onError={(e) => { e.currentTarget.style.display = "none"; }}
+                          />
+                        ) : (
+                          <div className="w-11 h-11 rounded-xl bg-navy-700 flex items-center justify-center text-xl shrink-0">{avatarFor(p.location)}</div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-medium text-text-primary truncate">{p.name || "—"}</p>
+                          <p className="text-xs text-text-secondary truncate">{p.location || "—"}</p>
                         </div>
                       </div>
                     </td>
@@ -209,8 +238,8 @@ export default function PackagesPage() {
                     <td className="px-5 py-4"><span className={tagBadge[p.tag] || "badge-cyan"}>{p.tag || "—"}</span></td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-2">
-                        <button onClick={() => openModal("view", p)} className="text-xs text-cyan-accent hover:underline">View</button>
-                        <button onClick={() => openModal("edit", p)} className="text-xs text-text-secondary hover:text-badge-orange transition">Edit</button>
+                        <button onClick={() => setViewing(p)} className="p-1.5 rounded-lg hover:bg-navy-700 transition text-text-secondary hover:text-cyan-accent"><Eye size={15} /></button>
+                        <button onClick={() => openModal("edit", p)} className="p-1.5 rounded-lg hover:bg-navy-700 transition text-text-secondary hover:text-cyan-accent"><Pencil size={15} /></button>
                       </div>
                     </td>
                   </tr>
@@ -224,13 +253,109 @@ export default function PackagesPage() {
       <CrudModal
         open={modal.open}
         onClose={() => setModal({ open: false, mode: "add", data: null })}
-        title={modal.mode === "add" ? "Add Package" : modal.mode === "edit" ? "Edit Package" : "Package Details"}
+        title={modal.mode === "add" ? "Add Package" : "Edit Package"}
         mode={modal.mode}
         fields={modalFields}
         data={modal.data || {}}
         onSave={handleSave}
         saving={saving}
       />
+
+      {viewing && <PackageViewModal package={viewing} onClose={() => setViewing(null)} onEdit={() => { openModal("edit", viewing); setViewing(null); }} />}
     </>
+  );
+}
+
+function PackageViewModal({ package: p, onClose, onEdit }) {
+  return (
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      style={{ background: "rgba(2,8,23,0.72)", backdropFilter: "blur(4px)" }}
+    >
+      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-navy-800 border border-navy-700 rounded-2xl shadow-2xl">
+        <article className="card p-0 overflow-hidden flex flex-col">
+          <div className="relative h-44 sm:h-52 bg-navy-700">
+            {p.imageUrl && (
+              <img
+                src={assetUrl(p.imageUrl)}
+                alt={p.name}
+                className="w-full h-full object-cover"
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
+              />
+            )}
+            <div className={`absolute inset-0 flex items-center justify-center ${p.imageUrl ? "bg-navy-900/40" : "bg-gradient-to-br from-navy-700 to-navy-900"}`}>
+              {!p.imageUrl && (
+                <span className="w-20 h-20 rounded-full bg-navy-700 flex items-center justify-center text-4xl">
+                  {avatarFor(p.location)}
+                </span>
+              )}
+            </div>
+            <div className="absolute top-3 right-3 flex items-center gap-2">
+              <span className={statusBadge[p.status] || "badge-green"}>{p.status || "—"}</span>
+              <button
+                onClick={onClose}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-navy-900/80 text-text-secondary hover:text-text-primary hover:bg-navy-900 transition"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="absolute bottom-3 left-3 flex items-center gap-2">
+              <span className="bg-navy-900/80 text-cyan-accent text-xs font-bold px-2.5 py-1 rounded-full backdrop-blur"><MapPin size={12} className="inline mr-1" />{p.location || "—"}</span>
+              {p.tag && <span className={tagBadge[p.tag] || "badge-cyan"}>{p.tag || "—"}</span>}
+            </div>
+          </div>
+
+          <div className="p-6 flex-1 flex flex-col">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="font-black text-2xl leading-tight">{p.name || "—"}</h3>
+                <p className="text-sm text-text-secondary mt-0.5">{p.duration ? `${p.duration} trip` : "Duration not set"}</p>
+              </div>
+              <span className="flex items-center gap-1 text-badge-orange text-lg font-black whitespace-nowrap">
+                <Star size={18} fill="currentColor" /> {Number(p.rating || 0).toFixed(1)}
+              </span>
+            </div>
+
+            {p.description && (
+              <p className="text-sm text-text-secondary mt-4 leading-relaxed">{p.description}</p>
+            )}
+
+            <div className="border-t border-navy-700 my-5" />
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-xl bg-navy-900/70 border border-navy-700 p-4">
+                <p className="flex items-center gap-1.5 text-xs text-text-secondary">
+                  <Tag size={13} /> Price
+                </p>
+                <p className="text-2xl font-black text-badge-green mt-1">{money(p.price)}</p>
+              </div>
+              <div className="rounded-xl bg-navy-900/70 border border-navy-700 p-4">
+                <p className="flex items-center gap-1.5 text-xs text-text-secondary">
+                  <Clock size={13} /> Duration
+                </p>
+                <p className="text-2xl font-black text-cyan-accent mt-1">{p.duration || "—"}</p>
+              </div>
+              <div className="rounded-xl bg-navy-900/70 border border-navy-700 p-4">
+                <p className="flex items-center gap-1.5 text-xs text-text-secondary">
+                  <Users size={13} /> Reviews
+                </p>
+                <p className="text-2xl font-black text-text-primary mt-1">{p.reviews ?? 0}</p>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-5 border-t border-navy-700 flex items-center justify-end gap-2">
+              <button onClick={onClose} className="btn-secondary justify-center py-2">
+                Close
+              </button>
+              <button onClick={onEdit} className="btn-primary justify-center py-2">
+                <Pencil size={15} /> Edit
+              </button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
   );
 }

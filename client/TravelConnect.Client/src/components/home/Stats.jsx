@@ -3,6 +3,10 @@ import { usePublicStats } from "../../hooks/usePublicStats";
 
 const fmt = (n) => new Intl.NumberFormat("en-US").format(n && !isNaN(n) ? n : 0);
 
+/* ═══════════════════════════════════════════════════════════════════════
+   STATS BANNER — SkyBlue glass band that sits under the hero.
+   Extra top padding clears the overlapping SearchCard from Hero.
+═══════════════════════════════════════════════════════════════════════ */
 export default function Stats() {
   const { stats } = usePublicStats();
 
@@ -14,28 +18,32 @@ export default function Stats() {
   ];
 
   return (
-    <section className="bg-[#008fe5] text-white p-6 relative overflow-hidden">
-      {/* Decorative background shape */}
-      <div className="absolute inset-0 z-0 opacity-10">
-        <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-          <path d="M0,0 C30,40 70,60 100,100 L100,0 Z" fill="white" />
-        </svg>
+    <section className="relative overflow-hidden bg-gradient-to-br from-[#008fe5] via-[#0d84d8] to-[#045a9e] pt-32 md:pt-40 pb-12 md:pb-14 text-white">
+      {/* Soft ambient light sweeps */}
+      <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+        <div className="absolute -top-28 -right-20 w-[28rem] h-[28rem] rounded-full bg-white/10 blur-3xl" />
+        <div className="absolute -bottom-36 -left-24 w-[28rem] h-[28rem] rounded-full bg-sky-300/20 blur-3xl" />
+        <div className="absolute top-0 inset-x-0 h-px bg-white/25" />
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 md:gap-10 text-center">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           {statsList.map((stat, idx) => {
             const Icon = stat.icon;
             return (
               <div
                 key={idx}
-                className="flex flex-col items-center justify-center space-y-2 group p-4 rounded-2xl hover:bg-white/5 transition-all duration-300"
+                className="group flex flex-col items-center gap-3 rounded-3xl bg-white/10 backdrop-blur-md border border-white/15 px-4 py-8 md:py-10 text-center transition-all duration-300 hover:bg-white/[0.16] hover:-translate-y-1 hover:shadow-xl hover:shadow-[#023e73]/30"
               >
-                <div className="bg-white/10 rounded-2xl p-3.5 mb-2 group-hover:scale-110 transition-transform duration-300">
-                  <Icon size={24} className="text-blue-100" />
+                <div className="rounded-2xl bg-white/15 border border-white/20 p-3.5 group-hover:scale-110 transition-transform duration-300">
+                  <Icon size={24} className="text-white" />
                 </div>
-                <span className="text-3xl sm:text-4xl font-extrabold tracking-tight">{stat.value}</span>
-                <span className="text-xs sm:text-sm font-semibold text-blue-100 uppercase tracking-wider">{stat.label}</span>
+                <span className="text-3xl sm:text-4xl font-extrabold tracking-tight drop-shadow-sm">
+                  {stat.value}
+                </span>
+                <span className="text-[11px] sm:text-xs font-semibold text-sky-100 uppercase tracking-[0.18em]">
+                  {stat.label}
+                </span>
               </div>
             );
           })}

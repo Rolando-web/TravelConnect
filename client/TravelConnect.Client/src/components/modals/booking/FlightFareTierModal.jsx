@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   X, Check, ShieldCheck, Plane, Luggage, Utensils, Wifi, Award,
-  CreditCard, ChevronDown, ChevronUp, Sparkles, Building2, Tag, Info
+  CreditCard, ChevronDown, ChevronUp, Building2, Tag, Info
 } from "lucide-react";
 import { useCurrency } from "../../../context/CurrencyContext";
 import { useBooking } from "../../../context/BookingContext";
@@ -197,7 +197,7 @@ export default function FlightFareTierModal({ isOpen, onClose, flight }) {
                 {/* Recommended Badge */}
                 {tier.recommended && (
                   <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#008fe5] to-blue-600 text-white text-[11px] font-black px-4 py-1 rounded-full uppercase tracking-wider shadow-md flex items-center gap-1">
-                    <Sparkles size={12} /> Recommended
+                    <Award size={12} /> Recommended
                   </div>
                 )}
 

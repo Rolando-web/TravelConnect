@@ -11,16 +11,16 @@ import { hasFlightRoute } from "../../data/availability";
 function LocationInput({ label, inputRef, placeholder, selected, search, setSearch, showDD, setShowDD, onSelect, showAnywhere = false, mode = "all" }) {
   return (
     <div className={`space-y-2 relative ${showDD ? "z-[70]" : "z-10"}`} ref={inputRef}>
-      <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider text-left">{label}</label>
+      <label className="block text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider text-left">{label}</label>
       <div className="relative">
-        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400" size={18} />
         <input
           type="text"
           placeholder={placeholder}
           value={showDD ? search : `${selected.city} (${selected.code})`}
           onFocus={() => { setSearch(""); setShowDD(true); }}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-gray-50 border border-gray-100 focus:border-[#008fe5] focus:bg-white rounded-2xl py-4 pl-12 pr-4 text-sm font-semibold text-gray-900 outline-none transition-all"
+          className="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 focus:border-[#008fe5] focus:bg-white dark:focus:bg-white/10 rounded-2xl py-4 pl-12 pr-4 text-sm font-semibold text-gray-900 dark:text-white outline-none transition-all placeholder-gray-400 dark:placeholder-slate-500"
         />
       </div>
       {showDD && (
@@ -40,14 +40,14 @@ function LocationInput({ label, inputRef, placeholder, selected, search, setSear
 function DateTrigger({ label, calendarRef, showCalendar, setShowCalendar, setSelectingDateType, departureDate, setDepartureDate, returnDate, setReturnDate, selectingDateType, tripType }) {
   return (
     <div className={`space-y-2 relative ${showCalendar ? "z-[70]" : "z-10"}`} ref={calendarRef}>
-      <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider text-left">{label}</label>
+      <label className="block text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider text-left">{label}</label>
       <button
         type="button"
         onClick={() => { setSelectingDateType("depart"); setShowCalendar(!showCalendar); }}
-        className="w-full bg-gray-50 border border-gray-100 text-left rounded-2xl py-4 px-4 text-sm font-semibold text-gray-900 outline-none transition-all flex items-center gap-2"
+        className="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 text-left rounded-2xl py-4 px-4 text-sm font-semibold text-gray-900 dark:text-white outline-none transition-all flex items-center gap-2 hover:border-[#008fe5]/50"
       >
-        <Calendar size={18} className="text-gray-400" />
-        <span>
+        <Calendar size={18} className="text-gray-400 dark:text-slate-400" />
+        <span className="truncate">
           {formatDateLabel(departureDate)}
           {tripType !== "one-way" && returnDate && ` — ${formatDateLabel(returnDate)}`}
         </span>
@@ -169,7 +169,7 @@ export default function SearchCard() {
     params.set("class", cabinClass);
 
     if (searchTab === "flight-hotel") {
-      navigate(`/explore?${params.toString()}`);
+      navigate(`/deals?${params.toString()}`);
     } else {
       navigate(`/flights?${params.toString()}`);
     }
@@ -178,10 +178,10 @@ export default function SearchCard() {
   const [toast, setToast] = useState("");
 
   return (
-    <div className="bg-white rounded-2xl md:rounded-[2.5rem] shadow-2xl border border-gray-100 p-6 md:p-10 transition-all duration-300 relative z-30">
+    <div className="bg-white dark:bg-[#0c1222] rounded-2xl md:rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-white/10 p-6 md:p-10 transition-all duration-300 relative z-30">
 
       {/* ─── Main Tabs ─────────────────────────────────────────────── */}
-      <div className="flex items-center gap-4 pb-4 mb-6 border-b border-gray-100 overflow-x-auto scrollbar-none">
+      <div className="flex items-center gap-4 pb-4 mb-6 border-b border-gray-100 dark:border-white/10 overflow-x-auto scrollbar-none">
         {[
           { id: "flights", label: "Flights", Icon: Plane },
           { id: "flight-hotel", label: "Flight + Hotel", Icon: Hotel },
@@ -190,8 +190,11 @@ export default function SearchCard() {
           <button
             key={id}
             onClick={() => setSearchTab(id)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition whitespace-nowrap ${searchTab === id ? "bg-blue-50 text-[#008fe5]" : "text-gray-500 hover:text-gray-900"
-              }`}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition whitespace-nowrap cursor-pointer ${
+              searchTab === id
+                ? "bg-blue-50 dark:bg-[#008fe5]/20 text-[#008fe5] dark:text-cyan-300 font-extrabold shadow-sm"
+                : "text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5"
+            }`}
           >
             <Icon size={16} /> {label}
           </button>
@@ -200,15 +203,15 @@ export default function SearchCard() {
 
       {/* ─── Trip options (flights only) ───────────────────────────── */}
       {searchTab !== "cars" && (
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 mb-5 border-b border-gray-50">
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 mb-5 border-b border-gray-50 dark:border-white/5">
           <div className="flex items-center gap-6">
             {["round-trip", "one-way", "multi-city"].map((t) => (
-              <label key={t} className="flex items-center gap-2 text-xs font-bold text-gray-600 cursor-pointer">
+              <label key={t} className="flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-slate-300 cursor-pointer">
                 <input type="radio" checked={tripType === t} onChange={() => setTripType(t)} className="text-[#008fe5] focus:ring-[#008fe5]" />
                 {t === "round-trip" ? "Round-trip" : t === "one-way" ? "One-way" : "Multi-city"}
               </label>
             ))}
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-600 cursor-pointer ml-4">
+            <label className="flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-slate-300 cursor-pointer ml-4">
               <input type="checkbox" checked={nonstop} onChange={(e) => setNonstop(e.target.checked)} className="rounded text-[#008fe5] focus:ring-[#008fe5]" />
               Nonstop
             </label>
@@ -219,9 +222,9 @@ export default function SearchCard() {
             <button
               type="button"
               onClick={() => setShowTravelers(!showTravelers)}
-              className="flex items-center gap-1 text-xs font-bold text-gray-700 bg-gray-50 border border-gray-100 hover:bg-gray-100 px-4 py-2 rounded-xl transition"
+              className="flex items-center gap-1 text-xs font-bold text-gray-700 dark:text-slate-200 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 px-4 py-2 rounded-xl transition cursor-pointer"
             >
-              <Users size={14} className="text-gray-400" />
+              <Users size={14} className="text-gray-400 dark:text-slate-400" />
               {adults + children + infants} Passenger{adults + children + infants > 1 ? "s" : ""} — {cabinClass}
             </button>
             {showTravelers && (
@@ -305,7 +308,7 @@ export default function SearchCard() {
                   <button
                     type="button"
                     onClick={() => setSearchTab("flight-hotel")}
-                    className="border-2 border-[#008fe5] text-[#008fe5] hover:bg-blue-50 active:scale-[0.98] font-bold py-3.5 px-6 rounded-2xl transition flex items-center justify-center gap-2 text-sm whitespace-nowrap bg-white"
+                    className="border-2 border-[#008fe5] text-[#008fe5] hover:bg-blue-50 dark:hover:bg-white/5 active:scale-[0.98] font-bold py-3.5 px-6 rounded-2xl transition flex items-center justify-center gap-2 text-sm whitespace-nowrap bg-white dark:bg-transparent"
                   >
                     Flight + Hotel
                   </button>

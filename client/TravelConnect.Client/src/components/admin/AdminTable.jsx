@@ -118,7 +118,7 @@ export default function AdminTable({
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(0); }}
                 placeholder="Search..."
-                className="pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm w-56 focus:outline-none focus:ring-2 focus:ring-[#00A8FF]/30 focus:border-[#00A8FF]"
+                className="pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm w-56 focus:outline-none focus:ring-2 focus:ring-[#06D6A0]/30 focus:border-[#06D6A0]"
               />
             </div>
           )}
@@ -132,7 +132,7 @@ export default function AdminTable({
                 }}
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${
                   activeFilter === opt.value
-                    ? "bg-[#00A8FF] text-white"
+                    ? "bg-[#06D6A0] text-white"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
               >
@@ -154,7 +154,7 @@ export default function AdminTable({
           {canManage && onAdd && (
             <button
               onClick={onAdd}
-              className="flex items-center gap-1.5 px-4 py-2 bg-[#00A8FF] text-white rounded-lg text-xs font-semibold hover:bg-[#0090E0] transition"
+              className="flex items-center gap-1.5 px-4 py-2 bg-[#06D6A0] text-white rounded-lg text-xs font-semibold hover:bg-[#05BE8C] transition"
             >
               <Plus size={14} />
               {addLabel}
@@ -166,7 +166,7 @@ export default function AdminTable({
       <div className="overflow-x-auto bg-white rounded-xl border border-slate-200">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-[#00A8FF]">
+            <tr className="bg-[#06D6A0]">
               {columns.map((col) => (
                 <th
                   key={col.key}
@@ -224,7 +224,7 @@ export default function AdminTable({
                         <div className="flex items-center gap-2">
                           <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-[#00A8FF] rounded-full transition-all"
+                              className="h-full bg-[#06D6A0] rounded-full transition-all"
                               style={{ width: `${Math.min((row[col.progress.num] || 0) / (row[col.progress.max] || 1) * 100, 100)}%` }}
                             />
                           </div>

@@ -1,9 +1,9 @@
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Compass } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const EXPERIENCES = [
   {
-    image: "https://images.unsplash.com/photo-1539768942893-daf53e736b68?auto=format&fit=crop&w=800&q=80",
+    image: "https://images.unsplash.com/photo-1503177119275-0aa32b3a9368?auto=format&fit=crop&w=800&q=80",
     label: "Egyptian Pyramids",
     location: "Giza, Egypt",
     badge: "Historic Wonder",
@@ -46,23 +46,23 @@ const EXPERIENCES = [
 
 export default function SignatureExperiences() {
   return (
-    <section className="py-20 bg-slate-50/60 overflow-hidden">
+    <section className="py-20 bg-slate-50/60 dark:bg-[#070b13] overflow-hidden transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Outer Card Container Matching Screenshot Aesthetic */}
-        <div className="bg-white rounded-[2.5rem] border border-slate-200/80 shadow-xl shadow-slate-200/40 p-6 sm:p-10 lg:p-14">
+        <div className="bg-white dark:bg-[#0d1424] rounded-[2.5rem] border border-slate-200/80 dark:border-white/10 shadow-xl shadow-slate-200/40 dark:shadow-none p-6 sm:p-10 lg:p-14 transition-colors duration-300">
           
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
             <div>
-              <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.2em] text-[#008fe5] bg-blue-50 px-3 py-1 rounded-full mb-3 border border-blue-100">
-                <Sparkles size={13} /> Tour Packages
+              <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.2em] text-[#008fe5] dark:text-cyan-300 bg-blue-50 dark:bg-blue-500/10 px-3 py-1 rounded-full mb-3 border border-blue-100 dark:border-blue-500/20">
+                <Compass size={13} /> Curated Journeys
               </div>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight">
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-heading font-black text-slate-900 dark:text-white tracking-tight">
                 Signature Experiences
               </h2>
             </div>
-            <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-md">
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium max-w-md">
               Hand-selected luxury journeys crafted uniquely for discerning travelers seeking authenticity and comfort.
             </p>
           </div>
@@ -79,7 +79,7 @@ export default function SignatureExperiences() {
                 <span className="text-xs font-mono font-bold text-amber-400 uppercase tracking-widest block">
                   Tailor-Made Luxury
                 </span>
-                <h3 className="text-2xl sm:text-3xl font-black text-white leading-tight">
+                <h3 className="text-2xl sm:text-3xl font-heading font-black text-white leading-tight">
                   Luxury adventures, crafted uniquely for every traveler.
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed pt-2">
@@ -90,7 +90,7 @@ export default function SignatureExperiences() {
               <div className="pt-8 relative z-10">
                 <Link
                   to="/deals"
-                  className="inline-flex items-center gap-2 bg-[#008fe5] hover:bg-blue-600 text-white font-black px-6 py-3.5 rounded-2xl text-xs transition-all shadow-lg shadow-blue-500/30 hover:scale-105 active:scale-95 group/btn"
+                  className="inline-flex items-center gap-2 bg-[#008fe5] hover:bg-blue-600 text-white font-black px-6 py-3.5 rounded-2xl text-xs transition-all shadow-lg shadow-blue-500/30 hover:scale-105 active:scale-95 group/btn cursor-pointer"
                 >
                   <span>Explore Our Story</span>
                   <ArrowRight size={15} className="group-hover/btn:translate-x-1 transition-transform" />

@@ -1,13 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   X, Check, CreditCard, ShieldCheck, ArrowRight, ArrowLeft, RefreshCw,
-  Sparkles, MapPin, Calendar, Users, Tag, CheckCircle2, QrCode, Printer,
-  User, ClipboardList, Wallet, Coins, Plane, Plus, Trash2, Info
+  Award, MapPin, Calendar, Users, Tag, CheckCircle2, QrCode, Printer,
+  User, ClipboardList, Wallet, Coins, Plane, Plus, Trash2, Info, Luggage,
+  Armchair
 } from "lucide-react";
 import { useBooking } from "../../../context/BookingContext";
 import { useAuth } from "../../../context/AuthContext";
 import { useCurrency } from "../../../context/CurrencyContext";
 import { sendCustomerInquiry, flightsApi } from "../../../services/api";
+import SeatMapModal from "./SeatMapModal";
 
 const MAX_FLIGHT_SEGMENTS = 6;
 const MAX_REGULAR_PASSENGERS = 9;
@@ -58,7 +60,7 @@ export default function BookingCheckoutModal() {
 
   const [guestName, setGuestName] = useState(user?.name || "Juan Dela Cruz");
   const [guestEmail, setGuestEmail] = useState(user?.email || "");
-  const [guestPhone, setGuestPhone] = useState("+63 917 123 4567");
+  const [guestPhone, setGuestPhone] = useState(user?.phone || "+63 917 123 4567");
   const [specialRequests, setSpecialRequests] = useState("");
 
   const [promoInput, setPromoInput] = useState(appliedPromo || "");
@@ -76,6 +78,9 @@ export default function BookingCheckoutModal() {
   const [tripType, setTripType] = useState("oneway"); // oneway | roundtrip | multicity
   const [flightSegments, setFlightSegments] = useState([]);
   const [availableFlights, setAvailableFlights] = useState([]);
+
+  // Interactive seat selection per flight segment.
+  const [seatPickerSegment, setSeatPickerSegment] = useState(null); // index or null
 
   // A booking is flight-aware when it was launched from the Flights/Explore
   // "Book" buttons (category === "flight") and carries a flight snapshot.
@@ -136,6 +141,7 @@ export default function BookingCheckoutModal() {
       if (user) {
         if (user.name) setGuestName(user.name);
         if (user.email) setGuestEmail(user.email);
+        if (user.phone) setGuestPhone(user.phone);
       } else {
         if (!guestName) setGuestName("Juan Dela Cruz");
         if (!guestEmail) setGuestEmail("guest@travelconnect.ph");
@@ -259,7 +265,8 @@ export default function BookingCheckoutModal() {
               arrivalTime: s.arrivalTime || "",
               departureDate: s.departureDate || startDate,
               class: s.class || "Economy",
-              price: Number(s.price || 0)
+              price: Number(s.price || 0),
+              seatNumber: s.seatNumber || ""
             }))
         : [],
       services: checkoutPackage.services || {
@@ -304,6 +311,7 @@ export default function BookingCheckoutModal() {
   const isPaidUnit = checkoutPackage.category === "car" || checkoutPackage.category === "hotel";
 
   return (
+    <>
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-md overflow-y-auto">
       <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[92vh] my-auto border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
 
@@ -626,6 +634,18 @@ export default function BookingCheckoutModal() {
                           <span className="bg-white border border-slate-200 rounded-lg px-2.5 py-1">
                             {seg.departureTime} – {seg.arrivalTime} · {seg.departureDate}
                           </span>
+                          <button
+                            type="button"
+                            onClick={() => setSeatPickerSegment(idx)}
+                            className={`ml-1 flex items-center gap-1 px-3 py-1.5 rounded-lg border-2 transition text-[11px] font-extrabold ${
+                              seg.seatNumber
+                                ? "bg-emerald-50 border-emerald-400 text-emerald-700"
+                                : "bg-white border-[#008fe5]/40 text-[#008fe5] hover:border-[#008fe5] hover:bg-blue-50"
+                            }`}
+                          >
+                            <Armchair size={13} />
+                            {seg.seatNumber ? `Seat ${seg.seatNumber}` : "Choose Seat"}
+                          </button>
                           <span className="ml-auto font-black text-[#008fe5]">{displayPrice(Number(seg.price || 0))}</span>
                         </div>
                       ) : (
@@ -968,12 +988,12 @@ export default function BookingCheckoutModal() {
             <div className="bg-gradient-to-r from-blue-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-5 sm:p-6 shadow-sm space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="bg-amber-400 text-slate-900 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
+                  <span className="bg-[#008fe5] text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
                     Flyer Exclusive
                   </span>
                   <h4 className="text-sm font-black text-white mt-1">Book this flight &amp; unlock more perks</h4>
                 </div>
-                <Sparkles size={20} className="text-amber-400" />
+                <Award size={20} className="text-[#38bdf8]" />
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
                 <div className="bg-white/10 rounded-xl p-2.5 text-center">
@@ -1188,7 +1208,7 @@ export default function BookingCheckoutModal() {
                   ) : (
                     <>
                       <span>Pay {displayPrice(totalAmount)} &amp; Confirm Booking</span>
-                      <Sparkles size={18} />
+                      <ArrowRight size={18} />
                     </>
                   )}
                 </button>
@@ -1298,5 +1318,30 @@ export default function BookingCheckoutModal() {
 
       </div>
     </div>
+
+    {/* ── Seat Map picker (per flight segment) ─────────────────────────── */}
+    {isFlight && seatPickerSegment !== null && (() => {
+      const segment = flightSegments[seatPickerSegment];
+      return (
+        <SeatMapModal
+          open
+          flight={segment || {}}
+          travellers={travellers}
+          onClose={() => setSeatPickerSegment(null)}
+          onConfirm={(seats) => {
+            if (seats.length === 0) return;
+            setFlightSegments((prev) =>
+              prev.map((s, i) =>
+                i === seatPickerSegment
+                  ? { ...s, seatNumber: seats.join(",") }
+                  : s
+              )
+            );
+            setSeatPickerSegment(null);
+          }}
+        />
+      );
+    })()}
+    </>
   );
 }

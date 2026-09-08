@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Download, Plus, Search, SlidersHorizontal, Inbox } from "lucide-react";
-import { bookingsApi } from "../../services/api";
+import { Download, Plus, Search, SlidersHorizontal, Inbox, RefreshCcw, Armchair, X } from "lucide-react";
+import { bookingsApi, adminOverrideSeat } from "../../services/api";
 import CrudModal from "../../components/admin/CrudModal";
 
 const statusBadge = {
@@ -55,6 +55,9 @@ export default function BookingsPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState({ open: false, mode: "add", data: null });
   const [saving, setSaving] = useState(false);
+  const [seatModal, setSeatModal] = useState({ open: false, booking: null, seats: {} });
+  const [overrideBusy, setOverrideBusy] = useState(false);
+  const [overrideMsg, setOverrideMsg] = useState("");
 
   const load = () => {
     bookingsApi
@@ -67,6 +70,60 @@ export default function BookingsPage() {
   useEffect(() => {
     load();
   }, []);
+
+  const segmentsOf = (b) => {
+    const segs = Array.isArray(b.bookingFlights) ? b.bookingFlights : Array.isArray(b.flights) ? b.flights : [];
+    return segs
+      .map((s, i) => ({
+        segmentOrder: s.segmentOrder ?? i,
+        label: s.seatNumber
+          ? `F${i + 1}: ${s.airline || s.flight?.airline || ""} ${s.flightNumber || s.flight?.flightNumber || ""} · SEAT ${s.seatNumber}`
+          : `F${i + 1}: ${s.airline || s.flight?.airline || ""} ${s.flightNumber || s.flight?.flightNumber || ""} · No seat`,
+        currentSeat: s.seatNumber || "",
+      }))
+      .filter((s) => s.label.trim().length > 4);
+  };
+
+  const openSeatModal = (b) => {
+    setOverrideMsg("");
+    const segs = segmentsOf(b);
+    setSeatModal({
+      open: true,
+      booking: b,
+      seats: Object.fromEntries(segs.map((s) => [s.segmentOrder, s.currentSeat])),
+    });
+  };
+
+  const handleOverride = async () => {
+    const booking = seatModal.booking;
+    const segments = segmentsOf(booking);
+    if (!booking || segments.length === 0) return;
+    setOverrideBusy(true);
+    setOverrideMsg("");
+    let ok = 0;
+    try {
+      for (const s of segments) {
+        const newSeat = (seatModal.seats[s.segmentOrder] || "").trim();
+        if (newSeat && newSeat.toUpperCase() !== String(s.currentSeat || "").toUpperCase()) {
+          await adminOverrideSeat({
+            bookingId: booking.id,
+            segmentOrder: s.segmentOrder,
+            newSeatNumber: newSeat.toUpperCase(),
+          });
+          ok += 1;
+        }
+      }
+      setOverrideMsg(`${ok} seat${ok === 1 ? "" : "s"} updated.`);
+      setSeatModal({ ...seatModal, open: false });
+      setLoading(true);
+      load();
+      alert(`Seat override applied (${ok} updated).`);
+    } catch (err) {
+      setOverrideMsg(err.message || "Failed to override seat");
+    } finally {
+      setOverrideBusy(false);
+    }
+  };
 
   const openModal = (mode, data = null) => setModal({ open: true, mode, data });
 
@@ -217,6 +274,12 @@ export default function BookingsPage() {
                       <div className="flex items-center gap-2">
                         <button onClick={() => openModal("view", bookings.find((x) => x.id === b.id) || b)} className="text-xs text-cyan-accent hover:underline">View</button>
                         <button onClick={() => openModal("edit", bookings.find((x) => x.id === b.id) || b)} className="text-xs text-text-secondary hover:text-badge-orange transition">Edit</button>
+                        <button
+                          onClick={() => openSeatModal(bookings.find((x) => x.id === b.id) || b)}
+                          className="text-xs text-badge-green hover:underline flex items-center gap-1"
+                        >
+                          <Armchair size={12} /> Seats
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -237,6 +300,62 @@ export default function BookingsPage() {
         onSave={handleSave}
         saving={saving}
       />
+
+      {seatModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={() => setSeatModal({ ...seatModal, open: false })}>
+          <div className="w-full max-w-md card rounded-2xl p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-cyan-accent/15 text-cyan-accent flex items-center justify-center">
+                  <Armchair size={17} />
+                </div>
+                <div>
+                  <h3 className="font-serif text-lg font-black">Seat Override</h3>
+                  <p className="text-xs text-text-secondary font-mono">
+                    {seatModal.booking.referenceNumber || `#BK-${seatModal.booking.id}`} · {seatModal.booking.customerName || seatModal.booking.customer || ""}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setSeatModal({ ...seatModal, open: false })} className="text-text-secondary hover:text-badge-red transition">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-2.5">
+              {segmentsOf(seatModal.booking).length === 0 ? (
+                <p className="text-xs text-text-secondary text-center py-4">No flight segments on this booking.</p>
+              ) : (
+                segmentsOf(seatModal.booking).map((s) => (
+                  <div key={s.segmentOrder} className="rounded-xl border border-navy-700 bg-navy-900 p-3 space-y-1.5">
+                    <p className="text-xs text-text-secondary font-mono truncate">{s.label}</p>
+                    <input
+                      value={seatModal.seats[s.segmentOrder] || ""}
+                      onChange={(e) =>
+                        setSeatModal((prev) => ({ ...prev, seats: { ...prev.seats, [s.segmentOrder]: e.target.value.toUpperCase() } }))
+                      }
+                      placeholder="e.g. 12A"
+                      className="w-full rounded-lg border border-navy-700 bg-navy-950 px-3 py-2 text-sm font-mono font-bold text-cyan-accent outline-none focus:border-cyan-accent/60"
+                    />
+                  </div>
+                ))
+              )}
+            </div>
+
+            {overrideMsg && (
+              <p className={`text-xs ${overrideMsg.includes("updated") ? "text-badge-green" : "text-badge-red"}`}>{overrideMsg}</p>
+            )}
+
+            <button
+              onClick={handleOverride}
+              disabled={overrideBusy || segmentsOf(seatModal.booking).length === 0}
+              className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <RefreshCcw size={15} className={overrideBusy ? "animate-spin" : ""} />
+              {overrideBusy ? "Applying…" : "Apply Seat Override"}
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -61,6 +61,56 @@ public static class DatabaseInitializer
                 );
             END");
 
+        // Ensure new columns exist on pre-existing databases for Booking
+        await db.Database.ExecuteSqlRawAsync(@"
+            IF COL_LENGTH('dbo.Bookings', 'SeatNumbers') IS NULL
+                ALTER TABLE dbo.Bookings ADD SeatNumbers nvarchar(max) NOT NULL CONSTRAINT DF_Bookings_SeatNumbers DEFAULT ('');
+            IF COL_LENGTH('dbo.Bookings', 'CancellationPolicyTier') IS NULL
+                ALTER TABLE dbo.Bookings ADD CancellationPolicyTier nvarchar(max) NOT NULL CONSTRAINT DF_Bookings_CancellationPolicyTier DEFAULT ('');
+            IF COL_LENGTH('dbo.Bookings', 'RefundAmount') IS NULL
+                ALTER TABLE dbo.Bookings ADD RefundAmount decimal(18,2) NOT NULL CONSTRAINT DF_Bookings_RefundAmount DEFAULT (0);
+            IF COL_LENGTH('dbo.Bookings', 'CancelledAt') IS NULL
+                ALTER TABLE dbo.Bookings ADD CancelledAt datetime2 NULL;
+            IF COL_LENGTH('dbo.Bookings', 'RefundReference') IS NULL
+                ALTER TABLE dbo.Bookings ADD RefundReference nvarchar(max) NOT NULL CONSTRAINT DF_Bookings_RefundReference DEFAULT ('');
+            IF COL_LENGTH('dbo.Bookings', 'Category') IS NULL
+                ALTER TABLE dbo.Bookings ADD Category nvarchar(max) NOT NULL CONSTRAINT DF_Bookings_Category DEFAULT ('');");
+
+        // Ensure new columns exist on pre-existing databases for BookingFlights
+        await db.Database.ExecuteSqlRawAsync(@"
+            IF COL_LENGTH('dbo.BookingFlights', 'SeatNumber') IS NULL
+                ALTER TABLE dbo.BookingFlights ADD SeatNumber nvarchar(max) NOT NULL CONSTRAINT DF_BookingFlights_SeatNumber DEFAULT ('');
+            IF COL_LENGTH('dbo.BookingFlights', 'SeatStatus') IS NULL
+                ALTER TABLE dbo.BookingFlights ADD SeatStatus nvarchar(max) NOT NULL CONSTRAINT DF_BookingFlights_SeatStatus DEFAULT ('Available');");
+
+        // Ensure new columns exist on pre-existing databases for Flights
+        await db.Database.ExecuteSqlRawAsync(@"
+            IF COL_LENGTH('dbo.Flights', 'TotalSeats') IS NULL
+                ALTER TABLE dbo.Flights ADD TotalSeats int NOT NULL CONSTRAINT DF_Flights_TotalSeats DEFAULT (180);
+            IF COL_LENGTH('dbo.Flights', 'TotalRows') IS NULL
+                ALTER TABLE dbo.Flights ADD TotalRows int NOT NULL CONSTRAINT DF_Flights_TotalRows DEFAULT (30);
+            IF COL_LENGTH('dbo.Flights', 'SeatConfig') IS NULL
+                ALTER TABLE dbo.Flights ADD SeatConfig nvarchar(max) NOT NULL CONSTRAINT DF_Flights_SeatConfig DEFAULT ('A,B,C,D,E,F');");
+
+        // Ensure EmailLogs table exists
+        await db.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'dbo.EmailLogs', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.EmailLogs (
+                    Id              int            NOT NULL IDENTITY(1,1) CONSTRAINT PK_EmailLogs PRIMARY KEY,
+                    BookingId       int            NULL,
+                    RecipientEmail  nvarchar(max)  NOT NULL,
+                    Subject         nvarchar(max)  NOT NULL,
+                    Type            nvarchar(max)  NOT NULL,
+                    Status          nvarchar(max)  NOT NULL,
+                    ErrorMessage    nvarchar(max)  NOT NULL,
+                    SentAt          datetime2      NOT NULL,
+                    CONSTRAINT FK_EmailLogs_Bookings_BookingId
+                        FOREIGN KEY (BookingId) REFERENCES dbo.Bookings (Id) ON DELETE SET NULL
+                );
+                CREATE INDEX IX_EmailLogs_BookingId ON dbo.EmailLogs (BookingId);
+            END");
+
         // Optionally wipe seed tables before re-seeding
         if (reseed)
         {

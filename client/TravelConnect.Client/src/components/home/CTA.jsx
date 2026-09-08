@@ -1,4 +1,4 @@
-import { ArrowRight, Sparkles, Send, ShieldCheck } from "lucide-react";
+import { ArrowRight, Globe, Send, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { usePublicStats } from "../../hooks/usePublicStats";
@@ -31,14 +31,14 @@ export default function CTA() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10 space-y-8">
         
-        {/* Sparkle Badge */}
-        <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-[0.2em] text-cyan-300 border border-white/20">
-          <Sparkles size={14} className="text-amber-400" />
+        {/* Skyblue Badge */}
+        <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-[0.2em] text-[#38bdf8] border border-white/20">
+          <Globe size={14} className="text-[#38bdf8]" />
           <span>Stay Connected</span>
         </div>
         
         {/* Main Header Matching Screenshot: "Explore More to Get Your Comfort Zone" */}
-        <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight max-w-3xl mx-auto">
+        <h2 className="text-3xl sm:text-5xl lg:text-6xl font-heading font-black tracking-tight leading-tight max-w-3xl mx-auto">
           Explore More to Get Your <span className="bg-gradient-to-r from-cyan-300 via-blue-400 to-[#008fe5] bg-clip-text text-transparent">Comfort Zone</span>
         </h2>
         
@@ -77,10 +77,10 @@ export default function CTA() {
         {/* Buttons Grid */}
         <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
           <Link
-            to="/explore"
-            className="bg-amber-400 hover:bg-amber-500 active:scale-95 text-slate-950 font-black px-8 py-4 rounded-2xl shadow-xl shadow-amber-500/20 transition-all text-xs sm:text-sm flex items-center gap-2 cursor-pointer"
+            to="/hotels"
+            className="bg-[#008fe5] hover:bg-[#007bc4] active:scale-95 text-white font-black px-8 py-4 rounded-2xl shadow-xl shadow-blue-500/25 transition-all text-xs sm:text-sm flex items-center gap-2 cursor-pointer"
           >
-            <span>Plan Your Dream Trip</span>
+            <span>Plan Your Dream Stay</span>
             <ArrowRight size={15} />
           </Link>
           
@@ -88,7 +88,7 @@ export default function CTA() {
             to="/deals"
             className="bg-white/10 hover:bg-white/20 border border-white/30 active:scale-95 text-white font-extrabold px-8 py-4 rounded-2xl backdrop-blur-md transition-all text-xs sm:text-sm"
           >
-            View 25% Off Deals
+            View Vacation Deals
           </Link>
         </div>
 
@@ -99,7 +99,7 @@ export default function CTA() {
             <span>100% Instant Refund to TravelConnect Money</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <Sparkles size={14} className="text-amber-400" />
+            <ShieldCheck size={14} className="text-[#38bdf8]" />
             <span>No Hidden Surcharges</span>
           </div>
         </div>

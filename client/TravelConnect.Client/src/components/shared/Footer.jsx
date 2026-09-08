@@ -71,7 +71,7 @@ export default function Footer() {
 
           {/* Destinations Links */}
           <div className="space-y-4">
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider">Destinations</h4>
+            <h4 className="text-sm font-heading font-bold text-white uppercase tracking-wider">Destinations</h4>
             <ul className="space-y-2.5 text-sm">
               {["Rome, Italy", "Paris, France", "Tokyo, Japan", "Bali, Indonesia", "Sydney, Australia"].map((dest) => (
                 <li key={dest}>
@@ -85,7 +85,7 @@ export default function Footer() {
 
           {/* Packages Links */}
           <div className="space-y-4">
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider">Packages</h4>
+            <h4 className="text-sm font-heading font-bold text-white uppercase tracking-wider">Packages</h4>
             <ul className="space-y-2.5 text-sm">
               {["Featured Packages", "Exclusive Summer Deals", "Winter Special Tours", "Luxury Cruises", "Custom Itineraries"].map((pkg) => (
                 <li key={pkg}>
@@ -99,7 +99,7 @@ export default function Footer() {
 
           {/* Contact Details */}
           <div className="space-y-4">
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider">Contact Us</h4>
+            <h4 className="text-sm font-heading font-bold text-white uppercase tracking-wider">Contact Us</h4>
             <ul className="space-y-3.5 text-sm text-slate-400">
               <li className="flex items-start gap-2.5">
                 <MapPin size={18} className="text-[#008fe5] shrink-0 mt-0.5" />

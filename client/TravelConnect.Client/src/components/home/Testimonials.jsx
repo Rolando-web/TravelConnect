@@ -34,16 +34,16 @@ export default function Testimonials() {
   ];
 
   return (
-    <section className="py-24 bg-slate-50">
+    <section className="py-24 bg-slate-50 dark:bg-[#070b13] transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#008fe5]">Client Stories</span>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mt-2 mb-4">
+          <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#008fe5] dark:text-cyan-300">Client Stories</span>
+          <h2 className="text-3xl sm:text-4xl font-heading font-extrabold text-gray-900 dark:text-white mt-2 mb-4">
             What Our Clients Say
           </h2>
-          <p className="text-sm sm:text-base text-gray-500">
+          <p className="text-sm sm:text-base text-gray-500 dark:text-slate-400">
             Over {fmt(stats?.happyTravelers)}+ happy travelers have explored the world using our curated stays and routes.
           </p>
         </div>
@@ -53,9 +53,9 @@ export default function Testimonials() {
 
           {/* Left Column: Large Highlight Card */}
           <div className="lg:col-span-7 flex">
-            <div className="bg-slate-900 text-white rounded-3xl p-8 sm:p-12 flex flex-col justify-between relative overflow-hidden w-full shadow-xl">
+            <div className="bg-slate-900 dark:bg-[#0c1322] border border-transparent dark:border-white/10 text-white rounded-3xl p-8 sm:p-12 flex flex-col justify-between relative overflow-hidden w-full shadow-xl">
               {/* Quote Mark background decoration */}
-              <Quote className="absolute right-8 top-8 w-36 h-36 text-slate-800/40 pointer-events-none -z-0" />
+              <Quote className="absolute right-8 top-8 w-36 h-36 text-slate-800/40 dark:text-slate-700/20 pointer-events-none -z-0" />
 
               <div className="space-y-6 relative z-10">
                 {/* Stars */}
@@ -65,21 +65,21 @@ export default function Testimonials() {
                   ))}
                 </div>
 
-                <blockquote className="text-lg sm:text-2xl font-semibold leading-relaxed text-slate-100">
+                <blockquote className="text-lg sm:text-2xl font-medium leading-relaxed text-slate-100">
                   "{featuredTestimonial.quote}"
                 </blockquote>
               </div>
 
               {/* Author info */}
-              <div className="flex items-center gap-4 pt-10 border-t border-slate-800 mt-8 relative z-10">
+              <div className="flex items-center gap-4 pt-10 border-t border-slate-800 dark:border-white/10 mt-8 relative z-10">
                 <img
                   src={featuredTestimonial.avatar}
                   alt={featuredTestimonial.author}
                   className="w-14 h-14 rounded-full object-cover border-2 border-[#008fe5]"
                 />
                 <div>
-                  <h4 className="text-base font-bold text-white">{featuredTestimonial.author}</h4>
-                  <p className="text-xs text-slate-400 font-semibold">{featuredTestimonial.role} — <span className="text-[#008fe5]">{featuredTestimonial.location}</span></p>
+                  <h4 className="text-base font-heading font-bold text-white">{featuredTestimonial.author}</h4>
+                  <p className="text-xs text-slate-400 font-semibold">{featuredTestimonial.role} — <span className="text-[#008fe5] dark:text-cyan-300">{featuredTestimonial.location}</span></p>
                 </div>
               </div>
             </div>
@@ -90,7 +90,7 @@ export default function Testimonials() {
             {secondaryTestimonials.map((item, idx) => (
               <div
                 key={idx}
-                className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-sm flex flex-col justify-between flex-grow hover:shadow-md transition-all duration-300"
+                className="bg-white dark:bg-[#0f172a] rounded-3xl p-6 sm:p-8 border border-gray-100 dark:border-white/10 shadow-sm flex flex-col justify-between flex-grow hover:shadow-md transition-all duration-300"
               >
                 <div className="space-y-4">
                   {/* Stars */}
@@ -100,21 +100,21 @@ export default function Testimonials() {
                     ))}
                   </div>
 
-                  <p className="text-sm sm:text-base text-gray-600 italic leading-relaxed">
+                  <p className="text-sm sm:text-base text-gray-700 dark:text-slate-300 font-normal leading-relaxed">
                     "{item.quote}"
                   </p>
                 </div>
 
                 {/* Author info */}
-                <div className="flex items-center gap-3 pt-6 border-t border-gray-50 mt-6">
+                <div className="flex items-center gap-3 pt-6 border-t border-gray-50 dark:border-white/10 mt-6">
                   <img
                     src={item.avatar}
                     alt={item.author}
                     className="w-10 h-10 rounded-full object-cover"
                   />
                   <div>
-                    <h4 className="text-sm font-bold text-gray-900">{item.author}</h4>
-                    <p className="text-[11px] text-gray-400 font-semibold">{item.role} — <span className="text-[#008fe5]">{item.location}</span></p>
+                    <h4 className="text-sm font-heading font-bold text-gray-900 dark:text-white">{item.author}</h4>
+                    <p className="text-[11px] text-gray-400 dark:text-slate-400 font-semibold">{item.role} — <span className="text-[#008fe5] dark:text-cyan-300">{item.location}</span></p>
                   </div>
                 </div>
               </div>

@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
-  Menu, X, User, LogOut, Calendar, Tag, Heart, Headset, ChevronDown, Coins, LayoutDashboard
+  Menu, X, User, LogOut, Calendar, Tag, Heart, Headset, ChevronDown, Coins, LayoutDashboard,
+  Sun, Moon
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useBooking } from "../../context/BookingContext";
 import { useCurrency } from "../../context/CurrencyContext";
+import { useTheme } from "../../context/ThemeContext";
 import { ADMIN_ROLES } from "../../pages/admin/adminConfig";
 import logoImg from "../../assets/logo.png";
 
@@ -18,6 +20,7 @@ export default function Header() {
   const { isLoggedIn, user, logout, openLoginModal } = useAuth();
   const { walletBalance = 0 } = useBooking();
   const { currentCurrency, displayPrice, openModal: openCurrencyModal } = useCurrency();
+  const { theme, toggleTheme, isDark } = useTheme();
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
@@ -42,7 +45,6 @@ export default function Header() {
 
   const navLinks = [
     { name: "Home", path: "/" },
-    { name: "Explore", path: "/explore" },
     { name: "Flights", path: "/flights" },
     { name: "Hotels", path: "/hotels" },
     { name: "Cars", path: "/cars" },
@@ -52,12 +54,12 @@ export default function Header() {
 
   /* Active link style */
   const linkClass = ({ isActive }) =>
-    `text-sm font-semibold transition-colors relative py-1
+    `text-sm font-medium transition-colors relative py-1
      after:content-[''] after:absolute after:bottom-[-2px] after:left-0
      after:h-[2px] after:bg-[#008fe5] after:transition-all after:duration-300
      ${isActive
-      ? "text-[#008fe5] after:w-full"
-      : "text-slate-700 hover:text-[#008fe5] after:w-0 hover:after:w-full"
+      ? "text-[#008fe5] dark:text-[#38bdf8] font-semibold after:w-full"
+      : "text-slate-700 dark:text-slate-300 hover:text-[#008fe5] dark:hover:text-[#38bdf8] after:w-0 hover:after:w-full"
     }`;
 
   const userName = user?.name || "TravelConnect Member";
@@ -105,6 +107,27 @@ export default function Header() {
             >
               <Headset size={14} className="text-[#008fe5]" />
               <span className="hidden sm:inline">Customer support</span>
+            </button>
+
+            {/* Light / Dark Mode Switcher */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label="Toggle light or dark theme"
+              title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition text-xs cursor-pointer group"
+            >
+              {isDark ? (
+                <>
+                  <Sun size={13} className="text-amber-300 group-hover:rotate-45 transition-transform" />
+                  <span className="text-[11px] font-medium hidden sm:inline text-slate-300">Light</span>
+                </>
+              ) : (
+                <>
+                  <Moon size={13} className="text-sky-300 group-hover:-rotate-12 transition-transform" />
+                  <span className="text-[11px] font-medium hidden sm:inline text-slate-300">Dark</span>
+                </>
+              )}
             </button>
 
             {/* User Profile Avatar Button */}
@@ -246,9 +269,9 @@ export default function Header() {
 
       {/* ── Main Navbar ──────────────────────────────────────────────────────── */}
       <nav
-        className={`w-full transition-all duration-300 border-b border-slate-100 ${isScrolled
-          ? "sticky top-0 bg-white/95 backdrop-blur-md shadow-md py-3"
-          : "bg-white py-3.5"
+        className={`w-full transition-all duration-300 border-b ${isScrolled
+          ? "sticky top-0 bg-white/95 dark:bg-[#0a0e17]/95 backdrop-blur-md shadow-md py-3 border-slate-200/80 dark:border-white/[0.08]"
+          : "bg-white dark:bg-[#0a0e17] py-3.5 border-slate-100 dark:border-white/[0.08]"
           }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
@@ -258,13 +281,13 @@ export default function Header() {
               src={logoImg}
               alt="TravelConnect Logo"
               className="h-10 sm:h-11 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
-              style={{ mixBlendMode: "multiply" }}
+              style={{ mixBlendMode: isDark ? "normal" : "multiply" }}
             />
             <div className="flex flex-col">
-              <span className="text-xl sm:text-2xl font-black text-slate-900 leading-none tracking-tight">
+              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-none tracking-tight">
                 Travel<span className="text-[#008fe5]">Connect</span>
               </span>
-              <span className="text-[9px] uppercase tracking-[0.25em] font-extrabold text-slate-400 mt-0.5">
+              <span className="text-[9px] uppercase tracking-[0.25em] font-extrabold text-slate-400 dark:text-slate-500 mt-0.5">
                 Explore the Philippines &amp; World
               </span>
             </div>
@@ -284,12 +307,23 @@ export default function Header() {
             ))}
           </div>
 
-          {/* Right Action CTA */}
+          {/* Right Action CTA & Theme Switcher */}
           <div className="hidden md:flex items-center gap-3">
+            {/* Quick theme icon toggle */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="w-9 h-9 rounded-full bg-slate-100 dark:bg-white/[0.06] hover:bg-slate-200 dark:hover:bg-white/[0.12] border border-slate-200 dark:border-white/[0.1] text-slate-700 dark:text-amber-300 flex items-center justify-center transition-all cursor-pointer"
+              title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              aria-label="Toggle Theme"
+            >
+              {isDark ? <Sun size={15} /> : <Moon size={15} />}
+            </button>
+
             {isLoggedIn ? (
               <button
                 onClick={() => navigate("/bookings")}
-                className="flex items-center gap-2 bg-blue-50 text-[#008fe5] hover:bg-[#008fe5] hover:text-white font-bold px-4 py-2 rounded-full text-xs transition-all duration-300 border border-blue-100"
+                className="flex items-center gap-2 bg-blue-50 dark:bg-[#008fe5]/15 text-[#008fe5] dark:text-[#38bdf8] hover:bg-[#008fe5] hover:text-white font-bold px-4 py-2 rounded-full text-xs transition-all duration-300 border border-blue-100 dark:border-[#008fe5]/30"
               >
                 <Calendar size={14} />
                 My Bookings
@@ -308,8 +342,16 @@ export default function Header() {
           {/* Mobile Menu Toggle Button */}
           <div className="flex lg:hidden items-center gap-2">
             <button
+              type="button"
+              onClick={toggleTheme}
+              className="p-2 text-slate-700 dark:text-amber-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] rounded-lg"
+              title={isDark ? "Light Mode" : "Dark Mode"}
+            >
+              {isDark ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+            <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 text-slate-700 hover:text-[#008fe5] focus:outline-none rounded-lg hover:bg-slate-100"
+              className="p-2 text-slate-700 dark:text-slate-200 hover:text-[#008fe5] focus:outline-none rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.06]"
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -319,7 +361,7 @@ export default function Header() {
 
         {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
-          <div className="lg:hidden bg-white border-t border-slate-100 px-4 pt-2 pb-6 space-y-1 shadow-xl">
+          <div className="lg:hidden bg-white dark:bg-[#0a0e17] border-t border-slate-100 dark:border-white/[0.08] px-4 pt-2 pb-6 space-y-1 shadow-xl">
             {navLinks.map((link) => (
               <NavLink
                 key={link.name}
@@ -328,15 +370,15 @@ export default function Header() {
                 onClick={() => setMobileMenuOpen(false)}
                 className={({ isActive }) =>
                   `block px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${isActive
-                    ? "bg-blue-50 text-[#008fe5] font-bold"
-                    : "text-slate-700 hover:bg-slate-50 hover:text-[#008fe5]"
+                    ? "bg-blue-50 dark:bg-[#008fe5]/15 text-[#008fe5] dark:text-[#38bdf8] font-bold"
+                    : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.05] hover:text-[#008fe5] dark:hover:text-[#38bdf8]"
                   }`
                 }
               >
                 {link.name}
               </NavLink>
             ))}
-            <div className="pt-4 border-t border-slate-100 flex flex-col gap-2">
+            <div className="pt-4 border-t border-slate-100 dark:border-white/[0.08] flex flex-col gap-2">
               {isLoggedIn ? (
                 <>
                   <button

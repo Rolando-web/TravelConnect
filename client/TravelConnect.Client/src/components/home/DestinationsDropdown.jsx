@@ -64,9 +64,9 @@ export default function DestinationsDropdown({
   };
 
   return (
-    <div ref={ref} className="absolute left-0 mt-2 bg-white border border-gray-200 shadow-2xl rounded-2xl p-6 z-[60] w-[550px] max-h-[500px] overflow-y-auto">
+    <div ref={ref} className="absolute left-0 mt-2 bg-white dark:bg-[#0f172a] border border-gray-200 dark:border-white/10 shadow-2xl rounded-2xl p-6 z-[60] w-[550px] max-h-[500px] overflow-y-auto">
       {searchVal && !hasResults ? (
-        <div className="text-gray-400 text-center py-6 text-sm">
+        <div className="text-gray-400 dark:text-slate-400 text-center py-6 text-sm">
           No available {mode === "flight" ? "flight destinations" : mode === "hotel" ? "hotel cities" : "destinations"} found
         </div>
       ) : (
@@ -75,17 +75,17 @@ export default function DestinationsDropdown({
             <button
               type="button"
               onClick={() => handleSelect({ city: "Anywhere", country: "Get travel inspiration", code: "ANY", airport: "Anywhere" })}
-              className="w-full text-left p-3 rounded-xl hover:bg-blue-50/50 flex flex-col border border-dashed border-blue-200 bg-blue-50/20"
+              className="w-full text-left p-3 rounded-xl hover:bg-blue-50/50 dark:hover:bg-white/5 flex flex-col border border-dashed border-blue-200 dark:border-blue-500/30 bg-blue-50/20 dark:bg-blue-500/10 cursor-pointer"
             >
-              <span className="font-extrabold text-sm text-[#008fe5]">Anywhere</span>
-              <span className="text-[11px] text-gray-500">Get travel inspiration and deals</span>
+              <span className="font-extrabold text-sm text-[#008fe5] dark:text-cyan-300">Anywhere</span>
+              <span className="text-[11px] text-gray-500 dark:text-slate-400">Get travel inspiration and deals</span>
             </button>
           )}
 
           {!searchVal && sourceList.length > 0 && (mode === "flight" || mode === "all") && (
             <div>
-              <span className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Available routes</span>
-              <p className="text-[11px] text-emerald-600 font-semibold">
+              <span className="block text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-3">Available routes</span>
+              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
                 Showing destinations you can book right now
               </p>
             </div>
@@ -96,17 +96,17 @@ export default function DestinationsDropdown({
             if (items.length === 0) return null;
             return (
               <div key={key}>
-                <span className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{label}</span>
+                <span className="block text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-3">{label}</span>
                 <div className="grid grid-cols-3 gap-3">
                   {items.slice(0, 9).map((item) => (
                     <button
                       key={item.code || item.city}
                       type="button"
                       onClick={() => handleSelect(item)}
-                      className="text-left py-2 px-3 hover:bg-blue-50 rounded-xl transition"
+                      className="text-left py-2 px-3 hover:bg-blue-50 dark:hover:bg-white/5 rounded-xl transition cursor-pointer"
                     >
-                      <span className="font-bold text-sm text-gray-900 block truncate">{item.city}</span>
-                      <span className="text-[10px] text-gray-400 block truncate">{item.airport}</span>
+                      <span className="font-bold text-sm text-gray-900 dark:text-white block truncate">{item.city}</span>
+                      <span className="text-[10px] text-gray-400 dark:text-slate-400 block truncate">{item.airport}</span>
                     </button>
                   ))}
                 </div>
@@ -115,7 +115,7 @@ export default function DestinationsDropdown({
           })}
 
           {!hasResults && searchVal && (
-            <div className="text-gray-400 text-center py-6 text-sm">No cities found</div>
+            <div className="text-gray-400 dark:text-slate-400 text-center py-6 text-sm">No cities found</div>
           )}
         </div>
       )}

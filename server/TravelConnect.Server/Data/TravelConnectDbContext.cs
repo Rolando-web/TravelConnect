@@ -24,6 +24,7 @@ public class TravelConnectDbContext : DbContext
     public DbSet<Inquiry> Inquiries => Set<Inquiry>();
     public DbSet<SystemUser> SystemUsers => Set<SystemUser>();
     public DbSet<Image> Images => Set<Image>();
+    public DbSet<EmailLog> EmailLogs => Set<EmailLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -45,6 +46,7 @@ public class TravelConnectDbContext : DbContext
         modelBuilder.Entity<BookingFlight>().Property(f => f.Price).HasColumnType("decimal(18,2)");
         modelBuilder.Entity<Payment>().Property(p => p.Amount).HasColumnType("decimal(18,2)");
         modelBuilder.Entity<Promotion>().Property(p => p.Discount).HasColumnType("decimal(18,2)");
+        modelBuilder.Entity<Booking>().Property(b => b.RefundAmount).HasColumnType("decimal(18,2)");
         modelBuilder.Entity<Image>().Property(i => i.Data).HasColumnType("varbinary(max)");
         modelBuilder.Entity<Image>().Property(i => i.ContentType).HasMaxLength(64);
 
@@ -54,6 +56,7 @@ public class TravelConnectDbContext : DbContext
         modelBuilder.Entity<Car>().HasOne(c => c.Supplier).WithMany().HasForeignKey(c => c.SupplierId).OnDelete(DeleteBehavior.SetNull);
         modelBuilder.Entity<Activity>().HasOne(a => a.Supplier).WithMany().HasForeignKey(a => a.SupplierId).OnDelete(DeleteBehavior.SetNull);
         modelBuilder.Entity<Payment>().HasOne(p => p.Booking).WithMany().HasForeignKey(p => p.BookingId).OnDelete(DeleteBehavior.SetNull);
-        modelBuilder.Entity<BookingFlight>().HasOne(f => f.Booking).WithMany().HasForeignKey(f => f.BookingId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<BookingFlight>().HasOne(f => f.Booking).WithMany(b => b.BookingFlights).HasForeignKey(f => f.BookingId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<EmailLog>().HasOne(e => e.Booking).WithMany().HasForeignKey(e => e.BookingId).OnDelete(DeleteBehavior.SetNull);
     }
 }

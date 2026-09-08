@@ -173,7 +173,7 @@ export default function LeadsPage() {
                   <tr key={l.id ?? l.email} className="table-row">
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-violet-500/15 flex items-center justify-center text-violet-400 text-xs font-bold">{initials(l.name)}</div>
+                        <div className="w-8 h-8 rounded-full bg-badge-green/15 flex items-center justify-center text-badge-green text-xs font-bold">{initials(l.name)}</div>
                         <span className="font-medium">{l.name || "—"}</span>
                       </div>
                     </td>

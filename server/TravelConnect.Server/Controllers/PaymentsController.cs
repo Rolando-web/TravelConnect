@@ -335,4 +335,96 @@ public class PaymentsController(
             return StatusCode(500, new { success = false, message = ex.Message });
         }
     }
+
+    // ── Payment Reconciliation ──────────────────────────────────────
+
+    // GET api/payments/reconciliation
+    [HttpGet("reconciliation")]
+    public async Task<IActionResult> GetReconciliation(
+        [FromQuery] string? method = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? from = null,
+        [FromQuery] string? to = null)
+    {
+        IQueryable<Payment> query = db.Payments
+            .Include(p => p.Booking)
+            .AsNoTracking()
+            .OrderByDescending(p => p.UpdatedAt);
+
+        if (!string.IsNullOrWhiteSpace(method))
+            query = query.Where(p => p.Method.ToLower() == method.ToLower());
+        if (!string.IsNullOrWhiteSpace(status))
+            query = query.Where(p => p.Status.ToLower() == status.ToLower());
+        if (!string.IsNullOrWhiteSpace(from) && DateTime.TryParse(from, out var fromDate))
+            query = query.Where(p => p.CreatedAt >= fromDate);
+        if (!string.IsNullOrWhiteSpace(to) && DateTime.TryParse(to, out var toDate))
+            query = query.Where(p => p.CreatedAt <= toDate.AddDays(1));
+
+        var payments = await query.ToListAsync();
+
+        var reconciliation = payments.Select(p => new
+        {
+            paymentId = p.Id,
+            referenceId = p.ReferenceId,
+            customerName = p.CustomerName,
+            packageName = p.PackageName,
+            amount = p.Amount,
+            method = p.Method,
+            status = p.Status,
+            paymentDate = p.PaymentDate,
+            createdAt = p.CreatedAt,
+            bookingId = p.BookingId,
+            bookingReference = p.Booking?.ReferenceNumber,
+            bookingTransactionId = p.Booking?.TransactionId,
+            bookingStatus = p.Booking?.Status,
+            isMatched = p.BookingId != null &&
+                        p.ReferenceId == p.Booking?.TransactionId,
+            matchStatus = p.BookingId == null
+                ? "unmatched_no_booking"
+                : p.ReferenceId == p.Booking?.TransactionId
+                    ? "matched"
+                    : "mismatched_ids"
+        });
+
+        return Ok(reconciliation);
+    }
+
+    // POST api/payments/{id}/refund-to-wallet
+    [HttpPost("{id:int}/refund-to-wallet")]
+    public async Task<IActionResult> RefundToWallet(int id)
+    {
+        var payment = await db.Payments
+            .Include(p => p.Booking)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (payment is null) return NotFound(new { message = "Payment not found" });
+        if (payment.Status == "Refunded")
+            return BadRequest(new { message = "Payment is already refunded" });
+
+        // Update payment status
+        payment.Status = "Refunded";
+        payment.UpdatedAt = DateTime.UtcNow;
+
+        // If linked to a booking, update booking status too
+        if (payment.Booking is not null)
+        {
+            payment.Booking.Status = "refunded";
+            payment.Booking.Paid = false;
+            payment.Booking.RefundAmount = payment.Amount;
+            payment.Booking.RefundReference = $"RFND-{DateTime.UtcNow:yyyy}-{Random.Shared.Next(100000, 999999)}";
+            payment.Booking.CancelledAt = DateTime.UtcNow;
+            payment.Booking.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            success = true,
+            paymentId = payment.Id,
+            refundAmount = payment.Amount,
+            bookingId = payment.BookingId,
+            message = $"Refund of ₱{payment.Amount:N2} processed to TravelConnect Money wallet"
+        });
+    }
 }

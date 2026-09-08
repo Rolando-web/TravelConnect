@@ -192,15 +192,69 @@ export async function createBooking(bookingPayload) {
 
 export async function cancelBookingApi(bookingId) {
   try {
-    const booking = await request(`/api/bookings/${bookingId}`);
-    await request(`/api/bookings/${bookingId}`, {
-      method: "PUT",
-      body: JSON.stringify({ ...booking, status: "cancelled", paid: false })
-    });
-    return { success: true, message: "Booking cancelled successfully" };
+    const result = await request(`/api/bookings/${bookingId}/cancel`, { method: "POST" });
+    return result || { success: true, message: "Booking cancelled successfully" };
   } catch {
     return { success: true, message: "Booking cancelled successfully" };
   }
+}
+
+// ── Refund preview (tiered cancellation policy) ─────────────────
+
+export async function getRefundPreview(bookingId) {
+  try {
+    return await request(`/api/bookings/${bookingId}/refund-preview`);
+  } catch {
+    return null;
+  }
+}
+
+// ── PDF itinerary & confirmation email ──────────────────────────
+
+export async function generateItineraryPdf(bookingId) {
+  const response = await fetch(`${API_URL}/api/bookings/${bookingId}/itinerary-pdf`, {
+    method: "POST"
+  });
+  if (!response.ok) {
+    const errBody = await response.json().catch(() => null);
+    throw new Error(errBody?.message || "PDF generation failed");
+  }
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const match = /filename="?([^"]+)"?/.exec(disposition);
+  const filename = match ? match[1] : `TravelConnect-${bookingId}.pdf`;
+  return { blob, filename };
+}
+
+export async function sendConfirmationEmail(bookingId) {
+  return request(`/api/bookings/${bookingId}/send-confirmation`, { method: "POST" });
+}
+
+// ── Seat maps & seat assignment ─────────────────────────────────
+
+export async function getSeatMap(flightId) {
+  return request(`/api/seatmaps/flight/${flightId}`);
+}
+
+export async function releaseSeatsForBooking(bookingId) {
+  return request(`/api/seatmaps/release-by-booking/${bookingId}`, { method: "PUT" });
+}
+
+export async function adminOverrideSeat(payload) {
+  return request(`/api/seatmaps/admin-override`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+// ── Payment reconciliation & admin refunds ──────────────────────
+
+export async function getPaymentReconciliation(query = "") {
+  return request(`/api/payments/reconciliation${query}`);
+}
+
+export async function refundPaymentToWallet(paymentId) {
+  return request(`/api/payments/${paymentId}/refund-to-wallet`, { method: "POST" });
 }
 
 export async function sendCustomerInquiry(inquiryPayload) {

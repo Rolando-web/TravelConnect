@@ -7,6 +7,7 @@ import {
   ShieldAlert,
   SlidersHorizontal,
   Inbox,
+  Star,
 } from "lucide-react";
 import { pageMeta } from "./adminConfig";
 import ProfilePage from "./ProfilePage";
@@ -53,6 +54,46 @@ const statusBadge = {
 
 function Badge({ children }) {
   return <span className={statusBadge[children] || "badge-cyan"}>{children || "—"}</span>;
+}
+
+function RateCell({ value, suffix }) {
+  return (
+    <span className="inline-flex flex-col leading-tight">
+      <span className="text-cyan-accent font-black text-base tabular-nums">
+        ₱{Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+      </span>
+      {suffix && <span className="text-xs text-text-secondary mt-0.5">{suffix}</span>}
+    </span>
+  );
+}
+
+function StarRating({ value }) {
+  const v = Number(value || 0).toFixed(1);
+  return (
+    <span className="inline-flex items-center gap-1">
+      <Star size={14} className="text-badge-orange" fill="currentColor" />
+      <span className="font-semibold tabular-nums">{v}</span>
+    </span>
+  );
+}
+
+function ImageCell({ primary, sub, imageUrl }) {
+  return (
+    <div className="flex items-center gap-3">
+      {imageUrl && (
+        <img
+          src={imageUrl}
+          alt={primary || ""}
+          className="h-10 w-14 rounded-lg object-cover shrink-0"
+          onError={(e) => ((e.target.parentElement.hidden = true), null)}
+        />
+      )}
+      <span className="min-w-0">
+        <span className="block truncate font-semibold">{primary}</span>
+        {sub && <span className="block text-xs text-text-secondary truncate">{sub}</span>}
+      </span>
+    </div>
+  );
 }
 
 function money(v) {
@@ -106,13 +147,33 @@ const PAGES = {
       { key: "price", label: "Price (₱)", type: "number" },
       { key: "class", label: "Class", type: "select", options: ["Economy", "Premium", "Business", "First"] },
       { key: "seatsAvailable", label: "Seats Available", type: "number" },
+      { key: "imageUrl", label: "Image URL" },
       { key: "status", label: "Status", type: "select", options: ["Active", "Inactive"] },
     ],
     cols: [
-      { h: "FLIGHT", c: (r) => `${r.airline || "—"} ${r.flightNumber || ""}`.trim() },
-      { h: "ROUTE", c: (r) => `${r.departureCity || "—"} → ${r.arrivalCity || "—"}` },
-      { h: "DATE", c: (r) => r.departureDate || "—" },
-      { h: "PRICE", c: (r) => money(r.price) },
+      {
+        h: "FLIGHT",
+        img: true,
+        c: (r) => `${r.airline || "—"}`,
+        sub: (r) => `${r.flightNumber || ""}`.trim(),
+      },
+      {
+        h: "ROUTE",
+        c: (r) => (
+          <span className="flex flex-col">
+            <span>{r.departureCity || "—"} → {r.arrivalCity || "—"}</span>
+            {r.departureTime && (
+              <span className="text-xs text-text-secondary">{r.departureTime}—{r.arrivalTime || "?"}</span>
+            )}
+          </span>
+        ),
+      },
+      { h: "CLASS", c: (r) => r.class || "Economy" },
+      {
+        h: "PRICE",
+        rate: (r) => r.price,
+        suffix: "per person",
+      },
       { h: "SEATS", c: (r) => r.seatsAvailable ?? 0 },
       { h: "STATUS", c: (r) => r.status || "Active", badge: true },
     ],
@@ -135,13 +196,20 @@ const PAGES = {
       { key: "reviews", label: "Reviews", type: "number" },
       { key: "roomsAvailable", label: "Rooms Available", type: "number" },
       { key: "amenities", label: "Amenities" },
+      { key: "imageUrl", label: "Image URL" },
       { key: "status", label: "Status", type: "select", options: ["Active", "Inactive"] },
     ],
     cols: [
-      { h: "HOTEL", c: (r) => r.name || "—" },
-      { h: "LOCATION", c: (r) => r.location || "—" },
-      { h: "PRICE/NIGHT", c: (r) => money(r.pricePerNight) },
-      { h: "RATING", c: (r) => (r.rating ?? 0).toFixed(1) },
+      { h: "HOTEL", img: true, c: (r) => r.name || "—", sub: (r) => r.location || "—" },
+      {
+        h: "PRICE/NIGHT",
+        rate: (r) => r.pricePerNight,
+        suffix: "per night",
+      },
+      {
+        h: "RATING",
+        star: (r) => r.rating ?? 0,
+      },
       { h: "ROOMS", c: (r) => r.roomsAvailable ?? 0 },
       { h: "STATUS", c: (r) => r.status || "Active", badge: true },
     ],
@@ -163,14 +231,18 @@ const PAGES = {
       { key: "transmission", label: "Transmission", type: "select", options: ["Automatic", "Manual"] },
       { key: "seats", label: "Seats", type: "number" },
       { key: "fuelType", label: "Fuel Type", type: "select", options: ["Gasoline", "Diesel", "Electric", "Hybrid"] },
+      { key: "imageUrl", label: "Image URL" },
       { key: "status", label: "Status", type: "select", options: ["Active", "Inactive"] },
     ],
     cols: [
-      { h: "VEHICLE", c: (r) => r.name || "—" },
-      { h: "TYPE", c: (r) => r.type || "—" },
+      { h: "VEHICLE", img: true, c: (r) => r.name || "—", sub: (r) => r.type || "—" },
       { h: "LOCATION", c: (r) => r.location || "—" },
-      { h: "PRICE/DAY", c: (r) => money(r.pricePerDay) },
-      { h: "SEATS", c: (r) => r.seats ?? 0 },
+      {
+        h: "PRICE/DAY",
+        rate: (r) => r.pricePerDay,
+        suffix: "per day",
+      },
+      { h: "SPECS", c: (r) => `${r.transmission || "—"} · ${r.seats ?? "—"} seats` },
       { h: "STATUS", c: (r) => r.status || "Active", badge: true },
     ],
     stats: (d) => [
@@ -191,14 +263,22 @@ const PAGES = {
       { key: "duration", label: "Duration" },
       { key: "rating", label: "Rating", type: "number" },
       { key: "reviews", label: "Reviews", type: "number" },
+      { key: "imageUrl", label: "Image URL" },
       { key: "status", label: "Status", type: "select", options: ["Active", "Inactive"] },
     ],
     cols: [
-      { h: "ACTIVITY", c: (r) => r.name || "—" },
-      { h: "LOCATION", c: (r) => r.location || "—" },
+      { h: "ACTIVITY", img: true, c: (r) => r.name || "—", sub: (r) => r.location || "—" },
       { h: "DURATION", c: (r) => r.duration || "—" },
-      { h: "PRICE", c: (r) => money(r.price) },
-      { h: "RATING", c: (r) => (r.rating ?? 0).toFixed(1) },
+      {
+        h: "PRICE",
+        rate: (r) => r.price,
+        suffix: "per person",
+      },
+      {
+        h: "RATING",
+        star: (r) => r.rating ?? 0,
+      },
+      { h: "REVIEWS", c: (r) => r.reviews ?? 0 },
       { h: "STATUS", c: (r) => r.status || "Active", badge: true },
     ],
     stats: (d) => [
@@ -498,6 +578,16 @@ export default function AdminManagementPage() {
                       <td key={c.h} className="px-5 py-4">
                         {c.badge ? (
                           <Badge>{c.c(row)}</Badge>
+                        ) : c.img ? (
+                          <ImageCell
+                            primary={c.c(row)}
+                            sub={c.sub ? c.sub(row) : null}
+                            imageUrl={row.imageUrl}
+                          />
+                        ) : c.rate ? (
+                          <RateCell value={c.rate(row)} suffix={c.suffix} />
+                        ) : c.star ? (
+                          <StarRating value={c.star(row)} />
                         ) : (
                           <span className="text-text-primary">{c.c(row)}</span>
                         )}

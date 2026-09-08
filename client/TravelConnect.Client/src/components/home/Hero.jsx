@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
+import { Compass, ChevronLeft, ChevronRight } from "lucide-react";
 import SearchCard from "./SearchCard";
 
 /* ─── Carousel slide data ───────────────────────────────────────────── */
@@ -51,7 +51,7 @@ export default function Hero() {
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + SLIDES.length) % SLIDES.length);
 
   return (
-    <section className="relative z-20 min-h-[90vh] flex flex-col justify-between pt-16 pb-24 md:pb-32 bg-slate-900">
+    <section className="relative z-20 min-h-[92vh] flex flex-col justify-between pt-16 pb-16 md:pb-24 bg-slate-900">
       {/* ─── Background Image Carousel ─────────────────────────────── */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         {SLIDES.map((slide, index) => (
@@ -93,11 +93,11 @@ export default function Hero() {
       <div className="relative z-30 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center mt-12 md:mt-20">
         <div key={currentSlide} className="animate-fadeIn space-y-6">
           <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md text-white border border-white/20 px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider hover:bg-white/20 transition-all duration-300">
-            <Sparkles size={14} className="text-yellow-400" />
+            <Compass size={14} className="text-[#38bdf8]" />
             <span>{SLIDES[currentSlide].tag}</span>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold text-white tracking-tight leading-[1.1] drop-shadow-md">
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-heading font-extrabold text-white tracking-tight leading-[1.1] drop-shadow-md">
             {SLIDES[currentSlide].title}
             <br />
             <span className="bg-gradient-to-r from-cyan-300 via-blue-400 to-[#008fe5] bg-clip-text text-transparent">

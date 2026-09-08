@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
-  CheckCircle2, Star, ShieldCheck, Package, ArrowLeft, Calendar, MapPin, Sparkles, HeadphonesIcon
+  CheckCircle2, Star, ShieldCheck, Package, ArrowLeft, Calendar, MapPin, ArrowRight, HeadphonesIcon
 } from "lucide-react";
 import { packagesApi } from "../services/api";
 import { useBooking } from "../context/BookingContext";
@@ -143,7 +143,7 @@ export default function DealDetails() {
                 className="w-full bg-gradient-to-r from-[#008fe5] to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-extrabold py-4 rounded-2xl shadow-xl shadow-blue-500/25 hover:-translate-y-0.5 transition text-sm flex items-center justify-center gap-2"
               >
                 <span>Book This Package Deal</span>
-                <Sparkles size={16} />
+                <ArrowRight size={16} />
               </button>
 
               <div className="flex items-center justify-center gap-3 text-[11px] text-slate-500 pt-1">
