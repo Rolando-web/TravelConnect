@@ -85,3 +85,38 @@
     @apply border-b border-navy-700 hover:bg-navy-700/50 transition;
   }
 }
+
+@layer utilities {
+  .reveal {
+    opacity: 0;
+    will-change: opacity, transform;
+    transition-property: opacity, transform;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .reveal-up    { transform: translateY(40px); }
+  .reveal-down  { transform: translateY(-40px); }
+  .reveal-left  { transform: translateX(-48px); }
+  .reveal-right { transform: translateX(48px); }
+  .reveal-zoom  { transform: scale(0.94); }
+  .reveal-fade  { transform: none; }
+
+  .reveal-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal,
+    .reveal-up,
+    .reveal-down,
+    .reveal-left,
+    .reveal-right,
+    .reveal-zoom,
+    .reveal-fade {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+  }
+}

@@ -9,6 +9,7 @@ import JourneySection from "../components/home/JourneySection";
 import Testimonials from "../components/home/Testimonials";
 import FAQ from "../components/home/FAQ";
 import CTA from "../components/home/CTA";
+import Reveal from "../components/shared/Reveal";
 
 export default function Home() {
   return (
@@ -17,34 +18,54 @@ export default function Home() {
       <Hero />
 
       {/* 2. Blue statistics summary banner */}
-      <Stats />
+      <Reveal variant="up" delay={80}>
+        <Stats />
+      </Reveal>
 
       {/* 3. Grid outlining values/why choose us */}
-      <WhyChooseUs />
+      <Reveal variant="left" delay={100}>
+        <WhyChooseUs />
+      </Reveal>
 
       {/* 4. Complete Vacation Bundles with rich info-dense offer cards */}
-      <FeaturedPackages />
+      <Reveal variant="zoom" delay={120}>
+        <FeaturedPackages />
+      </Reveal>
 
       {/* 5. Asymmetric Bento Grid of Signature Luxury Experiences */}
-      <SignatureExperiences />
+      <Reveal variant="right" delay={100}>
+        <SignatureExperiences />
+      </Reveal>
 
       {/* 6. Trending destinations with magazine-style masonry layout */}
-      <PopularDestinations />
+      <Reveal variant="up" delay={120}>
+        <PopularDestinations />
+      </Reveal>
 
       {/* 7. Scattered photo mosaic gallery: Moments Around the World */}
-      <TravelGallery />
+      <Reveal variant="zoom" delay={100}>
+        <TravelGallery />
+      </Reveal>
 
       {/* 8. Columns highlighting company statistics and visual image grid collage */}
-      <JourneySection />
+      <Reveal variant="left" delay={120}>
+        <JourneySection />
+      </Reveal>
 
       {/* 9. Client testimonials column split layout */}
-      <Testimonials />
+      <Reveal variant="right" delay={100}>
+        <Testimonials />
+      </Reveal>
 
       {/* 10. Frequently Asked Questions interactive accordions */}
-      <FAQ />
+      <Reveal variant="up" delay={100}>
+        <FAQ />
+      </Reveal>
 
       {/* 11. Immersive scenic call to action and VIP subscription banner */}
-      <CTA />
+      <Reveal variant="zoom" delay={120}>
+        <CTA />
+      </Reveal>
     </div>
   );
 }

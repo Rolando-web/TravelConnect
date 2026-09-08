@@ -1,0 +1,60 @@
+# ── Version control ─────────────────────────────
+.git/
+.gitignore
+
+# ── Environment & secrets (never ship into the image) ──
+.env
+.env.*
+!.env.example
+**/appsettings.*.local.json
+
+# ── .NET build artifacts ───────────────────────
+**/bin/
+**/obj/
+server/TravelConnect.Server/devcheck_out/
+publish/
+
+# ── Node / Vite (client) ───────────────────────
+**/node_modules/
+**/dist/
+**/.vite/
+**/*.tsbuildinfo
+
+# ── Logs ───────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ── Firebase ───────────────────────────────────
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+seeds/serviceAccountKey.json
+
+# ── IDE / Editor ────────────────────────────────
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.swp
+*.swo
+
+# ── OS files ────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Misc ────────────────────────────────────────
+.vercel/
+.ui-check/
+coverage/
+*.lcov
+.nyc_output/
