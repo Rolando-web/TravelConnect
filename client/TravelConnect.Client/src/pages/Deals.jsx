@@ -7,6 +7,7 @@ import { useBooking } from "../context/BookingContext";
 import { useCurrency } from "../context/CurrencyContext";
 import { packagesApi } from "../services/api";
 import PageHeroCarousel from "../components/shared/PageHeroCarousel";
+import { FALLBACK_DEALS } from "../data/fallbackDeals";
 
 const DEAL_HERO_SLIDES = [
   {
@@ -18,7 +19,7 @@ const DEAL_HERO_SLIDES = [
     alt: "Tropical beach paradise deal",
   },
   {
-    image: "https://images.unsplash.com/photo-1436491865332-7a61a109cab0?auto=format&fit=crop&w=1920&q=80",
+    image: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1920&q=80",
     alt: "Airplane wing over clouds",
   },
   {
@@ -66,8 +67,13 @@ export default function Deals() {
     let active = true;
     packagesApi
       .list()
-      .then((data) => { if (active) setDeals(Array.isArray(data) ? data : []); })
-      .catch(() => { if (active) setDeals([]); })
+      .then((data) => {
+        if (!active) return;
+        // If the API returns nothing (e.g. unreachable in production), fall
+        // back to the offline deal catalogue so the page is never empty.
+        setDeals(Array.isArray(data) && data.length > 0 ? data : FALLBACK_DEALS);
+      })
+      .catch(() => { if (active) setDeals(FALLBACK_DEALS); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);
@@ -96,10 +102,10 @@ export default function Deals() {
           <span className="inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-widest bg-white/15 backdrop-blur-md border border-white/20 text-white rounded-full px-4 py-1.5 mb-2">
             <Zap size={13} className="fill-amber-400 text-amber-400" /> EXCLUSIVE PHILIPPINES &amp; GLOBAL DEALS
           </span>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black leading-tight drop-shadow-md">
+          <h1 className="font-heading text-5xl sm:text-6xl lg:text-7xl font-black leading-tight tracking-[0.06em] drop-shadow-md">
             Handpicked Travel Bundles
           </h1>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-amber-400 drop-shadow">
+          <h2 className="font-heading text-3xl sm:text-4xl font-extrabold text-amber-400 tracking-[0.06em] drop-shadow">
             Flight + Hotel + Car Packages in {selectedCurrency} ({currentCurrency.symbol})
           </h2>
           <p className="text-slate-200 text-sm max-w-xl mx-auto pt-1 drop-shadow">
@@ -177,14 +183,14 @@ export default function Deals() {
                 <span className="inline-flex items-center gap-1.5 bg-amber-500 text-slate-900 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider">
                   <Star size={11} className="fill-slate-900" /> TOP PACKAGE THIS MONTH
                 </span>
-                <h3 className="font-black text-2xl sm:text-3xl text-white">{featured.name}</h3>
+                <h3 className="font-heading font-black text-2xl sm:text-3xl text-white">{featured.name}</h3>
                 <p className="text-slate-300 text-xs sm:text-sm">
                   {featured.location} · {featured.duration}
                 </p>
               </div>
               <div className="flex flex-col items-end gap-2">
                 <div className="text-right">
-                  <span className="font-black text-3xl text-white">{displayPrice(Number(featured.price || 0))}</span>
+                  <span className="font-heading font-black text-3xl text-white">{displayPrice(Number(featured.price || 0))}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -210,7 +216,7 @@ export default function Deals() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
           <div>
-            <h2 className="text-2xl font-black text-slate-900">All Featured Deals</h2>
+            <h2 className="font-heading text-2xl font-black text-slate-900">All Featured Deals</h2>
             <p className="text-xs text-slate-500 mt-0.5">Click any card to inspect full bundle inclusions &amp; day-by-day itinerary</p>
           </div>
           <div className="flex items-center gap-2">
@@ -284,7 +290,7 @@ export default function Deals() {
                 <div className="flex items-end justify-between mb-4">
                   <div>
                     <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-black text-slate-900">{displayPrice(Number(deal.price || 0))}</span>
+                      <span className="font-heading text-2xl font-black text-slate-900">{displayPrice(Number(deal.price || 0))}</span>
                       <span className="text-xs text-slate-500 font-semibold">/ person</span>
                     </div>
                   </div>
@@ -314,7 +320,7 @@ export default function Deals() {
       {/* ── Perks ────────────────────────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         <div className="bg-white border border-slate-200/80 rounded-3xl p-8 sm:p-10 text-center shadow-sm">
-          <h2 className="text-2xl font-black text-slate-900 mb-1">Why book a deal with TravelConnect?</h2>
+          <h2 className="font-heading text-2xl font-black text-slate-900 mb-1">Why book a deal with TravelConnect?</h2>
           <p className="text-slate-500 text-xs sm:text-sm mb-8 max-w-lg mx-auto">All featured packages include full travel insurance options, verified resort stays, and 24/7 hotline support.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {PERKS.map(({ icon: Icon, title, desc }) => (

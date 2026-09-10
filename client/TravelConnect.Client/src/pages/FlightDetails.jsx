@@ -9,6 +9,7 @@ import { flightsApi } from "../services/api";
 import { useBooking } from "../context/BookingContext";
 import { useCurrency } from "../context/CurrencyContext";
 import FavoriteButton from "../components/shared/FavoriteButton";
+import { FALLBACK_LUXURY_FLIGHTS } from "../data/fallbackFlights";
 
 export default function FlightDetails() {
   const { id } = useParams();
@@ -22,10 +23,20 @@ export default function FlightDetails() {
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
     flightsApi
       .get(id)
       .then((data) => { if (active) setFlight(data); })
-      .catch(() => { if (active) setFlight(null); })
+      .catch(() => {
+        // Production fallback: the API may be unreachable (no VITE_API_URL).
+        // Try to resolve the flight from the offline fallback catalogue so
+        // flight details still render instead of showing "Flight not found".
+        if (!active) return;
+        const fallback = FALLBACK_LUXURY_FLIGHTS.find(
+          (f) => String(f.id) === String(id)
+        );
+        setFlight(fallback || null);
+      })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [id]);
@@ -205,7 +216,7 @@ export default function FlightDetails() {
                 )}
               </div>
 
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight drop-shadow-md">
+              <h1 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-black leading-tight drop-shadow-md">
                 {flight.departureCity} <span className="text-[#008fe5]">⇌</span> {flight.arrivalCity}
               </h1>
 
@@ -227,7 +238,7 @@ export default function FlightDetails() {
               {/* Route Timeline */}
               <div className="flex items-center gap-4 sm:gap-8 pt-2">
                 <div>
-                  <div className="text-2xl sm:text-3xl font-black">{flight.departureTime || "08:25 PM"}</div>
+                  <div className="font-heading text-2xl sm:text-3xl font-black">{flight.departureTime || "08:25 PM"}</div>
                   <div className="text-xs text-slate-300 flex items-center gap-1 font-semibold">
                     <MapPin size={12} className="text-[#008fe5]" /> {flight.departureCity}
                   </div>
@@ -304,7 +315,7 @@ export default function FlightDetails() {
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+              <h2 className="font-heading text-2xl font-black text-slate-900 flex items-center gap-2">
                 <span>Select Your Fare Option</span>
                 <span className="text-xs font-bold bg-[#008fe5]/10 text-[#008fe5] px-2.5 py-1 rounded-full">
                   3 Options Available
@@ -490,7 +501,7 @@ export default function FlightDetails() {
             {/* Visual Baggage Allowance Breakdown */}
             <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/80 space-y-5">
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+                <h3 className="font-heading text-xl font-extrabold text-slate-900 flex items-center gap-2">
                   <Luggage size={22} className="text-[#008fe5]" /> Baggage Allowance
                 </h3>
                 <span className="text-xs text-blue-600 font-bold hover:underline cursor-pointer">
@@ -501,8 +512,8 @@ export default function FlightDetails() {
               {/* 3 Visual Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-center space-y-1">
-                  <div className="w-10 h-10 mx-auto rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
-                    🎒
+                  <div className="w-10 h-10 mx-auto rounded-full bg-blue-100 flex items-center justify-center">
+                    <span className="emoji text-2xl leading-none" role="img" aria-label="Personal item">🎒</span>
                   </div>
                   <h4 className="font-extrabold text-slate-900 text-xs">Personal Item</h4>
                   <p className="text-[11px] text-slate-500">Backpack or purse fits under seat</p>
@@ -512,8 +523,8 @@ export default function FlightDetails() {
                 </div>
 
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-center space-y-1">
-                  <div className="w-10 h-10 mx-auto rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
-                    🧳
+                  <div className="w-10 h-10 mx-auto rounded-full bg-amber-100 flex items-center justify-center">
+                    <span className="emoji text-2xl leading-none" role="img" aria-label="Carry-on baggage">🧳</span>
                   </div>
                   <h4 className="font-extrabold text-slate-900 text-xs">Carry-on Baggage</h4>
                   <p className="text-[11px] text-slate-500">1 piece, up to 7 kg (56 x 36 x 23 cm)</p>
@@ -523,8 +534,8 @@ export default function FlightDetails() {
                 </div>
 
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-center space-y-1">
-                  <div className="w-10 h-10 mx-auto rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
-                    📦
+                  <div className="w-10 h-10 mx-auto rounded-full bg-emerald-100 flex items-center justify-center">
+                    <span className="emoji text-2xl leading-none" role="img" aria-label="Checked baggage">📦</span>
                   </div>
                   <h4 className="font-extrabold text-slate-900 text-xs">Checked Baggage</h4>
                   <p className="text-[11px] text-slate-500">{activeTier.baggage.checked}</p>
@@ -553,7 +564,7 @@ export default function FlightDetails() {
 
             {/* Cancellations & Changes Policy Card */}
             <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/80 space-y-5">
-              <h3 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+              <h3 className="font-heading text-xl font-extrabold text-slate-900 flex items-center gap-2">
                 <ShieldCheck size={22} className="text-[#008fe5]" /> Cancellations &amp; Changes
               </h3>
 
@@ -597,7 +608,7 @@ export default function FlightDetails() {
                   <span className="bg-amber-400 text-slate-900 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                     Flyer Exclusive
                   </span>
-                  <h3 className="text-xl font-extrabold text-white mt-1.5">
+                  <h3 className="font-heading text-xl font-extrabold text-white mt-1.5">
                     Book this flight &amp; unlock more perks
                   </h3>
                 </div>
@@ -629,7 +640,7 @@ export default function FlightDetails() {
           {/* Sticky Price Details Sidebar */}
           <div className="space-y-6">
             <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-200/80 sticky top-24 space-y-5">
-              <h3 className="text-lg font-extrabold text-slate-900 pb-3 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="font-heading text-lg font-extrabold text-slate-900 pb-3 border-b border-slate-100 flex items-center justify-between">
                 <span>Price Details</span>
                 <span className="text-xs font-bold text-[#008fe5]">{activeTier.name}</span>
               </h3>
@@ -668,7 +679,7 @@ export default function FlightDetails() {
 
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                   <span className="font-black text-slate-900 text-sm">Total</span>
-                  <span className="font-black text-[#008fe5] text-2xl">{displayPrice(activeTier.price)}</span>
+                  <span className="font-heading font-black text-[#008fe5] text-2xl">{displayPrice(activeTier.price)}</span>
                 </div>
               </div>
 

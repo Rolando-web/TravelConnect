@@ -6,6 +6,7 @@ import {
 import { packagesApi } from "../services/api";
 import { useBooking } from "../context/BookingContext";
 import { useCurrency } from "../context/CurrencyContext";
+import { FALLBACK_DEALS } from "../data/fallbackDeals";
 
 const toBooking = (deal) => ({
   id: `PKG-${deal.id}`,
@@ -36,7 +37,13 @@ export default function DealDetails() {
     packagesApi
       .get(id)
       .then((data) => { if (active) setDeal(data); })
-      .catch(() => { if (active) setDeal(null); })
+      .catch(() => {
+        // Production fallback: resolve the package from the offline deal
+        // catalogue when the backend API is unreachable.
+        if (!active) return;
+        const fallback = FALLBACK_DEALS.find((d) => String(d.id) === String(id));
+        setDeal(fallback || null);
+      })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [id]);
@@ -105,7 +112,7 @@ export default function DealDetails() {
                 </span>
               </div>
 
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-tight drop-shadow-md">
+              <h1 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-tight drop-shadow-md">
                 {deal.name}
               </h1>
 
@@ -132,7 +139,7 @@ export default function DealDetails() {
 
               <div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-black text-slate-900">{displayPrice(Number(deal.price || 0))}</span>
+                  <span className="font-heading text-3xl font-black text-slate-900">{displayPrice(Number(deal.price || 0))}</span>
                   <span className="text-xs text-slate-500 font-semibold">/ person</span>
                 </div>
                 <p className="text-[11px] text-slate-400 mt-0.5">Taxes, fees &amp; all bundle inclusions covered</p>
@@ -176,7 +183,7 @@ export default function DealDetails() {
 
             {/* Inclusions */}
             <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/80 space-y-5">
-              <h2 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
+              <h2 className="font-heading text-2xl font-extrabold text-slate-900 flex items-center gap-2">
                 <CheckCircle2 size={24} className="text-[#008fe5]" /> Package Inclusions
               </h2>
               {inclusions.length === 0 ? (
@@ -195,7 +202,7 @@ export default function DealDetails() {
             {/* Itinerary */}
             {itinerary.length > 0 && (
               <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/80 space-y-6">
-                <h2 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
+                <h2 className="font-heading text-2xl font-extrabold text-slate-900 flex items-center gap-2">
                   <Calendar size={24} className="text-[#008fe5]" /> Tour Itinerary
                 </h2>
                 <div className="space-y-4">
@@ -216,7 +223,7 @@ export default function DealDetails() {
             {/* Exclusions */}
             {exclusions.length > 0 && (
               <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/80 space-y-4">
-                <h2 className="text-xl font-extrabold text-slate-900">What&rsquo;s Not Included</h2>
+                <h2 className="font-heading text-xl font-extrabold text-slate-900">What&rsquo;s Not Included</h2>
                 <ul className="space-y-2 text-sm text-slate-600 font-medium">
                   {exclusions.map((ex, i) => (
                     <li key={i} className="flex items-start gap-2">• {ex}</li>
@@ -229,14 +236,14 @@ export default function DealDetails() {
           {/* Right Column: Reservation Sidebar */}
           <div className="space-y-6">
             <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-200/80 sticky top-24 space-y-5">
-              <h3 className="text-lg font-extrabold text-slate-900 pb-3 border-b border-slate-100">
+              <h3 className="font-heading text-lg font-extrabold text-slate-900 pb-3 border-b border-slate-100">
                 Book Package Deal
               </h3>
 
               <div className="space-y-3 text-xs">
                 <div className="pt-1 border-t border-slate-100 flex items-center justify-between">
                   <span className="font-black text-slate-900 text-sm">Total Deal Price</span>
-                  <span className="font-black text-[#008fe5] text-2xl">{displayPrice(Number(deal.price || 0))}</span>
+                  <span className="font-heading font-black text-[#008fe5] text-2xl">{displayPrice(Number(deal.price || 0))}</span>
                 </div>
               </div>
 

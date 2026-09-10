@@ -21,6 +21,9 @@ const TYPE_FILTERS = [
   { id: "MPV", label: "Executive MPVs" },
 ];
 
+const CARS_HERO_IMAGE =
+  "https://images.unsplash.com/photo-1553440569-bcc63803a83d?auto=format&fit=crop&w=1920&q=80";
+
 const LUXURY_FALLBACK_CARS = [
   {
     id: 101,
@@ -220,63 +223,70 @@ export default function Cars() {
   return (
     <div className="w-full bg-slate-50 dark:bg-[#0a0e17] text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-300">
       {/* ─── Editorial Header / Concierge Masthead ─────────────────────── */}
-      <section className="relative pt-20 pb-16 px-4 sm:px-6 lg:px-8 border-b border-slate-200 dark:border-white/[0.07] overflow-hidden bg-white dark:bg-[#0b0f19]">
-        {/* Subtle architectural gradient orbs */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[350px] bg-gradient-to-b from-[#008fe5]/[0.08] via-sky-500/[0.03] to-transparent blur-3xl pointer-events-none" />
+      <section className="relative pt-20 pb-16 px-4 sm:px-6 lg:px-8 border-b border-slate-200 dark:border-white/[0.07] overflow-hidden">
+        {/* Hero Background Image */}
+        <div className="absolute inset-0">
+          <img
+            src={CARS_HERO_IMAGE}
+            alt="Luxury chauffeur fleet"
+            className="w-full h-full object-cover object-center"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/90 via-slate-900/70 to-slate-50 dark:to-[#0a0e17]" />
+        </div>
 
         <div className="relative max-w-7xl mx-auto text-center space-y-5">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold tracking-[0.2em] uppercase bg-[#008fe5]/10 text-[#008fe5] dark:text-sky-300 border border-[#008fe5]/20 backdrop-blur-md">
-            <Car size={13} className="text-[#008fe5] dark:text-[#38bdf8]" />
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold tracking-[0.2em] uppercase bg-white/15 text-white border border-white/25 backdrop-blur-md shadow-lg">
+            <Car size={13} className="text-amber-300" />
             <span>The Private Fleet · Chauffeur &amp; Bespoke Hire</span>
           </div>
 
-          <h1 className="font-heading text-4xl sm:text-6xl lg:text-7xl font-bold text-slate-950 dark:text-white tracking-tight max-w-4xl mx-auto leading-[1.1]">
-            Drive the <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#008fe5] via-sky-400 to-blue-600">Extraordinary</span>.
+          <h1 className="font-heading text-5xl sm:text-6xl lg:text-7xl font-bold text-white tracking-[0.06em] max-w-4xl mx-auto leading-[1.02] drop-shadow-lg">
+            Drive the <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-300 via-amber-200 to-amber-400">Extraordinary</span>.
           </h1>
 
-          <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base max-w-2xl mx-auto font-normal leading-relaxed">
+          <p className="text-slate-200 text-sm sm:text-base max-w-2xl mx-auto font-normal leading-relaxed drop-shadow">
             Prestige sedans, executive vans, and grand tourers — delivered to your airport terminal, hotel, or villa, fully insured and ready to go.
           </p>
 
           {/* Minimalist Trust Ribbon */}
-          <div className="pt-6 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto text-left border-t border-slate-200 dark:border-white/[0.07]">
-            <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/[0.05]">
-              <div className="p-2 rounded-xl bg-[#008fe5]/10 text-[#008fe5] dark:text-sky-300 shrink-0">
+          <div className="pt-6 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto text-left border-t border-white/20">
+            <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white">
+              <div className="p-2 rounded-xl bg-white/15 text-amber-300 shrink-0">
                 <KeyRound size={16} />
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-900 dark:text-white">White-Glove Delivery</p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Tarmac &amp; villa handover</p>
+                <p className="text-xs font-semibold text-white">White-Glove Delivery</p>
+                <p className="text-[11px] text-slate-200">Tarmac &amp; villa handover</p>
               </div>
             </div>
 
-            <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/[0.05]">
-              <div className="p-2 rounded-xl bg-[#008fe5]/10 text-[#008fe5] dark:text-sky-300 shrink-0">
+            <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white">
+              <div className="p-2 rounded-xl bg-white/15 text-amber-300 shrink-0">
                 <ShieldCheck size={16} />
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-900 dark:text-white">Zero Bond Deposit</p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Transparent waivers included</p>
+                <p className="text-xs font-semibold text-white">Zero Bond Deposit</p>
+                <p className="text-[11px] text-slate-200">Transparent waivers included</p>
               </div>
             </div>
 
-            <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/[0.05]">
-              <div className="p-2 rounded-xl bg-[#008fe5]/10 text-[#008fe5] dark:text-sky-300 shrink-0">
+            <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white">
+              <div className="p-2 rounded-xl bg-white/15 text-amber-300 shrink-0">
                 <Clock size={16} />
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-900 dark:text-white">24/7 Dedicated Host</p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Real-time driver support</p>
+                <p className="text-xs font-semibold text-white">24/7 Dedicated Host</p>
+                <p className="text-[11px] text-slate-200">Real-time driver support</p>
               </div>
             </div>
 
-            <div className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/[0.05]">
-              <div className="p-2 rounded-xl bg-[#008fe5]/10 text-[#008fe5] dark:text-sky-300 shrink-0">
+            <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white">
+              <div className="p-2 rounded-xl bg-white/15 text-amber-300 shrink-0">
                 <Award size={16} />
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-900 dark:text-white">Immaculate Detailing</p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Multi-stage sanitization</p>
+                <p className="text-xs font-semibold text-white">Immaculate Detailing</p>
+                <p className="text-[11px] text-slate-200">Multi-stage sanitization</p>
               </div>
             </div>
           </div>

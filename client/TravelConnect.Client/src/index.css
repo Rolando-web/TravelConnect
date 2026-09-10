@@ -17,7 +17,20 @@
   --color-badge-cyan: #00B4D8;
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Outfit", ui-sans-serif, system-ui, sans-serif;
-  --font-heading: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Bebas Neue", "Outfit", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  /* Modern editorial display headings - Bebas Neue with airy letter spacing */
+  h1, h2, h3, h4 {
+    letter-spacing: 0.03em;
+  }
+
+  .font-heading {
+    font-family: "Bebas Neue", "Outfit", ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0.07em;
+    font-weight: 400;
+  }
 }
 
 @layer components {
@@ -87,6 +100,15 @@
 }
 
 @layer utilities {
+  /* Force color emoji rendering instead of text-style glyphs */
+  .emoji {
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+      "Noto Color Emoji", "Twemoji Mozilla", sans-serif;
+    font-weight: normal;
+    font-style: normal;
+    text-rendering: optimizeLegibility;
+  }
+
   .reveal {
     opacity: 0;
     will-change: opacity, transform;

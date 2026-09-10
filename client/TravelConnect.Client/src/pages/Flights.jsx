@@ -13,6 +13,7 @@ import FavoriteButton from "../components/shared/FavoriteButton";
 import FlightFareTierModal from "../components/modals/booking/FlightFareTierModal";
 import PageHeroCarousel from "../components/shared/PageHeroCarousel";
 import { flightsApi } from "../services/api";
+import { FALLBACK_LUXURY_FLIGHTS } from "../data/fallbackFlights";
 
 const AIRPORT_CODES = {
   manila: "MNL",
@@ -60,129 +61,6 @@ const FLIGHT_HERO_SLIDES = [
     image: "https://images.unsplash.com/photo-1569154941061-e231b4725ef1?auto=format&fit=crop&w=2000&q=80",
     alt: "Commercial airliner wing soaring above azure ocean",
   },
-];
-
-const FALLBACK_LUXURY_FLIGHTS = [
-  {
-    id: 1,
-    airline: "Philippine Airlines",
-    flightNumber: "PR 432",
-    departureCity: "Manila",
-    arrivalCity: "Tokyo",
-    departureTime: "08:45 AM",
-    arrivalTime: "02:10 PM",
-    departureDate: "2026-10-15",
-    duration: "4h 25m",
-    stops: "Non-Stop Direct",
-    price: 18500,
-    class: "Business Class",
-    aircraft: "Airbus A350-900",
-    imageUrl: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1200&q=80",
-    seatsAvailable: 4,
-    baggage: "35kg Checked + 7kg Cabin",
-    meal: "Signature Chef Degustation",
-    wifi: "Complimentary Satellite WiFi"
-  },
-  {
-    id: 2,
-    airline: "Singapore Airlines",
-    flightNumber: "SQ 915",
-    departureCity: "Manila",
-    arrivalCity: "Singapore",
-    departureTime: "11:20 AM",
-    arrivalTime: "03:00 PM",
-    departureDate: "2026-10-18",
-    duration: "3h 40m",
-    stops: "Non-Stop Direct",
-    price: 16200,
-    class: "First Class",
-    aircraft: "Boeing 787-10 Dreamliner",
-    imageUrl: "https://images.unsplash.com/photo-1569154941061-e231b4725ef1?auto=format&fit=crop&w=1200&q=80",
-    seatsAvailable: 6,
-    baggage: "40kg Checked + 10kg Cabin",
-    meal: "Book the Cook Gourmet Dining",
-    wifi: "High-Speed Unlimited Stream"
-  },
-  {
-    id: 3,
-    airline: "AirSWIFT Prestige",
-    flightNumber: "T6 312",
-    departureCity: "Manila",
-    arrivalCity: "El Nido",
-    departureTime: "06:15 AM",
-    arrivalTime: "07:35 AM",
-    departureDate: "2026-10-20",
-    duration: "1h 20m",
-    stops: "Scenic Direct Island Hop",
-    price: 11400,
-    class: "Premium Executive",
-    aircraft: "ATR 72-600 VIP",
-    imageUrl: "https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?auto=format&fit=crop&w=1200&q=80",
-    seatsAvailable: 8,
-    baggage: "20kg Checked + 7kg Cabin",
-    meal: "Artisanal Island Refreshment",
-    wifi: "Private Terminal Lounge Access"
-  },
-  {
-    id: 4,
-    airline: "Emirates",
-    flightNumber: "EK 337",
-    departureCity: "Manila",
-    arrivalCity: "Dubai",
-    departureTime: "06:40 PM",
-    arrivalTime: "11:35 PM",
-    departureDate: "2026-11-01",
-    duration: "8h 55m",
-    stops: "Non-Stop Direct",
-    price: 34500,
-    class: "Business Class",
-    aircraft: "Boeing 777-300ER",
-    imageUrl: "https://images.unsplash.com/photo-1569629743817-70d8db6c323b?auto=format&fit=crop&w=1200&q=80",
-    seatsAvailable: 3,
-    baggage: "40kg Checked + 10kg Cabin",
-    meal: "Caviar & Sommelier Wine Pairing",
-    wifi: "Onboard Bar & Fiber WiFi"
-  },
-  {
-    id: 5,
-    airline: "Cebu Pacific Air",
-    flightNumber: "5J 891",
-    departureCity: "Manila",
-    arrivalCity: "Boracay",
-    departureTime: "09:00 AM",
-    arrivalTime: "10:10 AM",
-    departureDate: "2026-10-22",
-    duration: "1h 10m",
-    stops: "Non-Stop Direct",
-    price: 6800,
-    class: "Economy Plus",
-    aircraft: "Airbus A321neo",
-    imageUrl: "https://images.unsplash.com/photo-1520437358207-323b43b50729?auto=format&fit=crop&w=1200&q=80",
-    seatsAvailable: 12,
-    baggage: "20kg Checked + 7kg Cabin",
-    meal: "Complimentary Snack & Drink",
-    wifi: "Express Gate Boarding"
-  },
-  {
-    id: 6,
-    airline: "Air France",
-    flightNumber: "AF 168",
-    departureCity: "Manila",
-    arrivalCity: "Paris",
-    departureTime: "10:30 PM",
-    arrivalTime: "06:15 AM",
-    departureDate: "2026-11-10",
-    duration: "14h 45m",
-    stops: "1 Stop (Singapore)",
-    price: 46800,
-    class: "Business Suite",
-    aircraft: "Boeing 777-200ER",
-    imageUrl: "https://images.unsplash.com/photo-1556388158-158ea5ccacbd?auto=format&fit=crop&w=1200&q=80",
-    seatsAvailable: 2,
-    baggage: "2 x 32kg Checked + 12kg Cabin",
-    meal: "Michelin 3-Star French Menus",
-    wifi: "Lie-Flat Sliding Private Door Suite"
-  }
 ];
 
 const toFlightBooking = (flight) => ({
@@ -340,27 +218,24 @@ export default function Flights() {
     <div className="w-full bg-slate-50 dark:bg-[#070b13] text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-300 pb-20">
       
       {/* ─── Executive Aviation Command Hero ─────────────────────────── */}
-      <section className="relative pt-20 pb-14 px-4 sm:px-6 lg:px-8 overflow-hidden bg-white dark:bg-[#0a0f1d] border-b border-slate-200/80 dark:border-white/[0.06]">
-        {/* Ambient SkyBlue Light Glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1100px] h-[360px] bg-gradient-to-b from-[#008fe5]/[0.08] via-sky-500/[0.03] to-transparent blur-3xl pointer-events-none" />
-
-        <div className="relative max-w-7xl mx-auto text-center space-y-5">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase bg-[#008fe5]/10 text-[#008fe5] dark:text-[#38bdf8] border border-[#008fe5]/20 backdrop-blur-md">
-            <Plane size={14} className="text-[#008fe5] dark:text-[#38bdf8]" />
+      <PageHeroCarousel slides={FLIGHT_HERO_SLIDES} className="pt-20 pb-14 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto text-center space-y-5">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold tracking-[0.2em] uppercase bg-white/15 text-white border border-white/25 backdrop-blur-md shadow-lg">
+            <Plane size={14} className="text-amber-300" />
             <span>Premium Air Travel</span>
           </div>
 
-          <h1 className="font-heading text-4xl sm:text-6xl font-bold text-slate-950 dark:text-white tracking-tight leading-[1.1]">
-            Fly Further, <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#008fe5] via-sky-400 to-blue-600">Effortlessly</span>.
+          <h1 className="font-heading text-5xl sm:text-7xl font-bold text-white tracking-[0.06em] leading-[1.02] drop-shadow-lg">
+            Fly Further, <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-300 via-amber-200 to-amber-400">Effortlessly</span>.
           </h1>
 
-          <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm max-w-2xl mx-auto font-normal leading-relaxed">
+          <p className="text-slate-200 text-xs sm:text-sm max-w-2xl mx-auto font-normal leading-relaxed drop-shadow">
             Compare fares from trusted airlines across Southeast Asia and beyond — every ticket backed by 100% instant refund protection.
           </p>
 
           {/* Aviation Search Command Dock */}
           <div className="pt-4 max-w-3xl mx-auto">
-            <div className="p-3 rounded-3xl bg-slate-100/90 dark:bg-white/[0.04] border border-slate-200/90 dark:border-white/[0.08] shadow-lg flex flex-col sm:flex-row items-center gap-2">
+            <div className="p-3 rounded-3xl bg-white/95 dark:bg-slate-900/90 border border-white/40 dark:border-white/[0.08] shadow-2xl flex flex-col sm:flex-row items-center gap-2 backdrop-blur-md">
               <div className="relative flex-1 w-full">
                 <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
@@ -396,7 +271,7 @@ export default function Flights() {
 
             {/* Popular Route Quick Chips */}
             <div className="flex flex-wrap items-center justify-center gap-2 pt-4">
-              <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              <span className="text-[11px] font-mono text-slate-200 uppercase tracking-wider drop-shadow">
                 Popular Routes:
               </span>
               {popularRoutes.map((r, idx) => (
@@ -408,7 +283,7 @@ export default function Flights() {
                     params.set("to", r.to);
                     navigate(`/flights?${params.toString()}`);
                   }}
-                  className="px-3 py-1 rounded-full text-xs font-semibold bg-white dark:bg-white/[0.04] hover:bg-[#008fe5]/10 hover:text-[#008fe5] dark:hover:text-[#38bdf8] text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-white/[0.08] transition flex items-center gap-1.5 shadow-sm"
+                  className="px-3 py-1 rounded-full text-xs font-semibold bg-white/90 dark:bg-white/[0.04] hover:bg-[#008fe5] hover:text-white text-slate-800 dark:text-slate-300 border border-white/40 dark:border-white/[0.08] transition flex items-center gap-1.5 shadow-md"
                 >
                   <span className="font-bold">{r.from}</span>
                   <span className="text-slate-400">({r.codeFrom})</span>
@@ -420,7 +295,7 @@ export default function Flights() {
             </div>
           </div>
         </div>
-      </section>
+      </PageHeroCarousel>
 
       {/* ─── Flights Boarding Matrix Section ──────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">

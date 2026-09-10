@@ -20,6 +20,9 @@ const HOTEL_CATEGORIES = [
   { id: "Lodge", label: "Lodges" },
 ];
 
+const HOTEL_HERO_IMAGE =
+  "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1920&q=80";
+
 const LUXURY_FALLBACK_HOTELS = [
   {
     id: 1,
@@ -233,24 +236,31 @@ export default function Hotels() {
     <div className="w-full bg-slate-50 dark:bg-[#070b13] text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-300 pb-20">
       
       {/* ─── Architectural Editorial Masthead ─────────────────────────── */}
-      <section className="relative pt-20 pb-10 px-4 sm:px-6 lg:px-8 overflow-hidden bg-white dark:bg-[#0a0f1d] border-b border-slate-200/80 dark:border-white/[0.06]">
-        {/* Ambient SkyBlue Light Glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1100px] h-[320px] bg-gradient-to-b from-[#008fe5]/[0.08] via-sky-500/[0.03] to-transparent blur-3xl pointer-events-none" />
+      <section className="relative pt-20 pb-10 px-4 sm:px-6 lg:px-8 overflow-hidden border-b border-slate-200/80 dark:border-white/[0.06]">
+        {/* Hero Background Image */}
+        <div className="absolute inset-0">
+          <img
+            src={HOTEL_HERO_IMAGE}
+            alt="Luxury resort and private haven"
+            className="w-full h-full object-cover object-center"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/90 via-slate-900/75 to-slate-50 dark:to-[#0a0f1d]" />
+        </div>
 
         <div className="relative max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
             <div className="space-y-2.5">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-semibold tracking-wider uppercase bg-[#008fe5]/10 text-[#008fe5] dark:text-[#38bdf8] border border-[#008fe5]/20 backdrop-blur-md">
-                <Compass size={13} className="text-[#008fe5] dark:text-[#38bdf8]" />
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-semibold tracking-[0.2em] uppercase bg-white/15 text-white border border-white/25 backdrop-blur-md shadow-lg">
+                <Compass size={13} className="text-amber-300" />
                 <span>Curated Resorts &amp; Private Havens</span>
               </div>
 
-              <h1 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-950 dark:text-white tracking-tight leading-tight">
-                Stay Somewhere <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#008fe5] via-sky-400 to-blue-600">Beautiful</span>.
+              <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-bold text-white tracking-[0.06em] leading-tight drop-shadow-lg">
+                Stay Somewhere <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-300 via-amber-200 to-amber-400">Beautiful</span>.
               </h1>
             </div>
 
-            <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm max-w-md font-normal leading-relaxed">
+            <p className="text-slate-200 text-xs sm:text-sm max-w-md font-normal leading-relaxed drop-shadow">
               Curated private islands, oceanfront cliffside suites, and alpine sanctuaries with 100% refund protection.
             </p>
           </div>
@@ -266,7 +276,7 @@ export default function Hotels() {
                   className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 shrink-0 border ${
                     active
                       ? "bg-[#008fe5] text-white border-[#008fe5] shadow-md shadow-blue-500/20"
-                      : "bg-slate-100 dark:bg-white/[0.04] text-slate-700 dark:text-slate-300 border-slate-200/80 dark:border-white/[0.07] hover:bg-slate-200/80 dark:hover:bg-white/[0.08]"
+                      : "bg-white/15 text-white border-white/30 backdrop-blur-md hover:bg-white/25"
                   }`}
                 >
                   <span>{cat.label}</span>

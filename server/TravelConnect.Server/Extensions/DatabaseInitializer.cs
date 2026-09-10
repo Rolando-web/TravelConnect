@@ -120,6 +120,7 @@ public static class DatabaseInitializer
             db.Hotels.RemoveRange(await db.Hotels.ToListAsync());
             db.Activities.RemoveRange(await db.Activities.ToListAsync());
             db.Destinations.RemoveRange(await db.Destinations.ToListAsync());
+            db.Promotions.RemoveRange(await db.Promotions.ToListAsync());
             await db.SaveChangesAsync();
         }
 
@@ -230,6 +231,21 @@ public static class DatabaseInitializer
                 new Package { Name = "Bangkok Temples & Street Food", Location = "Bangkok, Thailand", Description = "Gilded temples, floating markets and legendary street food on an affordable Thailand city break.", Duration = "4D / 3N", Price = 24800m, Rating = 4.6m, Reviews = 176, Tag = "BEST VALUE", ImageUrl = "https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival & Grand Palace|Day 2: Floating Market|Day 3: Chatuchak & Night Market|Day 4: Departure", Inclusions = "3 nights city hotel|Daily breakfast|Grand Palace ticket|Airport transfers", Exclusions = "Airfare|Meals|Visa (if applicable)" },
                 new Package { Name = "Taipei Foodie & City Tour", Location = "Taipei, Taiwan", Description = "Night markets, hot springs and skyline views in one of Asia's easiest and most wallet-friendly cities.", Duration = "4D / 3N", Price = 22500m, Rating = 4.7m, Reviews = 143, Tag = "FOODIE", ImageUrl = "https://images.unsplash.com/photo-1470004914212-05527e49370b?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival & Taipei 101|Day 2: Shifen & Jiufen|Day 3: Yangmingshan & Night Market|Day 4: Departure", Inclusions = "3 nights city hotel|Daily breakfast|Day tour to Jiufen|Airport transfers", Exclusions = "Airfare|Meals|Extras" },
                 new Package { Name = "Tokyo Value Escape", Location = "Tokyo, Japan", Description = "Neon districts, temples and iconic sights — a friendly-priced first taste of Japan for savvy travelers.", Duration = "5D / 4N", Price = 30900m, Rating = 4.6m, Reviews = 157, Tag = "BUDGET", ImageUrl = "https://images.unsplash.com/photo-1516549655169-df83a0774514?w=800&q=80", Status = "Active", Itinerary = "Day 1: Arrival|Day 2: Asakusa & Shibuya|Day 3: Mt. Fuji Day Trip|Day 4: Akihabara & Ginza|Day 5: Departure", Inclusions = "4 nights budget hotel|Daily breakfast|Mt. Fuji day tour|Public transport pass", Exclusions = "Airfare|Meals|Extras" },
+            });
+            await db.SaveChangesAsync();
+        }
+
+        // Promotions / Deal offer codes (6)
+        if (!await db.Promotions.AnyAsync())
+        {
+            db.Promotions.AddRange(new[]
+            {
+                new Promotion { Code = "SUMMER26", CampaignName = "25% Summer Discount", Description = "25% off all summer & autumn travel packages.", Discount = 25m, DiscountType = "Percent", MaxUses = 2000, UsedCount = 0, ExpiresAt = "2026-10-31", Status = "Active" },
+                new Promotion { Code = "WELCOME50", CampaignName = "New Member Welcome", Description = "₱50 flat welcome credit for new members.", Discount = 50m, DiscountType = "Flat", MaxUses = 5000, UsedCount = 0, ExpiresAt = "2026-12-31", Status = "Active" },
+                new Promotion { Code = "HONEYMOON", CampaignName = "10% Honeymoon Package Discount", Description = "10% off all honeymoon luxury villa packages.", Discount = 10m, DiscountType = "Percent", MaxUses = 1000, UsedCount = 0, ExpiresAt = "2026-12-31", Status = "Active" },
+                new Promotion { Code = "BALI15", CampaignName = "S.E. Asia Regional Discount", Description = "₱1,500 off South-East Asia travel packages.", Discount = 1500m, DiscountType = "Flat", MaxUses = 800, UsedCount = 0, ExpiresAt = "2026-09-30", Status = "Active" },
+                new Promotion { Code = "EARLY2027", CampaignName = "Early Bird 2027 Discount", Description = "25% early-bird discount for 2027 bookings.", Discount = 25m, DiscountType = "Percent", MaxUses = 3000, UsedCount = 0, ExpiresAt = "2027-03-31", Status = "Active" },
+                new Promotion { Code = "TRAVEL10", CampaignName = "10% All Packages", Description = "10% off any travel package, any destination.", Discount = 10m, DiscountType = "Percent", MaxUses = 2500, UsedCount = 0, ExpiresAt = "2026-12-31", Status = "Active" },
             });
             await db.SaveChangesAsync();
         }
