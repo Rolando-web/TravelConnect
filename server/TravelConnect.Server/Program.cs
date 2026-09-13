@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Data.SqlClient;
 using TravelConnect.Server.Data.Connections;
 using TravelConnect.Server.Extensions;
 using TravelConnect.Server.Services;
@@ -83,6 +84,23 @@ app.UseAuthorization();
 app.MapControllers();
 
 var reseed = args.Contains("--reseed");
+var connStr = builder.Configuration.GetConnectionString("TravelConnect") ?? "";
+if (string.IsNullOrWhiteSpace(connStr))
+{
+    Console.WriteLine("[DB] WARNING: ConnectionStrings:TravelConnect is EMPTY. Check the ConnectionStrings__TravelConnect env var on Render.");
+}
+else
+{
+    try
+    {
+        var csb = new SqlConnectionStringBuilder(connStr);
+        Console.WriteLine($"[DB] Connecting to SQL Server '{csb.DataSource}' (database '{csb.InitialCatalog}', SQL auth: {csb.IntegratedSecurity == false})");
+    }
+    catch
+    {
+        Console.WriteLine("[DB] ConnectionStrings:TravelConnect is set but could not be parsed as a valid connection string.");
+    }
+}
 await app.InitializeDatabaseAsync(reseed);
 
 app.Run();
