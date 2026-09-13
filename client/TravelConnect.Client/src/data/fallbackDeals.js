@@ -159,3 +159,134 @@ export const FALLBACK_DEALS = [
     inclusions: "3 nights city hotel|Daily breakfast|Sentosa pass|Airport transfers"
   }
 ];
+
+// Bundle (combo) deals that mix transport + accommodation into a single
+// discounted package: Flight+Hotel+Car, Flight+Hotel or Flight+Car.
+// Each component carries its own price so the deal page can show a line-by-line
+// breakdown and the "you save X%" badge.
+export const COMBO_DEALS = [
+  {
+    id: "c1",
+    name: "Boracay Fly · Stay · Drive Escape",
+    location: "Boracay, Visayas",
+    description:
+      "The complete Boracay bundle: round-trip flights to Caticlan, 3 beachfront nights, and a compact SUV for island runs — all in one discounted package.",
+    duration: "4D / 3N",
+    price: 25999,
+    originalPrice: 31200,
+    rating: 4.8,
+    reviews: 96,
+    tag: "COMBO",
+    imageUrl: "https://images.unsplash.com/photo-1519046904884-53103b34b206?w=800&q=80",
+    combo: {
+      type: "flight+hotel+car",
+      label: "Flight + Hotel + Car",
+      perks: ["One booking", "No separate redirects", "Priority airport pick-up"],
+      components: [
+        {
+          type: "flight",
+          icon: "✈️",
+          name: "Manila → Caticlan (Air Swift DG 624)",
+          detail: "Round-trip economy, 20kg checked bag",
+          price: 6200
+        },
+        {
+          type: "hotel",
+          icon: "🏨",
+          name: "Boracay Beachfront Hotel",
+          detail: "3 nights, daily breakfast, beachfront view",
+          price: 15999
+        },
+        {
+          type: "car",
+          icon: "🚗",
+          name: "Suzuki Jimny Auto",
+          detail: "3 days rental, airport pick-up & drop-off",
+          price: 3800
+        }
+      ]
+    },
+    inclusions:
+      "Round-trip Manila–Caticlan flights|3 nights beachfront hotel|Daily breakfast|3-day SUV rental|Airport pick-up & drop-off|Island hopping tour|Travel insurance (24/7)",
+    itinerary:
+      "Day 1 — Fly Manila to Caticlan, collect SUV, hotel check-in|Day 2 — Island hopping: Crystal Cove & Puka Shell|Day 3 — Leisure beach day + sunset cruise|Day 4 — Morning checkout, return car, fly home"
+  },
+  {
+    id: "c2",
+    name: "Cebu Fly & Drive Weekender",
+    location: "Cebu, Visayas",
+    description:
+      "Beat the weekend traffic with a fast flight plus a rental car — cross from MCIA to the beach or dive town on your own schedule.",
+    duration: "3D / 2N",
+    price: 9800,
+    originalPrice: 12400,
+    rating: 4.6,
+    reviews: 58,
+    tag: "FLY + DRIVE",
+    imageUrl: "https://images.unsplash.com/photo-1559399274-6fd2e29cb54a?w=800&q=80",
+    combo: {
+      type: "flight+car",
+      label: "Flight + Car",
+      perks: ["E-ticket & rental in one", "Unlimited mileage", "Free 2nd driver"],
+      components: [
+        {
+          type: "flight",
+          icon: "✈️",
+          name: "Manila → Cebu (Cebu Pacific 5J 577)",
+          detail: "Round-trip economy, 15kg checked bag",
+          price: 4800
+        },
+        {
+          type: "car",
+          icon: "🚗",
+          name: "Toyota Wigo Auto",
+          detail: "3 days rental, unlimited mileage, free 2nd driver",
+          price: 5000
+        }
+      ]
+    },
+    inclusions:
+      "Round-trip Manila–Cebu flights|3-day Wigo rental|Unlimited mileage|Free 2nd driver|24/7 road assistance|Airport pick-up",
+    itinerary:
+      "Day 1 — Fly to Cebu, collect car at MCIA|Day 2 — Self-drive to Moalboal & Kawasan|Day 3 — Return car, afternoon flight home"
+  },
+  {
+    id: "c3",
+    name: "Siargao Surf & Stay Getaway",
+    location: "Siargao, Mindanao",
+    description:
+      "Direct flight and a cozy surf-village stay — the essentials for catching Cloud 9 and island-hopping the lagoons.",
+    duration: "4D / 3N",
+    price: 18400,
+    originalPrice: 21400,
+    rating: 4.9,
+    reviews: 74,
+    tag: "FLY + STAY",
+    imageUrl: "https://images.unsplash.com/photo-1516876437184-593fda40c7ce?w=800&q=80",
+    combo: {
+      type: "flight+hotel",
+      label: "Flight + Hotel",
+      perks: ["Fast-track check-in", "Free airport shuttle", "Complimentary breakfast"],
+      components: [
+        {
+          type: "flight",
+          icon: "✈️",
+          name: "Manila → Siargao (PAL PR 2461)",
+          detail: "Round-trip economy, 23kg checked bag",
+          price: 7400
+        },
+        {
+          type: "hotel",
+          icon: "🏨",
+          name: "Surfers' Village Lodge",
+          detail: "3 nights, beachfront, daily breakfast, shuttle",
+          price: 11000
+        }
+      ]
+    },
+    inclusions:
+      "Round-trip Manila–Siargao flights|3 nights beachfront lodge|Daily breakfast|Airport shuttle|Cloud 9 walk-in access|Island hopping day tour",
+    itinerary:
+      "Day 1 — Fly to Siargao, settle at the lodge|Day 2 — Cloud 9 surf morning, island hopping|Day 3 — Sugba Lagoon & Magpupungko pools|Day 4 — Breakfast, shuttle back, fly home"
+  }
+];

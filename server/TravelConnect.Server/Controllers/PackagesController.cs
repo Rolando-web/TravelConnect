@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TravelConnect.Server.Data;
@@ -6,10 +7,12 @@ using TravelConnect.Server.Models;
 namespace TravelConnect.Server.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class PackagesController(TravelConnectDbContext db) : ControllerBase
 {
     [HttpGet]
+    [AllowAnonymous]
     public async Task<ActionResult<IEnumerable<Package>>> GetAll()
     {
         return await db.Packages
@@ -20,6 +23,7 @@ public class PackagesController(TravelConnectDbContext db) : ControllerBase
     }
 
     [HttpGet("{id:int}")]
+    [AllowAnonymous]
     public async Task<ActionResult<Package>> GetById(int id)
     {
         var entity = await db.Packages.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id);
@@ -28,6 +32,7 @@ public class PackagesController(TravelConnectDbContext db) : ControllerBase
     }
 
     [HttpGet("featured/{count:int}")]
+    [AllowAnonymous]
     public async Task<ActionResult<IEnumerable<Package>>> GetFeatured(int count = 6)
     {
         return await db.Packages
@@ -39,6 +44,7 @@ public class PackagesController(TravelConnectDbContext db) : ControllerBase
     }
 
     [HttpGet("location/{location}")]
+    [AllowAnonymous]
     public async Task<ActionResult<IEnumerable<Package>>> GetByLocation(string location)
     {
         return await db.Packages
@@ -48,6 +54,7 @@ public class PackagesController(TravelConnectDbContext db) : ControllerBase
     }
 
     [HttpGet("tag/{tag}")]
+    [AllowAnonymous]
     public async Task<ActionResult<IEnumerable<Package>>> GetByTag(string tag)
     {
         return await db.Packages

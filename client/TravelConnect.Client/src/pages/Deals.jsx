@@ -7,7 +7,7 @@ import { useBooking } from "../context/BookingContext";
 import { useCurrency } from "../context/CurrencyContext";
 import { packagesApi } from "../services/api";
 import PageHeroCarousel from "../components/shared/PageHeroCarousel";
-import { FALLBACK_DEALS } from "../data/fallbackDeals";
+import { FALLBACK_DEALS, COMBO_DEALS } from "../data/fallbackDeals";
 
 const DEAL_HERO_SLIDES = [
   {
@@ -211,6 +211,113 @@ export default function Deals() {
           </div>
         </section>
       )}
+
+      {/* ── Bundle & Save: Flight + Hotel + Car Combos ───────────────────── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10">
+        <div className="mb-6">
+          <h2 className="font-heading text-2xl font-black text-slate-900 flex items-center gap-2">
+            <Zap size={20} className="text-amber-500 fill-amber-400" /> Bundle &amp; Save — Flight + Car + Hotel Combos
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">Book your flights, stay and wheels in one checkout and save up to 17%</p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {COMBO_DEALS.map((combo) => {
+            const savePct = combo.originalPrice
+              ? Math.round((1 - combo.price / combo.originalPrice) * 100)
+              : 0;
+            return (
+              <div
+                key={combo.id}
+                onClick={() => navigate(`/deals/${combo.id}`)}
+                className="bg-white rounded-3xl overflow-hidden border border-amber-200/80 shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col justify-between cursor-pointer"
+              >
+                <div>
+                  {/* Card Image */}
+                  <div className="relative h-48 overflow-hidden">
+                    <img
+                      src={combo.imageUrl}
+                      alt={combo.name}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <span className="absolute top-3 left-3 text-[10px] font-black text-white px-3 py-1 rounded-full uppercase tracking-wider bg-gradient-to-r from-amber-500 to-orange-500">
+                      {combo.combo.label}
+                    </span>
+                    {savePct > 0 && (
+                      <span className="absolute top-3 right-3 text-[10px] font-black text-amber-800 bg-amber-100 px-2.5 py-1 rounded-full">
+                        SAVE {savePct}%
+                      </span>
+                    )}
+                    <div className="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5">
+                      <span>{combo.duration}</span>
+                    </div>
+                  </div>
+
+                  {/* Card Content */}
+                  <div className="p-5 space-y-3">
+                    <h3 className="font-extrabold text-slate-900 text-base leading-tight group-hover:text-[#008fe5] transition-colors">
+                      {combo.name}
+                    </h3>
+                    <p className="text-xs text-slate-500 font-medium">
+                      {combo.location} · Included:{" "}
+                      {combo.combo.components.map((c) => `${c.icon} ${c.type}`).join(" + ")}
+                    </p>
+
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      {combo.combo.components.map((c) => (
+                        <span
+                          key={c.type}
+                          className="text-[10px] font-bold text-slate-600 bg-slate-100 border border-slate-200 rounded-full px-2.5 py-1 flex items-center gap-1"
+                        >
+                          {c.icon} {c.type === "flight" ? "Flight" : c.type === "hotel" ? "Hotel" : "Car"}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs pt-1">
+                      <span className="flex items-center gap-1 text-amber-500 font-bold">
+                        <Star size={13} className="fill-amber-400" /> {Number(combo.rating || 0).toFixed(1)} Rating
+                      </span>
+                      <span className="text-[#008fe5] font-extrabold flex items-center gap-1 text-[11px]">
+                        <Eye size={13} /> View Bundle &rarr;
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pricing & CTA */}
+                <div className="p-5 pt-0 border-t border-slate-100 mt-3">
+                  <div className="flex items-end justify-between mb-4">
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-heading text-2xl font-black text-slate-900">{displayPrice(Number(combo.price || 0))}</span>
+                      {combo.originalPrice ? (
+                        <span className="text-xs text-slate-400 line-through font-semibold">
+                          {displayPrice(Number(combo.originalPrice || 0))}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigate(`/deals/${combo.id}`); }}
+                      className="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-1"
+                    >
+                      <Eye size={14} /> Details
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); openCheckoutModal(toBooking(combo)); }}
+                      className="w-full bg-[#008fe5] hover:bg-blue-600 text-white font-extrabold py-2.5 rounded-xl text-xs shadow-md hover:-translate-y-0.5 transition"
+                    >
+                      Book Bundle
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       {/* ── All Deals Grid ────────────────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10">

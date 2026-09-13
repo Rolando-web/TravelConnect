@@ -1,3 +1,5 @@
+import { auth } from "./firebase";
+
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5110";
 
 // Resolve stored image paths into absolute URLs.
@@ -8,10 +10,22 @@ export function assetUrl(path) {
   return `${API_URL}${path}`;
 }
 
+async function authHeaders() {
+  // Attach the Firebase ID token so [Authorize] endpoints accept the request.
+  // Endpoints without [Authorize] (guest checkout, catalog, PayMongo) ignore it.
+  const token = await auth.currentUser?.getIdToken(true).catch(() => null);
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function request(url, options = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    ...(await authHeaders()),
+    ...(options.headers || {})
+  };
   const response = await fetch(`${API_URL}${url}`, {
     ...options,
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) }
+    headers
   });
   if (!response.ok) {
     const errBody = await response.json().catch(() => null);
@@ -49,21 +63,34 @@ export const hotelsApi = crud("hotels");
 export const carsApi = crud("cars");
 export const activitiesApi = crud("activities");
 
+// ── Subscriptions (Super Admin) ─────────────────────────────────
+
+export const subscriptionsApi = {
+  list: () => request("/api/subscriptions"),
+  get: (id) => request(`/api/subscriptions/${id}`),
+  create: (body) => request("/api/subscriptions", { method: "POST", body: JSON.stringify(body) }),
+  update: (id, body) => request(`/api/subscriptions/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  remove: (id) => request(`/api/subscriptions/${id}`, { method: "DELETE" }),
+  getPlans: () => request("/api/subscriptions/plans"),
+  getPlan: (id) => request(`/api/subscriptions/plans/${id}`),
+  getStats: () => request("/api/subscriptions/stats"),
+};
+
 // ── Image storage (stored in SQL Server via the backend) ─────────
 
 export async function uploadImage(file) {
   const form = new FormData();
   form.append("file", file);
-  const response = await fetch(`${API_URL}/api/images`, { method: "POST", body: form });
+  const response = await fetch(`${API_URL}/api/images`, {
+    method: "POST",
+    body: form,
+    headers: await authHeaders()
+  });
   if (!response.ok) {
     const errBody = await response.json().catch(() => null);
     throw new Error(errBody?.message || "Image upload failed");
   }
   return await response.json();
-}
-
-export async function deleteImage(id) {
-  await request(`/api/images/${id}`, { method: "DELETE" });
 }
 
 export async function getDashboardSummary() {
@@ -126,24 +153,27 @@ export async function validatePromoCode(code, totalAmount) {
   }
 }
 
-// ── PayMongo (GCash / PayMaya) ────────────────────────────────
+// ── PayMongo (GCash / PayMaya hosted checkout) ──────────────────
 
-export async function createPayMongoSource(payload) {
-  const response = await fetch(`${API_URL}/api/payments/paymongo/source`, {
+// Opens a PayMongo-hosted payment page (checkout.paymongo.com) where the
+// customer picks their e-wallet and completes the payment.
+export async function createPayMongoCheckout(payload) {
+  const response = await fetch(`${API_URL}/api/payments/paymongo/checkout`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
   if (!response.ok) {
     const errBody = await response.json().catch(() => null);
-    throw new Error(errBody?.message || "Failed to create payment source");
+    throw new Error(errBody?.message || "Failed to create payment link");
   }
   return await response.json();
 }
 
-export async function getPayMongoSourceStatus(sourceId) {
-  const response = await fetch(`${API_URL}/api/payments/paymongo/source/${sourceId}`);
-  if (!response.ok) throw new Error("Failed to fetch payment source status");
+// Polls a checkout session for its payment status (paid / cancelled / failed / pending).
+export async function getPayMongoCheckoutStatus(sessionId) {
+  const response = await fetch(`${API_URL}/api/payments/paymongo/checkout/${sessionId}`);
+  if (!response.ok) throw new Error("Failed to fetch payment status");
   return await response.json();
 }
 
@@ -161,42 +191,20 @@ export async function finalizePayMongoPayment(payload) {
 }
 
 export async function createBooking(bookingPayload) {
-  try {
-    return await request(`/api/bookings`, {
-      method: "POST",
-      body: JSON.stringify({
-        booking: bookingPayload,
-        ...(Array.isArray(bookingPayload.flightSegments)
-          ? { flightSegments: bookingPayload.flightSegments }
-          : {})
-      })
-    });
-  } catch {
-    const ref = `TC-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-    const txn = `TXN-${Math.floor(100000 + Math.random() * 900000)}`;
-    const newBooking = {
-      ...bookingPayload,
-      id: Date.now(),
-      referenceNumber: ref,
-      transactionId: txn,
-      paid: true,
-      status: "upcoming",
-      createdAt: new Date().toISOString()
-    };
-    return {
-      message: "Booking transaction created successfully",
-      booking: newBooking
-    };
-  }
+  return request(`/api/bookings`, {
+    method: "POST",
+    body: JSON.stringify({
+      booking: bookingPayload,
+      ...(Array.isArray(bookingPayload.flightSegments)
+        ? { flightSegments: bookingPayload.flightSegments }
+        : {})
+    })
+  });
 }
 
 export async function cancelBookingApi(bookingId) {
-  try {
-    const result = await request(`/api/bookings/${bookingId}/cancel`, { method: "POST" });
-    return result || { success: true, message: "Booking cancelled successfully" };
-  } catch {
-    return { success: true, message: "Booking cancelled successfully" };
-  }
+  const result = await request(`/api/bookings/${bookingId}/cancel`, { method: "POST" });
+  return result || { success: true, message: "Booking cancelled successfully" };
 }
 
 // ── Refund preview (tiered cancellation policy) ─────────────────
@@ -226,18 +234,10 @@ export async function generateItineraryPdf(bookingId) {
   return { blob, filename };
 }
 
-export async function sendConfirmationEmail(bookingId) {
-  return request(`/api/bookings/${bookingId}/send-confirmation`, { method: "POST" });
-}
-
 // ── Seat maps & seat assignment ─────────────────────────────────
 
 export async function getSeatMap(flightId) {
   return request(`/api/seatmaps/flight/${flightId}`);
-}
-
-export async function releaseSeatsForBooking(bookingId) {
-  return request(`/api/seatmaps/release-by-booking/${bookingId}`, { method: "PUT" });
 }
 
 export async function adminOverrideSeat(payload) {
@@ -258,15 +258,8 @@ export async function refundPaymentToWallet(paymentId) {
 }
 
 export async function sendCustomerInquiry(inquiryPayload) {
-  try {
-    return await request(`/api/inquiries`, {
-      method: "POST",
-      body: JSON.stringify(inquiryPayload)
-    });
-  } catch {
-    return {
-      success: true,
-      message: "Your customer inquiry has been received. Agency staff will respond shortly."
-    };
-  }
+  return request(`/api/inquiries`, {
+    method: "POST",
+    body: JSON.stringify(inquiryPayload)
+  });
 }

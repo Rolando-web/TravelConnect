@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TravelConnect.Server.Data;
@@ -6,6 +7,7 @@ using TravelConnect.Server.Models;
 namespace TravelConnect.Server.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class UsersController(TravelConnectDbContext db) : ControllerBase
 {

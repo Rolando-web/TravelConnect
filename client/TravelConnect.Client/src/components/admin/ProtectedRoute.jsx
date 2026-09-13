@@ -25,6 +25,12 @@ export default function ProtectedRoute({ children }) {
   const pathParts = location.pathname.split("/").filter(Boolean);
   const pageKey = pathParts[1] || "dashboard";
   const access = ADMIN_ACCESS[user.role] || {};
+
+  // Subscriptions page is Super Admin only
+  if (pageKey === "subscriptions" && user.role !== "Super Admin") {
+    return <Navigate to="/admin" replace />;
+  }
+
   if (!(pageKey in access)) {
     return <Navigate to="/admin" replace />;
   }

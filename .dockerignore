@@ -7,6 +7,8 @@
 .env.*
 !.env.example
 **/appsettings.*.local.json
+**/appsettings.Development.json
+**/appsettings.Production.json
 
 # ── .NET build artifacts ───────────────────────
 **/bin/
@@ -58,3 +60,12 @@ desktop.ini
 coverage/
 *.lcov
 .nyc_output/
+
+# ── Client & seed source (not part of the server image) ──
+client/
+seeds/
+BACKEND_PROTOTYPE/
+firebase.json
+firestore.rules
+firestore.indexes.json
+vercel.json

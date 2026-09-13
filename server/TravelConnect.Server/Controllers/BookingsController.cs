@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TravelConnect.Server.Data;
@@ -7,8 +8,14 @@ using TravelConnect.Server.Services;
 namespace TravelConnect.Server.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
-public class BookingsController(TravelConnectDbContext db) : ControllerBase
+public class BookingsController(
+    TravelConnectDbContext db,
+    IServiceScopeFactory scopeFactory,
+    PdfService pdfService,
+    CancellationService cancellationService,
+    ILogger<BookingsController> logger) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Booking>>> GetAll(string? status = null, string? customer = null)
@@ -40,6 +47,7 @@ public class BookingsController(TravelConnectDbContext db) : ControllerBase
     }
 
     [HttpGet("reference/{reference}")]
+    [AllowAnonymous]
     public async Task<ActionResult<Booking>> GetByReference(string reference)
     {
         var booking = await db.Bookings
@@ -51,6 +59,7 @@ public class BookingsController(TravelConnectDbContext db) : ControllerBase
     }
 
     [HttpGet("customer/{email}")]
+    [AllowAnonymous]
     public async Task<ActionResult<IEnumerable<Booking>>> GetByCustomer(string email)
     {
         return await db.Bookings
@@ -70,13 +79,15 @@ public class BookingsController(TravelConnectDbContext db) : ControllerBase
         string ArrivalTime,
         string DepartureDate,
         string Class,
-        decimal Price);
+        decimal Price,
+        string? SeatNumber = null);
 
     public record CreateBookingRequest(
         Booking Booking,
         List<FlightSegmentDto>? FlightSegments);
 
     [HttpPost]
+    [AllowAnonymous]
     public async Task<ActionResult<Booking>> Create(CreateBookingRequest req)
     {
         var booking = req.Booking;
@@ -96,7 +107,9 @@ public class BookingsController(TravelConnectDbContext db) : ControllerBase
                 ArrivalTime = f.ArrivalTime,
                 DepartureDate = f.DepartureDate,
                 Class = f.Class,
-                Price = f.Price
+                Price = f.Price,
+                SeatNumber = f.SeatNumber ?? string.Empty,
+                SeatStatus = !string.IsNullOrWhiteSpace(f.SeatNumber) ? "Sold" : "Available"
             })
             .ToList() ?? new List<BookingFlight>();
 
@@ -129,6 +142,24 @@ public class BookingsController(TravelConnectDbContext db) : ControllerBase
             }
         }
 
+        // Send the booking confirmation email in the background (the customer's
+        // checkout screen promises a voucher & invoice by email, so don't let an
+        // SMTP hiccup block the booking response). The DI scope is created inside
+        // the task so it is never disposed before the email sends.
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var scope = scopeFactory.CreateScope();
+                var emailService = scope.ServiceProvider.GetRequiredService<EmailService>();
+                await emailService.SendBookingConfirmationAsync(booking, booking.BookingFlights.ToList());
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to send confirmation email for booking {BookingId}", booking.Id);
+            }
+        });
+
         return CreatedAtAction(nameof(GetById), new { id = booking.Id }, booking);
     }
 
@@ -157,6 +188,7 @@ public class BookingsController(TravelConnectDbContext db) : ControllerBase
 
     // GET api/bookings/{id}/refund-preview
     [HttpGet("{id:int}/refund-preview")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetRefundPreview(int id)
     {
         var booking = await db.Bookings
@@ -167,7 +199,7 @@ public class BookingsController(TravelConnectDbContext db) : ControllerBase
         if (booking.Status == "cancelled" || booking.Status == "refunded")
             return BadRequest(new { message = "Booking is already cancelled/refunded" });
 
-        var cancelService = new CancellationService();
+        var cancelService = cancellationService;
         var result = cancelService.CalculateRefund(booking);
 
         return Ok(new
@@ -185,6 +217,7 @@ public class BookingsController(TravelConnectDbContext db) : ControllerBase
 
     // POST api/bookings/{id}/cancel
     [HttpPost("{id:int}/cancel")]
+    [AllowAnonymous]
     public async Task<IActionResult> CancelBooking(int id)
     {
         var booking = await db.Bookings
@@ -196,7 +229,7 @@ public class BookingsController(TravelConnectDbContext db) : ControllerBase
             return BadRequest(new { message = "Booking is already cancelled/refunded" });
 
         // Calculate refund
-        var cancelService = new CancellationService();
+        var cancelService = cancellationService;
         var refund = cancelService.CalculateRefund(booking);
 
         // Generate refund reference
@@ -220,16 +253,23 @@ public class BookingsController(TravelConnectDbContext db) : ControllerBase
 
         await db.SaveChangesAsync();
 
-        // Send cancellation email in background
+        // Send cancellation email in background. The DI scope is created inside
+        // the task so it is never disposed before the email sends (the scope
+        // factory itself is a singleton and is safe to use from the background
+        // task).
         _ = Task.Run(async () =>
         {
             try
             {
-                using var scope = HttpContext.RequestServices.CreateScope();
+                using var scope = scopeFactory.CreateScope();
                 var emailService = scope.ServiceProvider.GetRequiredService<EmailService>();
-                await emailService.SendCancellationEmailAsync(booking, refund.RefundAmount, refundRef, refund.PolicyTier);
+                await emailService.SendCancellationEmailAsync(
+                    booking, refund.RefundAmount, refundRef, refund.PolicyTier);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to send cancellation email for booking {BookingId}", booking.Id);
+            }
         });
 
         return Ok(new
@@ -246,6 +286,7 @@ public class BookingsController(TravelConnectDbContext db) : ControllerBase
 
     // POST api/bookings/{id}/itinerary-pdf
     [HttpPost("{id:int}/itinerary-pdf")]
+    [AllowAnonymous]
     public async Task<IActionResult> GenerateItineraryPdf(int id)
     {
         var booking = await db.Bookings
@@ -254,7 +295,6 @@ public class BookingsController(TravelConnectDbContext db) : ControllerBase
 
         if (booking is null) return NotFound(new { message = "Booking not found" });
 
-        var pdfService = new PdfService();
         var pdfBytes = pdfService.GenerateItineraryPdf(booking, booking.BookingFlights.ToList());
 
         return File(pdfBytes, "application/pdf", $"TravelConnect-{booking.ReferenceNumber}.pdf");

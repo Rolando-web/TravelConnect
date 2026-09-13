@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.HttpOverrides;
 using TravelConnect.Server.Data.Connections;
 using TravelConnect.Server.Extensions;
 using TravelConnect.Server.Services;
@@ -11,6 +12,12 @@ builder.Services.AddControllers()
     });
 builder.Services.AddTravelConnectSql(builder.Configuration);
 
+var firebaseProjectId = builder.Configuration["Authentication:FirebaseProjectId"] ?? string.Empty;
+if (!string.IsNullOrWhiteSpace(firebaseProjectId))
+{
+    builder.Services.AddFirebaseAuth(firebaseProjectId);
+}
+
 var payMongoConfig = builder.Configuration.GetSection("PayMongo");
 
 builder.Services.AddOptions<PayMongoOptions>()
@@ -22,7 +29,9 @@ builder.Services.AddOptions<PayMongoOptions>()
 // must be resolvable directly (not only as IOptions<PayMongoOptions>). Without
 // this, DI throws "Unable to resolve service for type PayMongoOptions" and the
 // PayMongo checkout never opens.
-builder.Services.AddSingleton(payMongoConfig.Get<PayMongoOptions>() ?? new PayMongoOptions());
+var payMongoOptions = new PayMongoOptions();
+payMongoConfig.Bind(payMongoOptions);
+builder.Services.AddSingleton(payMongoOptions);
 
 builder.Services.AddHttpClient<PayMongoService>();
 
@@ -30,6 +39,7 @@ builder.Services.AddHttpClient<PayMongoService>();
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
 builder.Services.AddSingleton<EmailService>();
 builder.Services.AddSingleton<PdfService>();
+builder.Services.AddSingleton<CancellationService>();
 
 var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
 var corsAllowAll = corsOrigins == null || corsOrigins.Length == 0;
@@ -41,9 +51,7 @@ builder.Services.AddCors(options =>
         policy.SetIsOriginAllowed(origin =>
             {
                 if (corsAllowAll) return true;
-                return !string.IsNullOrWhiteSpace(origin)
-                       && (origin.StartsWith("http://localhost", StringComparison.OrdinalIgnoreCase)
-                           || corsOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase));
+                return corsOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase);
             })
             .AllowAnyHeader()
             .AllowAnyMethod();
@@ -52,9 +60,25 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-app.UseHttpsRedirection();
+// TLS is normally terminated at the reverse proxy (nginx/Vercel/Render), so
+// honour the forwarded scheme and only redirect locally when a real HTTPS
+// request came in unencrypted.
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+if (!app.Environment.IsDevelopment())
+{
+    // Keep the redirect for real HTTPS deployments behind a proxy that has not
+    // set X-Forwarded-Proto; harmless otherwise because the forwarded headers
+    // middleware above maps the original https scheme onto the request.
+    app.UseHttpsRedirection();
+}
 
 app.UseCors("ReactPolicy");
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 

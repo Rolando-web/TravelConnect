@@ -18,6 +18,7 @@ import Deals from "./pages/Deals";
 import DealDetails from "./pages/DealDetails";
 import Bookings from "./pages/Bookings";
 import Saved from "./pages/Saved";
+import Agencies from "./pages/Agencies";
 import { BookingCheckoutModal, BookingDetailsModal, CurrencyModal } from "./components/modals";
 import { testApi } from "./services/api";
 import AdminLayout from "./components/admin/AdminLayout";
@@ -34,6 +35,7 @@ import PromotionsPage from "./pages/admin/PromotionsPage";
 import ReportsPage from "./pages/admin/ReportsPage";
 import ProfilePage from "./pages/admin/ProfilePage";
 import SupportPage from "./pages/admin/SupportPage";
+import SubscriptionsPage from "./pages/admin/SubscriptionsPage";
 import AdminManagementPage from "./pages/admin/AdminManagementPage";
 
 export default function App() {
@@ -66,6 +68,7 @@ export default function App() {
                   <Route path="reports" element={<ReportsPage />} />
                   <Route path="profile" element={<ProfilePage />} />
                   <Route path="support" element={<SupportPage />} />
+                  <Route path="subscriptions" element={<SubscriptionsPage />} />
                   <Route path=":page" element={<AdminManagementPage />} />
                 </Route>
                 <Route path="/" element={<Layout />}>
@@ -80,6 +83,7 @@ export default function App() {
                   <Route path="deals/:id" element={<DealDetails />} />
                   <Route path="bookings" element={<Bookings />} />
                   <Route path="saved" element={<Saved />} />
+                  <Route path="agencies" element={<Agencies />} />
                   <Route path="packages" element={<Deals />} />
                   <Route path="packages/:id" element={<DealDetails />} />
                   <Route path="destinations" element={<Navigate to="/hotels" replace />} />

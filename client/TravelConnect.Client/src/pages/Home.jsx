@@ -7,6 +7,7 @@ import PopularDestinations from "../components/home/PopularDestinations";
 import TravelGallery from "../components/home/TravelGallery";
 import JourneySection from "../components/home/JourneySection";
 import Testimonials from "../components/home/Testimonials";
+import AgencySubscription from "../components/home/AgencySubscription";
 import FAQ from "../components/home/FAQ";
 import CTA from "../components/home/CTA";
 import Reveal from "../components/shared/Reveal";
@@ -57,12 +58,17 @@ export default function Home() {
         <Testimonials />
       </Reveal>
 
-      {/* 10. Frequently Asked Questions interactive accordions */}
+      {/* 10. B2B — For Travel Agencies: subscription tiers & module unlocks */}
+      <Reveal variant="zoom" delay={120}>
+        <AgencySubscription />
+      </Reveal>
+
+      {/* 11. Frequently Asked Questions interactive accordions */}
       <Reveal variant="up" delay={100}>
         <FAQ />
       </Reveal>
 
-      {/* 11. Immersive scenic call to action and VIP subscription banner */}
+      {/* 12. Immersive scenic call to action and VIP subscription banner */}
       <Reveal variant="zoom" delay={120}>
         <CTA />
       </Reveal>

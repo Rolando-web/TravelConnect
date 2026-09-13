@@ -60,9 +60,9 @@ The Payment Management screen handles all payment operations and reconciliation:
 | `POST /api/payments` | POST | Creates a new payment record |
 | `PUT /api/payments/{id}` | PUT | Updates a payment record (status, method, etc.) |
 | `DELETE /api/payments/{id}` | DELETE | Removes a payment record |
-| `POST /api/payments/paymongo/source` | POST | Creates a PayMongo source for GCash/PayMaya. Validates minimum PHP 20, converts to centavos |
-| `GET /api/payments/paymongo/source/{sourceId}` | GET | Polls PayMongo for source status (chargeable/paid/failed) |
-| `POST /api/payments/paymongo/pay` | POST | Finalizes payment, links to matching booking, marks booking as paid |
+| `POST /api/payments/paymongo/checkout` | POST | Creates a PayMongo hosted Checkout Session for GCash/PayMaya. Validates minimum PHP 20, converts to centavos. Returns `sessionId` + `checkoutUrl` (checkout.paymongo.com) |
+| `GET /api/payments/paymongo/checkout/{sessionId}` | GET | Polls the Checkout Session for outcome (paid/cancelled/failed/pending) |
+| `POST /api/payments/paymongo/pay` | POST | Records the completed payment locally, links to matching booking, marks booking as paid |
 | `POST /api/payments/paymongo/webhook` | POST | Receives PayMongo async events with HMAC-SHA256 verification |
 | `GET /api/payments/reconciliation` | GET | Joins payments with bookings for match status. Filters: `?method=`, `?status=`, `?from=`, `?to=` |
 | `POST /api/payments/{id}/refund-to-wallet` | POST | Marks payment as refunded, updates linked booking |

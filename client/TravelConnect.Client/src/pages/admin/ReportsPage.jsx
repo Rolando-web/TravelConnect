@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Download, TrendingUp, CalendarRange, Inbox } from "lucide-react";
+import { Download, CalendarRange, Inbox, BarChart3 } from "lucide-react";
 import { bookingsApi } from "../../services/api";
 import ReportChart from "../../components/admin/ReportChart";
 
@@ -23,6 +23,11 @@ function friendlyDate(ymd) {
   const d = new Date(`${ymd}T00:00:00`);
   if (isNaN(d)) return ymd;
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function shortDate(ymd) {
+  const d = new Date(`${ymd}T00:00:00`);
+  return isNaN(d) ? ymd : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function dayOf(b) {
@@ -139,6 +144,18 @@ export default function ReportsPage() {
   const trend = useMemo(() => series(filtered, fromDate, toDate), [filtered, fromDate, toDate]);
   const topPkgs = useMemo(() => topPackages(filtered), [filtered]);
 
+  const busiestDay = trend.counts.length ? trend.labels[trend.counts.indexOf(Math.max(...trend.counts))] : null;
+  const peakRevenueDay = trend.revenues.length ? trend.labels[trend.revenues.indexOf(Math.max(...trend.revenues))] : null;
+  const topMethod = [...stats.methods.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+  const bestPkg = topPkgs[0]?.name || null;
+
+  const insights = [
+    ["Busiest Day", busiestDay || "—"],
+    ["Peak Revenue Day", peakRevenueDay || "—"],
+    ["Preferred Method", topMethod || "—"],
+    ["Top Package", bestPkg || "—"],
+  ];
+
   const statusData = useMemo(() => {
     const labels = [...stats.statuses.keys()];
     return {
@@ -164,7 +181,7 @@ export default function ReportsPage() {
   }, [stats]);
 
   const trendData = useMemo(() => ({
-    labels: trend.labels.map((d) => (d.includes("-") && d.length === 7 ? d : friendlyDate(d))),
+    labels: trend.labels.map((d) => (d.includes("-") && d.length === 7 ? d : shortDate(d))),
     datasets: [
       {
         label: "Bookings",
@@ -327,62 +344,78 @@ export default function ReportsPage() {
         </div>
       ) : (
         <>
+          {/* Insights */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+            {insights.map(([label, value]) => (
+              <article key={label} className="rounded-xl bg-navy-900/70 border border-navy-700 px-4 py-3">
+                <p className="text-xs text-text-secondary">{label}</p>
+                <p className="text-lg font-black mt-1">{value}</p>
+              </article>
+            ))}
+          </div>
+
+          {/* Trend chart — full width */}
+          <ReportChart
+            type="line"
+            title="Bookings & Revenue Over Time"
+            subtitle="Volume and gross revenue across the selected range"
+            data={trendData}
+            height={320}
+            options={{
+              scales: {
+                y: { ...axisColor, ...gridColor, beginAtZero: true, ticks: { ...axisColor.ticks, precision: 0 } },
+                y1: { position: "right", ...axisColor, ...gridColor, beginAtZero: true, grid: { drawOnChartArea: false } },
+                x: axisColor,
+              },
+            }}
+          />
+
+          {/* Doughnut row */}
           <div className="grid md:grid-cols-2 gap-4 mb-5">
-            <ReportChart
-              type="line"
-              title="Bookings & Revenue Over Time"
-              subtitle="Daily volume and gross revenue across the selected range"
-              data={trendData}
-              height={300}
-options={{
-                  scales: {
-                    y: { ...axisColor, ...gridColor, beginAtZero: true, ticks: { ...axisColor.ticks, precision: 0 } },
-                    y1: { position: "right", ...axisColor, ...gridColor, beginAtZero: true, grid: { drawOnChartArea: false } },
-                    x: axisColor,
-                  },
-                }}
-            />
             <ReportChart
               type="doughnut"
               title="Booking Status Breakdown"
               subtitle="Distribution by current booking status"
               data={statusData}
-              height={300}
+              height={260}
               options={{ cutout: "62%" }}
-            />
-            <ReportChart
-              type="bar"
-              title="Top Packages by Revenue"
-              subtitle="Highest grossing packages in the selected range"
-              data={packageData}
-              height={300}
-              options={{
-                indexAxis: "y",
-                scales: {
-                  x: { ...axisColor, ...gridColor, beginAtZero: true },
-                  y: axisColor,
-                },
-              }}
             />
             <ReportChart
               type="doughnut"
               title="Payment Methods"
               subtitle="How customers paid in the selected range"
               data={methodData}
-              height={300}
+              height={260}
               options={{ cutout: "62%" }}
             />
           </div>
 
-          <div className="card">
+          {/* Top packages — full width */}
+          <ReportChart
+            type="bar"
+            title="Top Packages by Revenue"
+            subtitle="Highest grossing packages in the selected range"
+            data={packageData}
+            height={Math.max(260, topPkgs.length * 50 + 100)}
+            options={{
+              indexAxis: "y",
+              scales: {
+                x: { ...axisColor, ...gridColor, beginAtZero: true },
+                y: axisColor,
+              },
+            }}
+          />
+
+          {/* Snapshot */}
+          <section className="card mt-5">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="font-bold">Snapshot</h2>
+                <h2 className="font-bold">Performance Snapshot</h2>
                 <p className="text-sm text-text-secondary mt-1">
-                  Performance summary for the selected period.
+                  Summary for {friendlyDate(fromDate)} — {friendlyDate(toDate)}.
                 </p>
               </div>
-              <TrendingUp size={18} className="text-cyan-accent" />
+              <BarChart3 size={18} className="text-cyan-accent" />
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {[
@@ -399,7 +432,7 @@ options={{
                 </article>
               ))}
             </div>
-          </div>
+          </section>
         </>
       )}
     </>

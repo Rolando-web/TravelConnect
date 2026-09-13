@@ -13,8 +13,8 @@ public class PayMongoOptions
     public string WebhookSecretKey { get; set; } = string.Empty;
 }
 
-public record CreateSourceResult(string SourceId, string CheckoutUrl, string Status);
-public record SourceStatusResult(string SourceId, string Status, string? FailureReason);
+public record CheckoutSessionResult(string SessionId, string CheckoutUrl, string Status);
+public record CheckoutSessionStatusResult(string SessionId, string Status, string? FailureReason);
 
 public class PayMongoService
 {
@@ -28,161 +28,180 @@ public class PayMongoService
     {
         _http = http;
         _apiBase = options.ApiBaseUrl.TrimEnd('/');
-        // Sources/ewallets are created with the public key; payments (and
-        // source retrieval in some plans) with the secret key.
+        // Checkout Session (hosted page) creation/retrieval uses the secret key;
+        // the public key is only used for client-side checks.
         _publicKey = options.PublicKey;
         _secretKey = options.SecretKey;
         _webhookSecretKey = options.WebhookSecretKey;
     }
 
-    private void SetAuth(string apiKey)
+    private static HttpRequestMessage BuildRequest(HttpMethod method, string url, string apiKey,
+        object? payload = null)
     {
-        _http.DefaultRequestHeaders.Authorization =
+        var request = new HttpRequestMessage(method, url);
+        request.Headers.Authorization =
             new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes($"{apiKey}:")));
-    }
-
-    private async Task<JsonElement> PostAsync(string endpoint, object payload, string apiKey)
-    {
-        SetAuth(apiKey);
-        var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
+        if (payload is not null)
         {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        });
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-        var response = await _http.PostAsync($"{_apiBase}{endpoint}", content);
-        var body = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new HttpRequestException($"PayMongo {endpoint} failed ({response.StatusCode}): {body}");
-        }
-        return JsonDocument.Parse(body).RootElement;
-    }
-
-    private async Task<JsonElement> GetAsync(string endpoint, string apiKey)
-    {
-        SetAuth(apiKey);
-        var response = await _http.GetAsync($"{_apiBase}{endpoint}");
-        var body = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new HttpRequestException($"PayMongo {endpoint} failed ({response.StatusCode}): {body}");
-        }
-        return JsonDocument.Parse(body).RootElement;
-    }
-
-    private static object SourcePayload(string type, long amountCentavos, string successUrl, string failedUrl) => new
-    {
-        data = new
-        {
-            attributes = new
+            var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
             {
-                type,
-                amount = amountCentavos,
-                currency = "PHP",
-                redirect = new
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+        }
+        return request;
+    }
+
+    // Note: JsonDocument implements IDisposable. We clone the RootElement so we
+    // can dispose the document here and return a value that owns its memory.
+    private async Task<JsonElement> SendAsync(HttpRequestMessage request)
+    {
+        var response = await _http.SendAsync(request);
+        var body = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException(
+                $"PayMongo {request.RequestUri?.PathAndQuery} failed ({response.StatusCode}): {body}");
+        }
+
+        using var doc = JsonDocument.Parse(body);
+        return doc.RootElement.Clone();
+    }
+
+    private Task<JsonElement> PostAsync(string endpoint, object payload, string apiKey)
+    {
+        var request = BuildRequest(HttpMethod.Post, $"{_apiBase}{endpoint}", apiKey, payload);
+        return SendAsync(request);
+    }
+
+    private Task<JsonElement> GetAsync(string endpoint, string apiKey)
+    {
+        var request = BuildRequest(HttpMethod.Get, $"{_apiBase}{endpoint}", apiKey);
+        return SendAsync(request);
+    }
+
+    // Creates a hosted Checkout Session. The customer completes the payment on
+    // PayMongo's own page (checkout.paymongo.com/<id>), away from our UI.
+    public async Task<CheckoutSessionResult> CreateCheckoutSessionAsync(
+        long amountCentavos,
+        IReadOnlyList<string> paymentMethodTypes,
+        string description,
+        string successUrl,
+        string cancelUrl,
+        string? bookingReference = null)
+    {
+        var payload = new
+        {
+            data = new
+            {
+                attributes = new
                 {
-                    success = successUrl,
-                    failed = failedUrl
+                    line_items = new[]
+                    {
+                        new
+                        {
+                            currency = "PHP",
+                            amount = amountCentavos,
+                            description,
+                            name = description,
+                            quantity = 1
+                        }
+                    },
+                    payment_method_types = paymentMethodTypes,
+                    description,
+                    success_url = successUrl,
+                    cancel_url = cancelUrl,
+                    metadata = new Dictionary<string, string>
+                    {
+                        ["booking_reference"] = bookingReference ?? string.Empty
+                    }
                 }
             }
-        }
-    };
+        };
 
-    public async Task<CreateSourceResult> CreateSourceAsync(
-        string type,
-        decimal amountPesos,
-        string successUrl,
-        string failedUrl)
-    {
-        var amountCentavos = (long)Math.Round(amountPesos * 100);
-        var root = await PostAsync("/v1/sources", SourcePayload(type, amountCentavos, successUrl, failedUrl), _publicKey);
-
+        var root = await PostAsync("/v1/checkout_sessions", payload, _secretKey);
         var data = root.TryGetProperty("data", out var d) ? d : root;
         var id = data.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? string.Empty : string.Empty;
         var attrs = data.TryGetProperty("attributes", out var a) ? a : data;
 
         if (string.IsNullOrWhiteSpace(id) && attrs.TryGetProperty("id", out var aid))
-        {
             id = aid.GetString() ?? string.Empty;
-        }
 
-        var status = attrs.TryGetProperty("status", out var st) ? st.GetString() ?? "pending" : "pending";
-        var checkoutUrl = string.Empty;
+        var checkoutUrl = attrs.TryGetProperty("checkout_url", out var cu) && cu.ValueKind == JsonValueKind.String
+            ? cu.GetString() ?? string.Empty
+            : string.Empty;
+        var status = attrs.TryGetProperty("status", out var st) && st.ValueKind == JsonValueKind.String
+            ? st.GetString() ?? "open"
+            : "open";
 
-        if (attrs.TryGetProperty("redirect", out var redirect) &&
-            redirect.TryGetProperty("checkout_url", out var checkout) &&
-            checkout.ValueKind == JsonValueKind.String)
-        {
-            checkoutUrl = checkout.GetString() ?? string.Empty;
-        }
-
-        return new CreateSourceResult(id, checkoutUrl, status);
+        return new CheckoutSessionResult(id, checkoutUrl, status);
     }
 
-    public async Task<SourceStatusResult> GetSourceAsync(string sourceId)
+    // Reads a Checkout Session and normalizes its payment outcome so the client
+    // can poll it: paid / cancelled / failed / pending.
+    public async Task<CheckoutSessionStatusResult> GetCheckoutSessionAsync(string sessionId)
     {
-        var root = await GetAsync($"/v1/sources/{sourceId}", _secretKey);
+        var root = await GetAsync($"/v1/checkout_sessions/{sessionId}", _secretKey);
         var data = root.TryGetProperty("data", out var d) ? d : root;
         var attrs = data.TryGetProperty("attributes", out var a) ? a : data;
-        var status = attrs.TryGetProperty("status", out var st) ? st.GetString() ?? "unknown" : "unknown";
-        string? failure = null;
-        if (attrs.TryGetProperty("failure_reason", out var fr) && fr.ValueKind == JsonValueKind.String)
-        {
-            failure = fr.GetString();
-        }
-        return new SourceStatusResult(sourceId, status, failure);
-    }
 
-    private static object PaymentPayload(long amountCentavos, string sourceId, string description, string statementDescriptor) => new
-    {
-        data = new
+        var intent = attrs.TryGetProperty("payment_intent", out var pi) ? pi : default;
+        var intentAttrs = intent.ValueKind == JsonValueKind.Object && intent.TryGetProperty("attributes", out var ia)
+            ? ia
+            : intent;
+
+        var intentStatus = intentAttrs.ValueKind == JsonValueKind.Object &&
+                            intentAttrs.TryGetProperty("status", out var ist) && ist.ValueKind == JsonValueKind.String
+            ? ist.GetString() ?? string.Empty
+            : string.Empty;
+
+        var sessionStatus = attrs.TryGetProperty("status", out var ss) && ss.ValueKind == JsonValueKind.String
+            ? ss.GetString() ?? string.Empty
+            : string.Empty;
+
+        var paidAt = attrs.TryGetProperty("paid_at", out var pa) && pa.ValueKind != JsonValueKind.Null;
+
+        var anyPaid = false;
+        if (intentAttrs.ValueKind == JsonValueKind.Object &&
+            intentAttrs.TryGetProperty("payments", out var payments) && payments.ValueKind == JsonValueKind.Array)
         {
-            attributes = new
+            foreach (var p in payments.EnumerateArray())
             {
-                amount = amountCentavos,
-                currency = "PHP",
-                description,
-                statement_descriptor = statementDescriptor,
-                source = new
+                var pattrs = p.TryGetProperty("attributes", out var a2) ? a2 : p;
+                if (pattrs.TryGetProperty("status", out var pst) && pst.ValueKind == JsonValueKind.String &&
+                    pst.GetString()?.Equals("paid", StringComparison.OrdinalIgnoreCase) == true)
                 {
-                    id = sourceId,
-                    type = "source"
+                    anyPaid = true;
+                    break;
                 }
             }
         }
-    };
 
-    public async Task<string> CreatePaymentAsync(
-        decimal amountPesos,
-        string sourceId,
-        string description,
-        string statementDescriptor)
-    {
-        var amountCentavos = (long)Math.Round(amountPesos * 100);
-        var root = await PostAsync("/v1/payments", PaymentPayload(amountCentavos, sourceId, description, statementDescriptor), _secretKey);
-        var data = root.TryGetProperty("data", out var d) ? d : root;
-        var id = data.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? string.Empty : string.Empty;
-        if (string.IsNullOrWhiteSpace(id) && data.TryGetProperty("attributes", out var attrs) && attrs.TryGetProperty("id", out var aid))
+        var normalized = intentStatus.ToLowerInvariant();
+        if (paidAt || anyPaid || normalized == "succeeded")
         {
-            id = aid.GetString() ?? string.Empty;
+            return new CheckoutSessionStatusResult(sessionId, "paid", null);
         }
-        return id;
-    }
+        if (normalized == "cancelled" || normalized == "expired" ||
+            sessionStatus.Equals("cancelled", StringComparison.OrdinalIgnoreCase) ||
+            sessionStatus.Equals("expired", StringComparison.OrdinalIgnoreCase))
+        {
+            return new CheckoutSessionStatusResult(
+                sessionId,
+                normalized == "expired" || sessionStatus.Equals("expired", StringComparison.OrdinalIgnoreCase)
+                    ? "expired"
+                    : "cancelled",
+                null);
+        }
+        if (normalized == "failed")
+        {
+            string? failure = null;
+            if (intentAttrs.TryGetProperty("last_payment_error", out var lpe) && lpe.ValueKind == JsonValueKind.String)
+                failure = lpe.GetString();
+            return new CheckoutSessionStatusResult(sessionId, "failed", failure);
+        }
 
-    public async Task<(string SourceId, string Status)> GetPaymentAsync(string paymentId)
-    {
-        var root = await GetAsync($"/v1/payments/{paymentId}", _secretKey);
-        var data = root.TryGetProperty("data", out var d) ? d : root;
-        var attrs = data.TryGetProperty("attributes", out var a) ? a : data;
-        var status = attrs.TryGetProperty("status", out var st) && st.ValueKind == JsonValueKind.String
-            ? st.GetString() ?? string.Empty
-            : string.Empty;
-        var sourceId = string.Empty;
-        if (attrs.TryGetProperty("source", out var src) && src.ValueKind == JsonValueKind.Object)
-        {
-            sourceId = src.TryGetProperty("id", out var sid) ? sid.GetString() ?? string.Empty : string.Empty;
-        }
-        return (sourceId, status);
+        return new CheckoutSessionStatusResult(sessionId, "pending", null);
     }
 
     // PayMongo signs webhook payloads with HMAC-SHA256 using the payload

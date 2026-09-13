@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TravelConnect.Server.Data;
@@ -86,7 +87,14 @@ public class SeatMapsController : ControllerBase
         if (existing != null)
             return Conflict(new { message = $"Seat {request.SeatNumber} is already {existing.SeatStatus}" });
 
-        return Ok(new { success = true, seatNumber = request.SeatNumber, status = "Reserved" });
+        // A seat can only be reserved against a real booking segment; without a
+        // BookingId there is nothing to persist onto. Reserve seat persistence is
+        // performed when the booking is created (BookingFlights). Return an honest
+        // conflict rather than a misleading success.
+        return BadRequest(new
+        {
+            message = "Seat reservation must be tied to a booking. Select your seat during checkout and it will be reserved when the booking is confirmed."
+        });
     }
 
     // PUT api/seatmaps/release
@@ -131,12 +139,28 @@ public class SeatMapsController : ControllerBase
     [HttpPut("confirm")]
     public async Task<IActionResult> ConfirmSeat([FromBody] ConfirmSeatRequest request)
     {
+        if (string.IsNullOrWhiteSpace(request.SeatNumber))
+            return BadRequest(new { message = "SeatNumber is required" });
+
         var flight = await _db.BookingFlights
             .Where(bf => bf.BookingId == request.BookingId
                       && bf.SegmentOrder == request.SegmentOrder)
             .FirstOrDefaultAsync();
 
         if (flight == null) return NotFound(new { message = "Booking flight segment not found" });
+
+        // Double-booking guard: never allow two segments (or bookings) to claim
+        // the same seat on the same flight + date simultaneously.
+        var conflict = await _db.BookingFlights
+            .Where(bf => bf.FlightNumber == flight.FlightNumber
+                      && bf.DepartureDate == flight.DepartureDate
+                      && bf.SeatNumber == request.SeatNumber
+                      && bf.SeatStatus != "Available"
+                      && bf.Id != flight.Id)
+            .FirstOrDefaultAsync();
+
+        if (conflict != null)
+            return Conflict(new { message = $"Seat {request.SeatNumber} is already {conflict.SeatStatus}." });
 
         flight.SeatNumber = request.SeatNumber;
         flight.SeatStatus = "Sold";
@@ -146,6 +170,7 @@ public class SeatMapsController : ControllerBase
     }
 
     // PUT api/seatmaps/admin-override
+    [Authorize]
     [HttpPut("admin-override")]
     public async Task<IActionResult> AdminOverrideSeat([FromBody] AdminOverrideSeatRequest request)
     {
@@ -155,6 +180,9 @@ public class SeatMapsController : ControllerBase
             .FirstOrDefaultAsync();
 
         if (flight == null) return NotFound(new { message = "Booking flight segment not found" });
+
+        // Capture the previous seat BEFORE overwriting it.
+        var previousSeat = flight.SeatNumber;
 
         // Release old seat if any
         if (!string.IsNullOrEmpty(flight.SeatNumber) && flight.SeatStatus != "Available")
@@ -170,7 +198,7 @@ public class SeatMapsController : ControllerBase
         return Ok(new
         {
             success = true,
-            previousSeat = flight.SeatNumber,
+            previousSeat,
             newSeatNumber = request.NewSeatNumber,
             message = $"Seat overridden to {request.NewSeatNumber}"
         });

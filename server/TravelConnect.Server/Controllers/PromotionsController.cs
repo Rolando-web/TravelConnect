@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TravelConnect.Server.Data;
@@ -6,10 +7,12 @@ using TravelConnect.Server.Models;
 namespace TravelConnect.Server.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class PromotionsController(TravelConnectDbContext db) : ControllerBase
 {
     [HttpGet]
+    [AllowAnonymous]
     public async Task<ActionResult<IEnumerable<Promotion>>> GetAll()
     {
         return await db.Promotions
@@ -19,6 +22,7 @@ public class PromotionsController(TravelConnectDbContext db) : ControllerBase
     }
 
     [HttpGet("{id:int}")]
+    [AllowAnonymous]
     public async Task<ActionResult<Promotion>> GetById(int id)
     {
         var entity = await db.Promotions.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id);
@@ -27,6 +31,7 @@ public class PromotionsController(TravelConnectDbContext db) : ControllerBase
     }
 
     [HttpGet("code/{code}")]
+    [AllowAnonymous]
     public async Task<ActionResult<Promotion>> GetByCode(string code)
     {
         var promo = await db.Promotions

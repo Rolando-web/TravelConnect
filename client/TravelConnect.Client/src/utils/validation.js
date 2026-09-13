@@ -4,15 +4,18 @@
 // ════════════════════════════════════════════════════════════════
 
 // ── Dangerous patterns ─────────────────────────────────────────
+// Matches look for actual injection constructs, NOT everyday characters like
+// apostrophes ("O'Brien") or single quotes, which are legitimate in user data.
 const SQL_INJECTION_PATTERNS = [
-  /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|ALTER|CREATE|EXEC|EXECUTE)\b)/i,
-  /(--|;|'|"|\\)/,
+  /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|ALTER|CREATE|EXEC|EXECUTE|TRUNCATE|TABLE)\b\s+\S)/i,
+  /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|ALTER|EXEC|EXECUTE)\b\s+[('"])/i,
   /(\b(OR|AND)\b\s+\d+\s*=\s*\d+)/i,
   /(\b(OR|AND)\b\s+['"].*['"]\s*=\s*['"].*['"])/i,
   /(\bSLEEP\s*\()/i,
   /(\bBENCHMARK\s*\()/i,
   /(\bLOAD_FILE\s*\()/i,
   /(\bINTO\s+(OUTFILE|DUMPFILE)\b)/i,
+  /(\bINFORMATION_SCHEMA\b)/i,
 ];
 
 const NOSQL_INJECTION_PATTERNS = [
@@ -42,8 +45,10 @@ const XSS_PATTERNS = [
 // ── Core sanitization ──────────────────────────────────────────
 
 /**
- * Strips potentially dangerous characters from a string.
- * Removes HTML tags, null bytes, and control characters.
+ * Strips control characters and padding from a string. Unlike a naive XSS
+ * "sanitizer", it does NOT alter the printable content (e.g. no <→&lt;), so
+ * stored data is never corrupted. Output is escaped where it is rendered,
+ * and validated against the defined patterns before it is trusted.
  */
 export function sanitizeString(input) {
   if (typeof input !== "string") return input;
@@ -51,8 +56,6 @@ export function sanitizeString(input) {
     .replace(/\0/g, "")                           // null bytes
     // eslint-disable-next-line no-control-regex
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "") // control chars except \n,\r,\t
-    .replace(/</g, "&lt;")                         // HTML encode angle brackets
-    .replace(/>/g, "&gt;")
     .trim();
 }
 

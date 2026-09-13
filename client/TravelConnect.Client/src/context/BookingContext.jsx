@@ -2,8 +2,8 @@ import { createContext, useContext, useState, useEffect } from "react";
 import {
   createBooking,
   cancelBookingApi,
-  createPayMongoSource,
-  getPayMongoSourceStatus,
+  createPayMongoCheckout,
+  getPayMongoCheckoutStatus,
   finalizePayMongoPayment,
   validatePromoCode,
   bookingsApi
@@ -32,6 +32,29 @@ export function BookingProvider({ children }) {
 
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedBookingDetails, setSelectedBookingDetails] = useState(null);
+
+  // Read the authoritative wallet balance. localStorage is the single source of
+  // truth so concurrent wallet operations (double-taps / two wallets in flight)
+  // cannot both spend the same funds on a stale React state snapshot.
+  const readWallet = () => {
+    try {
+      const saved = localStorage.getItem(walletStorageKey);
+      return saved !== null ? Number(saved) : 0;
+    } catch {
+      return 0;
+    }
+  };
+
+  const writeWallet = (nextBalance) => {
+    const safe = Math.max(0, Number(nextBalance) || 0);
+    setWalletBalance(safe);
+    try {
+      localStorage.setItem(walletStorageKey, String(safe));
+    } catch {
+      /* ignore */
+    }
+    return safe;
+  };
 
   // One-time cleanup of the legacy shared key so old data resets to 0.
   useEffect(() => {
@@ -130,7 +153,7 @@ export function BookingProvider({ children }) {
     const isWalletPayment = paymentData.paymentMethod === "wallet";
     const methodKey = isWalletPayment
       ? "wallet"
-      : ["gcash", "paymaya"].includes(paymentData.paymentMethod)
+      : ["gcash", "paymaya", "card"].includes(paymentData.paymentMethod)
         ? paymentData.paymentMethod
         : "gcash";
 
@@ -141,88 +164,109 @@ export function BookingProvider({ children }) {
     let transactionId = `TXN-${Math.floor(100000 + Math.random() * 900000)}`;
 
     if (isWalletPayment) {
-      if (walletBalance < bookingData.totalAmount) {
+      // Read the live balance synchronously to avoid double-spending stale
+      // state when wallet purchases overlap.
+      const liveBalance = readWallet();
+      if (liveBalance < bookingData.totalAmount) {
         throw new Error(
-          `Insufficient TravelConnect Money (PHP ${walletBalance.toLocaleString()}). Required: PHP ${bookingData.totalAmount.toLocaleString()}.`
+          `Insufficient TravelConnect Money (PHP ${liveBalance.toLocaleString()}). Required: PHP ${bookingData.totalAmount.toLocaleString()}.`
         );
       }
-      // Deduct from wallet
-      const nextBal = Math.max(0, walletBalance - bookingData.totalAmount);
-      setWalletBalance(nextBal);
-      try {
-        localStorage.setItem(walletStorageKey, String(nextBal));
-      } catch {}
+      // Deduct from wallet (synchronous read → deduct → persist, no race window)
+      const nextBal = writeWallet(liveBalance - bookingData.totalAmount);
       transactionId = `TCM-${Math.floor(100000 + Math.random() * 900000)}`;
-    } else if (["gcash", "paymaya"].includes(methodKey)) {
-      // 1. Attempt real PayMongo transaction (GCash / PayMaya)
+    } else if (["gcash", "paymaya", "card"].includes(methodKey)) {
+      // PayMongo hosted Checkout Session (checkout.paymongo.com).
+      // Open the (blank) auth window SYNCHRONOUSLY inside the user's click
+      // gesture — window.open() after an await is treated as a popup and gets
+      // blocked by the browser, which is why the page never appeared before.
+      const authWindow = window.open("", "paymongo_checkout", "width=560,height=720");
+      if (!authWindow) {
+        throw new Error(
+          "Your browser blocked the payment window. Please allow pop-ups for this site, then try again."
+        );
+      }
       try {
-        const source = await createPayMongoSource({
+        const session = await createPayMongoCheckout({
           method: methodKey,
           amount: bookingData.totalAmount,
           customerName,
           customerEmail,
-          bookingReference: bookingData.promoCodeUsed || customerName
+          bookingReference: bookingData.promoCodeUsed || bookingData.name || customerName
         });
 
-        // Collect the real status so we know whether payment truly completed.
-        if (source.checkoutUrl) {
-          window.open(source.checkoutUrl, "_blank", "noopener,noreferrer,width=520,height=640");
-
-          // Poll source for resolution
-          const deadline = Date.now() + Number(import.meta.env.VITE_PAYMONGO_POLL_TIMEOUT_MS || 90000);
-          let status = source.status ?? "pending";
-          while (Date.now() < deadline) {
-            await new Promise((r) => setTimeout(r, 2500));
-            const check = await getPayMongoSourceStatus(source.sourceId);
-            status = check.status ?? status;
-            if (["chargeable", "paid", "charged", "cancelled", "failed", "expired"].includes(status)) break;
-          }
-
-          const normalizedStatus = (status || "pending").toLowerCase();
-
-          // Explicit uptake: a cancelled / failed / expired / unknown payment must
-          // NOT create a presumed-“paid” booking. Only truly completed payments
-          // proceed; anything else raises a clear error so the user can retry.
-          if (normalizedStatus === "cancelled") {
-            throw Object.assign(
-              new Error("Your payment was cancelled in the GCash/PayMaya window. Your booking was NOT created. You can retry whenever you're ready."),
-              { paymentRejected: true }
-            );
-          }
-          if (normalizedStatus === "failed") {
-            throw Object.assign(
-              new Error("Your payment failed (GCash/PayMaya could not complete the charge). Your booking was NOT created. Please check your e-wallet and try again."),
-              { paymentRejected: true }
-            );
-          }
-          if (normalizedStatus === "expired") {
-            throw Object.assign(
-              new Error("Your payment link expired before it was completed. Your booking was NOT created. Please try again."),
-              { paymentRejected: true }
-            );
-          }
-          if (!["charged", "paid", "chargeable"].includes(normalizedStatus)) {
-            throw Object.assign(
-              new Error("We didn't receive confirmation that your payment completed in time. Your booking was NOT created; nothing was charged. Please try again."),
-              { paymentRejected: true }
-            );
-          }
-
-          const payment = await finalizePayMongoPayment({
-            sourceId: source.sourceId,
-            method: methodKey,
-            amount: bookingData.totalAmount,
-            customerName,
-            customerEmail,
-            bookingReference: bookingData.promoCodeUsed || customerName,
-            packageName: bookingData.name
-          });
-          transactionId = payment.transactionId || payment.paymentId || transactionId;
+        // Navigate the popup to PayMongo's hosted checkout page now that we
+        // have the URL, then collect the real status by polling the session.
+        if (session.checkoutUrl) {
+          authWindow.location.href = session.checkoutUrl;
+        } else {
+          authWindow.close();
+          throw Object.assign(
+            new Error("PayMongo did not return a checkout link. Please try again."),
+            { paymentRejected: false }
+          );
         }
+
+        // Poll checkout session for resolution
+        const deadline = Date.now() + Number(import.meta.env.VITE_PAYMONGO_POLL_TIMEOUT_MS || 120000);
+        let status = session.status ?? "pending";
+        while (Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, 2500));
+          const check = await getPayMongoCheckoutStatus(session.sessionId);
+          status = check.status ?? status;
+          if (["paid", "cancelled", "failed", "expired"].includes(status)) break;
+        }
+
+        const normalizedStatus = (status || "pending").toLowerCase();
+
+        // Explicit uptake: a cancelled / failed / expired / unconfirmed payment
+        // must NOT create a presumed-“paid” booking. Only truly paid sessions
+        // proceed; anything else raises a clear error so the user can retry.
+        if (normalizedStatus === "cancelled") {
+          authWindow.close();
+          throw Object.assign(
+            new Error("Your payment was cancelled in the payment window. Your booking was NOT created. You can retry whenever you're ready."),
+            { paymentRejected: true }
+          );
+        }
+        if (normalizedStatus === "failed") {
+          authWindow.close();
+          throw Object.assign(
+            new Error("Your payment could not be completed. Your booking was NOT created. Please check your payment details and try again."),
+            { paymentRejected: true }
+          );
+        }
+        if (normalizedStatus === "expired") {
+          authWindow.close();
+          throw Object.assign(
+            new Error("Your payment link expired before it was completed. Your booking was NOT created. Please try again."),
+            { paymentRejected: true }
+          );
+        }
+        if (normalizedStatus !== "paid") {
+          authWindow.close();
+          throw Object.assign(
+            new Error("We didn't receive confirmation that your payment completed in time. Your booking was NOT created; nothing was charged. Please try again."),
+            { paymentRejected: true }
+          );
+        }
+
+        // Record the completed payment locally and link it to the booking.
+        const payment = await finalizePayMongoPayment({
+          sessionId: session.sessionId,
+          method: methodKey,
+          amount: bookingData.totalAmount,
+          customerName,
+          customerEmail,
+          bookingReference: bookingData.promoCodeUsed || bookingData.name || customerName,
+          packageName: bookingData.name
+        });
+        transactionId = payment.transactionId || payment.paymentId || transactionId;
       } catch (err) {
         const msg = String(err?.message || err).toLowerCase();
         const isOffline = /failed to fetch|networkerror|network request failed|fetch failed|offline/i.test(msg);
         if (isOffline) {
+          if (authWindow) authWindow.close();
           console.warn("PayMongo backend offline — using local mock mode:", err.message);
         } else if (err?.paymentRejected) {
           // A cancelled / failed / expired / unconfirmed payment already has a
@@ -234,7 +278,8 @@ export function BookingProvider({ children }) {
           // book a "paid" trip — let the user see why it failed.
           throw new Error(
             (err?.message || "PayMongo payment could not be started.") +
-            " Your booking was NOT created. Please try again or contact support."
+            " Your booking was NOT created. Please try again or contact support.",
+            { cause: err }
           );
         }
       }
@@ -306,27 +351,29 @@ export function BookingProvider({ children }) {
     );
 
     if (selectedBookingDetails && selectedBookingDetails.id === bookingId) {
-      setSelectedBookingDetails((prev) => ({
-        ...prev,
-        status: "refunded",
-        paid: false,
-        refundStatus: "Processed",
-        refundReference: refundRef,
-        refundedAt,
-        cancellationReason: reason,
-        cancellationPolicyTier: policyTier,
-        refundAmount,
-      }));
+      setSelectedBookingDetails((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: "refunded",
+              paid: false,
+              refundStatus: "Processed",
+              refundReference: refundRef,
+              refundedAt,
+              cancellationReason: reason,
+              cancellationPolicyTier: policyTier,
+              refundAmount,
+            }
+          : prev
+      );
     }
 
-    // 2. Credit refund to TravelConnect Money (PHP Wallet)
+    // 2. Credit refund to TravelConnect Money (PHP Wallet). Read the live
+    //    balance instead of the state snapshot so concurrent refunds cannot
+    //    double-count on a stale value.
     let newBalance = walletBalance;
     if (refundAmount > 0) {
-      newBalance = Number(walletBalance || 0) + refundAmount;
-      setWalletBalance(newBalance);
-      try {
-        localStorage.setItem(walletStorageKey, String(newBalance));
-      } catch {}
+      newBalance = writeWallet(Number(readWallet() || 0) + refundAmount);
     }
 
     // 3. Best-effort email notification (backend sends its own on cancel; this

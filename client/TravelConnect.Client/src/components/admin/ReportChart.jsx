@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Chart } from "chart.js/auto";
 
-export default function ReportChart({ type = "bar", data, options, title, subtitle, height = 280 }) {
+export default function ReportChart({ type = "bar", data, options, title, subtitle, height = 280, className = "" }) {
   const canvasRef = useRef(null);
   const chartRef = useRef(null);
 
@@ -37,8 +37,8 @@ export default function ReportChart({ type = "bar", data, options, title, subtit
   }, [type, data, options]);
 
   return (
-    <div className="card">
-      {title && <h2 className="font-bold">{title}</h2>}
+    <div className={`card ${className}`}>
+      {title && <h2 className="font-bold text-lg">{title}</h2>}
       {subtitle && <p className="text-sm text-text-secondary mb-4">{subtitle}</p>}
       <div style={{ position: "relative", height }}>
         <canvas ref={canvasRef} />

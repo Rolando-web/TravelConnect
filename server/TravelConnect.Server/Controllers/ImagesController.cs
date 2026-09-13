@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TravelConnect.Server.Data;
@@ -6,6 +7,7 @@ using TravelConnect.Server.Models;
 namespace TravelConnect.Server.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/images")]
 public class ImagesController(TravelConnectDbContext db) : ControllerBase
 {
@@ -47,6 +49,7 @@ public class ImagesController(TravelConnectDbContext db) : ControllerBase
     }
 
     [HttpGet("{id:int}")]
+    [AllowAnonymous]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<IActionResult> Get(int id)
     {

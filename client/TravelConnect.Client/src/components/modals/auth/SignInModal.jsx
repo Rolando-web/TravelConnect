@@ -44,11 +44,20 @@ export default function SignInModal() {
 
   const emailRef = useRef(null);
 
-  /* Auto-focus email field when modal opens */
+  /* Auto-focus email field when modal opens (cleanup the timer) */
   useEffect(() => {
-    if (loginModalOpen) {
-      setTimeout(() => emailRef.current?.focus(), 100);
-    }
+    if (!loginModalOpen) return;
+    const t = setTimeout(() => emailRef.current?.focus(), 100);
+    return () => clearTimeout(t);
+  }, [loginModalOpen]);
+
+  /* Autoplay the image carousel while the modal is open */
+  useEffect(() => {
+    if (!loginModalOpen) return;
+    const interval = setInterval(() => {
+      setSlideIdx((i) => (i + 1) % PANEL_SLIDES.length);
+    }, 5000);
+    return () => clearInterval(interval);
   }, [loginModalOpen]);
 
   /* Close on Escape key */

@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   X, Check, CreditCard, ShieldCheck, ArrowRight, ArrowLeft, RefreshCw,
   Award, MapPin, Calendar, Users, Tag, CheckCircle2, QrCode, Printer,
   User, ClipboardList, Wallet, Coins, Plane, Plus, Trash2, Info, Luggage,
-  Armchair
+  Armchair, Backpack, Package, Banknote, Lock, Smartphone
 } from "lucide-react";
 import { useBooking } from "../../../context/BookingContext";
 import { useAuth } from "../../../context/AuthContext";
@@ -15,8 +15,9 @@ const MAX_FLIGHT_SEGMENTS = 6;
 const MAX_REGULAR_PASSENGERS = 9;
 
 const PAYMENT_METHODS = [
-  { id: "gcash", name: "GCash", logo: "https://upload.wikimedia.org/wikipedia/commons/5/52/GCash_logo.svg", desc: "Pay instantly with your GCash e-wallet", badge: "Fastest" },
-  { id: "paymaya", name: "Maya", logo: "https://upload.wikimedia.org/wikipedia/commons/9/9a/PayMaya_Logo.png", desc: "Pay with your Maya wallet", badge: "Popular" },
+  { id: "gcash", name: "GCash", icon: Smartphone, tint: "bg-emerald-50 text-emerald-600", desc: "Pay instantly with your GCash e-wallet", badge: "Fastest" },
+  { id: "paymaya", name: "Maya", icon: Wallet, tint: "bg-purple-50 text-purple-600", desc: "Pay with your Maya wallet", badge: "Popular" },
+  { id: "card", name: "Credit / Debit Card", icon: CreditCard, tint: "bg-blue-50 text-[#008fe5]", desc: "Visa, Mastercard & AMEX — international", badge: "Global" },
 ];
 
 const STEP_TITLES = [
@@ -40,6 +41,18 @@ export default function BookingCheckoutModal() {
   const { user } = useAuth();
   const { displayPrice } = useCurrency();
 
+  // Derive a readable full name from an email address (e.g. "luocon" ->
+  // "Luocon", "john.doe@x.com" -> "John Doe"). Used to pre-fill bookings.
+  const nameFromEmail = (email) => {
+    if (!email) return "";
+    const prefix = email.split("@")[0].replace(/[._-]+/g, " ");
+    return prefix
+      .split(" ")
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+  };
+
   // 1: Trip Details, 2: Passenger Details, 3: Payment, 4: Confirmation
   const [step, setStep] = useState(1);
 
@@ -48,8 +61,8 @@ export default function BookingCheckoutModal() {
   const [startDate, setStartDate] = useState("2026-09-15");
   const [endDate, setEndDate] = useState("2026-09-22");
 
-  const [guestFirstName, setGuestFirstName] = useState(user?.name ? user.name.split(" ")[0] : "Juan");
-  const [guestLastName, setGuestLastName] = useState(user?.name ? user.name.split(" ").slice(1).join(" ") : "Dela Cruz");
+  const [guestFirstName, setGuestFirstName] = useState("");
+  const [guestLastName, setGuestLastName] = useState("");
   const [noSurname, setNoSurname] = useState(false);
   const [guestGender, setGuestGender] = useState("Male");
   const [guestDob, setGuestDob] = useState("1995-06-15");
@@ -58,10 +71,27 @@ export default function BookingCheckoutModal() {
   const [frequentFlyerNumber, setFrequentFlyerNumber] = useState("");
   const [hasLuggageProtection, setHasLuggageProtection] = useState(false);
 
-  const [guestName, setGuestName] = useState(user?.name || "Juan Dela Cruz");
-  const [guestEmail, setGuestEmail] = useState(user?.email || "");
-  const [guestPhone, setGuestPhone] = useState(user?.phone || "+63 917 123 4567");
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPhone, setGuestPhone] = useState("+63 917 123 4567");
   const [specialRequests, setSpecialRequests] = useState("");
+
+  // Tracks whether the customer has hand-typed their name: once they do, the
+  // email field stops overwriting it with the auto-derived email name.
+  const guestNameTouched = useRef(false);
+
+  // Typing an email auto-fills the passenger name from the email prefix (same
+  // for flights, hotels, cars and package deals). Never clobbers a name that
+  // was already filled from the signed-in profile or typed by the customer.
+  const handleGuestEmailChange = (value) => {
+    setGuestEmail(value);
+    if (guestNameTouched.current) return;
+    if (guestFirstName.trim() || guestLastName.trim()) return;
+    const parts = nameFromEmail(value).split(" ").filter(Boolean);
+    setGuestFirstName(parts[0] || "");
+    setGuestLastName(parts.slice(1).join(" ") || "");
+    setGuestName(parts.join(" "));
+  };
 
   const [promoInput, setPromoInput] = useState(appliedPromo || "");
   const [promoResult, setPromoResult] = useState(null);
@@ -105,6 +135,25 @@ export default function BookingCheckoutModal() {
       .catch(() => setAvailableFlights([]));
   }, [checkoutModalOpen, isFlight]);
 
+  // Pre-fill the guest details from the signed-in account every time the
+  // checkout opens, so the booking/email/cancellation always use the real
+  // customer name (never the old "Juan Dela Cruz" placeholder).
+  useEffect(() => {
+    if (!checkoutModalOpen) return;
+    const name = user?.name && user.name !== "User"
+      ? user.name
+      : nameFromEmail(user?.email) || "";
+    const explicit = !!name;
+    if (explicit) {
+      const nameParts = name.trim().split(/\s+/);
+      setGuestFirstName(nameParts[0] || "");
+      setGuestLastName(nameParts.slice(1).join(" ") || "");
+      setGuestName(name);
+    }
+    if (user?.email) setGuestEmail(user.email);
+    if (user?.phone) setGuestPhone(user.phone);
+  }, [checkoutModalOpen, user?.name, user?.email, user?.phone]);
+
   const maxPassengers = isFlight ? MAX_REGULAR_PASSENGERS : 99;
 
   const segmentPricing = useMemo(() => {
@@ -137,15 +186,16 @@ export default function BookingCheckoutModal() {
       setIsProcessing(false);
       setCompletedBooking(null);
       setValidationMsg("");
+      guestNameTouched.current = false;
 
       if (user) {
-        if (user.name) setGuestName(user.name);
+        if (user.name) setGuestName(nameFromEmail(user.email) || user.name);
         if (user.email) setGuestEmail(user.email);
         if (user.phone) setGuestPhone(user.phone);
-      } else {
-        if (!guestName) setGuestName("Juan Dela Cruz");
-        if (!guestEmail) setGuestEmail("guest@travelconnect.ph");
       }
+      // No user → leave the fields blank so the customer must type their real
+      // name & email (never a fake "Juan Dela Cruz" placeholder that would
+      // end up on the booking and in the confirmation email).
 
       if (appliedPromo) {
         setPromoInput(appliedPromo);
@@ -751,7 +801,10 @@ export default function BookingCheckoutModal() {
                     <input
                       type="text"
                       value={guestFirstName}
-                      onChange={(e) => setGuestFirstName(e.target.value)}
+                      onChange={(e) => {
+                        guestNameTouched.current = true;
+                        setGuestFirstName(e.target.value);
+                      }}
                       placeholder="e.g. Juan"
                       className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-xl py-2.5 px-3.5 text-xs font-bold text-slate-900 outline-none focus:border-[#008fe5] focus:ring-2 focus:ring-blue-100 transition"
                     />
@@ -765,7 +818,10 @@ export default function BookingCheckoutModal() {
                       <input
                         type="text"
                         value={guestLastName}
-                        onChange={(e) => setGuestLastName(e.target.value)}
+                        onChange={(e) => {
+                          guestNameTouched.current = true;
+                          setGuestLastName(e.target.value);
+                        }}
                         placeholder="e.g. Dela Cruz"
                         className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-xl py-2.5 px-3.5 text-xs font-bold text-slate-900 outline-none focus:border-[#008fe5] focus:ring-2 focus:ring-blue-100 transition"
                       />
@@ -886,7 +942,7 @@ export default function BookingCheckoutModal() {
                   <input
                     type="email"
                     value={guestEmail}
-                    onChange={(e) => setGuestEmail(e.target.value)}
+                    onChange={(e) => handleGuestEmailChange(e.target.value)}
                     placeholder="juan@gmail.com"
                     className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-xl py-2.5 px-3.5 text-xs font-bold text-slate-900 outline-none focus:border-[#008fe5]"
                   />
@@ -917,17 +973,17 @@ export default function BookingCheckoutModal() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3.5 text-center">
-                  <span className="text-xl">🎒</span>
+                  <Backpack size={24} className="mx-auto text-[#008fe5]" />
                   <p className="font-extrabold text-slate-900 text-xs mt-1">Personal item</p>
                   <p className="text-[10px] text-slate-500">Under seat • FREE</p>
                 </div>
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3.5 text-center">
-                  <span className="text-xl">🧳</span>
+                  <Luggage size={24} className="mx-auto text-[#008fe5]" />
                   <p className="font-extrabold text-slate-900 text-xs mt-1">Carry-on baggage</p>
                   <p className="text-[10px] text-slate-500">1 pc, 7 kg total • FREE</p>
                 </div>
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3.5 text-center">
-                  <span className="text-xl">📦</span>
+                  <Package size={24} className="mx-auto text-[#008fe5]" />
                   <p className="font-extrabold text-slate-900 text-xs mt-1">Checked baggage</p>
                   <p className="text-[10px] text-slate-500">
                     {checkoutPackage.flight?.baggageAllowance || "25 kg checked"} • FREE
@@ -1160,7 +1216,9 @@ export default function BookingCheckoutModal() {
                   )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {PAYMENT_METHODS.map((pm) => (
+                    {PAYMENT_METHODS.map((pm) => {
+                      const PmIcon = pm.icon;
+                      return (
                       <label
                         key={pm.id}
                         onClick={() => setPaymentMethod(pm.id)}
@@ -1178,6 +1236,9 @@ export default function BookingCheckoutModal() {
                             onChange={() => setPaymentMethod(pm.id)}
                             className="text-[#008fe5] accent-[#008fe5]"
                           />
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${pm.tint}`}>
+                            <PmIcon size={16} />
+                          </div>
                           <div>
                             <span className="font-extrabold text-slate-900 text-xs block">{pm.name}</span>
                             <span className="text-[10px] text-slate-500 font-medium block">{pm.desc}</span>
@@ -1187,11 +1248,12 @@ export default function BookingCheckoutModal() {
                           {pm.badge}
                         </span>
                       </label>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
-                {validationMsg && (
+{validationMsg && (
                   <p className="text-xs font-bold text-rose-500">{validationMsg}</p>
                 )}
 
@@ -1213,11 +1275,16 @@ export default function BookingCheckoutModal() {
                   )}
                 </button>
 
-                <p className="text-center text-[11px] text-slate-400 font-medium">
-                  {paymentMethod === "wallet"
-                    ? "💰 Paying with your TravelConnect Money wallet. Refunds are credited back instantly."
-                    : "🔒 Bank-grade PayMongo payment. You can cancel and receive an instant refund anytime from My Bookings."
-                  }
+                <p className="text-center text-[11px] text-slate-400 font-medium flex items-center justify-center gap-1.5">
+                  {paymentMethod === "wallet" ? (
+                    <>
+                      <Banknote size={13} className="text-amber-500" /> Paying with your TravelConnect Money wallet. Refunds are credited back instantly.
+                    </>
+                  ) : (
+                    <>
+                      <Lock size={13} className="text-emerald-500" /> Bank-grade PayMongo payment. You can cancel and receive an instant refund anytime from My Bookings.
+                    </>
+                  )}
                 </p>
               </div>
             </div>
@@ -1285,6 +1352,18 @@ export default function BookingCheckoutModal() {
                   <span className="text-slate-400 block text-[10px] uppercase font-bold">Payment Method</span>
                   <span className="font-bold text-white uppercase">{paymentMethod}</span>
                 </div>
+                {isFlight && (() => {
+                  const segs = Array.isArray(completedBooking?.flightSegments)
+                    ? completedBooking.flightSegments
+                    : flightSegments;
+                  const seats = segs.map((s) => s.seatNumber).filter(Boolean).join(" · ");
+                  return seats ? (
+                    <div>
+                      <span className="text-slate-400 block text-[10px] uppercase font-bold">Seats</span>
+                      <span className="font-black text-amber-300">{seats}</span>
+                    </div>
+                  ) : null;
+                })()}
               </div>
 
               <div className="flex items-center justify-between text-xs text-slate-300 pt-1">

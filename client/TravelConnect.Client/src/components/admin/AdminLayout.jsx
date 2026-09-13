@@ -22,6 +22,7 @@ import {
   MessageSquare,
   UserCircle,
   FileText,
+  CreditCard,
   X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -47,6 +48,7 @@ const ICONS = {
   settings: Settings,
   profile: UserCircle,
   support: MessageSquare,
+  subscriptions: CreditCard,
 };
 
 const GROUPS = {
@@ -56,7 +58,7 @@ const GROUPS = {
   Operations: ["bookings", "payments"],
   Growth: ["leads", "promotions", "inquiries"],
   Services: ["flights", "hotels", "cars", "activities"],
-  System: ["reports", "settings", "support", "profile"],
+  System: ["reports", "settings", "subscriptions", "support", "profile"],
 };
 
 export default function AdminLayout() {

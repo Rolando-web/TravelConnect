@@ -9,6 +9,7 @@ using TravelConnect.Server.Services;
 namespace TravelConnect.Server.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class PaymentsController(
     TravelConnectDbContext db,
@@ -72,50 +73,65 @@ public class PaymentsController(
 
     // ── PayMongo (GCash / PayMaya) ───────────────────────────────
 
-    private static readonly string[] AllowedMethods = new[] { "gcash", "paymaya" };
+    private static readonly string[] AllowedMethods = new[] { "gcash", "paymaya", "card" };
 
-    public record CreateSourceRequest(
+    public record CreateCheckoutRequest(
         string Method,
         decimal Amount,
         string? CustomerName = null,
         string? CustomerEmail = null,
-        string? BookingReference = null,
-        string? SuccessUrl = null,
-        string? FailedUrl = null);
+        string? BookingReference = null);
 
     public record CreatePaymentRequest(
-        string SourceId,
+        string SessionId,
         string Method,
         decimal Amount,
         string CustomerName,
         string CustomerEmail,
         string? BookingReference = null,
-        string? PackageName = null);
+        string? PackageName = null,
+        string? SenderName = null,
+        string? SenderMobile = null);
 
-    [HttpPost("paymongo/source")]
-    public async Task<IActionResult> CreatePayMongoSource([FromBody] CreateSourceRequest req)
+    // POST api/payments/paymongo/checkout
+    // Creates a PayMongo-hosted Checkout Session whose checkout_url points to
+    // PayMongo's page (checkout.paymongo.com/<id>). The customer completes the
+    // payment entirely on that hosted page — no in-app authorize shortcut.
+    [HttpPost("paymongo/checkout")]
+    [AllowAnonymous]
+    public async Task<IActionResult> CreatePayMongoCheckout([FromBody] CreateCheckoutRequest req)
     {
         var method = req.Method?.ToLowerInvariant() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(method))
-            return BadRequest(new { message = "Payment method is required (gcash or paymaya)." });
+            return BadRequest(new { message = "Payment method is required (gcash, paymaya or card)." });
         if (!AllowedMethods.Contains(method))
-            return BadRequest(new { message = "Only GCash and PayMaya are supported." });
+            return BadRequest(new { message = "Only GCash, PayMaya and credit/debit cards are supported." });
         if (req.Amount <= 0)
             return BadRequest(new { message = "Amount must be greater than zero." });
         if (req.Amount < 20)
             return BadRequest(new { message = "Minimum payment amount is PHP 20.00." });
 
         var description = $"TravelConnect booking {req.BookingReference ?? "transactions"}";
-        var successUrl = req.SuccessUrl ?? $"{Request.Scheme}://{Request.Host}/payment-result?status=success";
-        var failedUrl = req.FailedUrl ?? $"{Request.Scheme}://{Request.Host}/payment-result?status=failed";
+        var successUrl = $"{Request.Scheme}://{Request.Host}/payment-result?status=success";
+        var cancelUrl = $"{Request.Scheme}://{Request.Host}/payment-result?status=cancelled";
 
         try
         {
-            var result = await payMongo.CreateSourceAsync(method, req.Amount, successUrl, failedUrl);
+            var result = await payMongo.CreateCheckoutSessionAsync(
+                (long)Math.Round(req.Amount * 100),
+                new[] { method },
+                description,
+                successUrl,
+                cancelUrl,
+                req.BookingReference);
+
+            if (string.IsNullOrWhiteSpace(result.CheckoutUrl))
+                return BadRequest(new { success = false, message = "PayMongo did not return a hosted checkout URL." });
+
             return Ok(new
             {
                 success = true,
-                sourceId = result.SourceId,
+                sessionId = result.SessionId,
                 checkoutUrl = result.CheckoutUrl,
                 status = result.Status
             });
@@ -126,13 +142,16 @@ public class PaymentsController(
         }
     }
 
-    [HttpGet("paymongo/source/{sourceId}")]
-    public async Task<IActionResult> GetPayMongoSourceStatus(string sourceId)
+    // GET api/payments/paymongo/checkout/{sessionId}
+    // Polls a hosted Checkout Session for its payment outcome.
+    [HttpGet("paymongo/checkout/{sessionId}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetPayMongoCheckoutStatus(string sessionId)
     {
         try
         {
-            var result = await payMongo.GetSourceAsync(sourceId);
-            return Ok(new { success = true, sourceId = result.SourceId, status = result.Status, failureReason = result.FailureReason });
+            var result = await payMongo.GetCheckoutSessionAsync(sessionId);
+            return Ok(new { success = true, sessionId = result.SessionId, status = result.Status, failureReason = result.FailureReason });
         }
         catch (Exception ex)
         {
@@ -140,18 +159,23 @@ public class PaymentsController(
         }
     }
 
+    // POST api/payments/paymongo/pay
+    // The charge already happened on the PayMongo-hosted page, so this only
+    // records the completed payment locally, links it to the booking, and
+    // returns the transaction id for the confirmation screen.
     [HttpPost("paymongo/pay")]
+    [AllowAnonymous]
     public async Task<IActionResult> CreatePayMongoPayment([FromBody] CreatePaymentRequest req)
     {
         var method = req.Method?.ToLowerInvariant() ?? string.Empty;
         if (!AllowedMethods.Contains(method))
-            return BadRequest(new { message = "Only GCash and PayMaya are supported." });
+            return BadRequest(new { message = "Only GCash, PayMaya and credit/debit cards are supported." });
 
         try
         {
-            var statement = "TravelConnect";
-            var description = req.PackageName ?? "TravelConnect booking";
-            var paymentId = await payMongo.CreatePaymentAsync(req.Amount, req.SourceId, description, statement);
+            var paymentId = string.IsNullOrWhiteSpace(req.SessionId)
+                ? $"TXN-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(100000, 999999)}"
+                : req.SessionId;
 
             // Link the payment to the matching booking (by reference + customer email)
             // so that Payment.BookingId is no longer null.
@@ -166,26 +190,28 @@ public class PaymentsController(
                         (req.CustomerEmail == "" || b.CustomerEmail.ToLower() == req.CustomerEmail.ToLower()));
             }
 
-            paymentId = paymentId == string.Empty ? req.SourceId : paymentId;
-
-            var payment = new Payment
+            // Upsert: a retry for the same session must not duplicate records.
+            var payment = await db.Payments.FirstOrDefaultAsync(p => p.ReferenceId == paymentId);
+            if (payment is null)
             {
-                ReferenceId = paymentId,
-                BookingId = booking?.Id,
-                CustomerName = req.CustomerName,
-                PackageName = req.PackageName ?? "Travel Package",
-                Amount = req.Amount,
-                Method = method,
-                Status = "Paid",
-                PaymentDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-            db.Payments.Add(payment);
+                payment = new Payment { ReferenceId = paymentId };
+                db.Payments.Add(payment);
+            }
+            payment.BookingId = booking?.Id;
+            payment.CustomerName = req.CustomerName;
+            payment.PackageName = req.PackageName ?? "Travel Package";
+            payment.SenderName = req.SenderName ?? string.Empty;
+            payment.SenderMobile = req.SenderMobile ?? string.Empty;
+            payment.Amount = req.Amount;
+            payment.Method = method;
+            payment.Status = "Paid";
+            payment.PaymentDate = DateTime.UtcNow.ToString("yyyy-MM-dd");
+            payment.CreatedAt = payment.CreatedAt == default ? DateTime.UtcNow : payment.CreatedAt;
+            payment.UpdatedAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
 
             // If we linked to a booking, mark it paid.
-            if (booking is not null)
+            if (booking is not null && !booking.Paid)
             {
                 booking.Paid = true;
                 booking.TransactionId = paymentId;
@@ -241,14 +267,22 @@ public class PaymentsController(
             else if (kv.StartsWith("v1=")) signature = kv[3..];
         }
 
-        // Verify the webhook signature when a webhook secret key is configured.
-        if (!string.IsNullOrWhiteSpace(payMongoOptions.WebhookSecretKey))
+        // Verify the webhook signature. Fail CLOSED: if no webhook secret is
+        // configured, reject the event rather than silently trusting a forged
+        // request. A valid "Paymongo-Signature" header is required either way.
+        if (string.IsNullOrWhiteSpace(payMongoOptions.WebhookSecretKey))
         {
-            if (string.IsNullOrWhiteSpace(signature) ||
-                !payMongo.VerifyWebhookSignature(body, signature, timestamp))
+            return Unauthorized(new
             {
-                return Unauthorized(new { success = false, message = "Invalid webhook signature." });
-            }
+                success = false,
+                message = "Webhook secret key is not configured on the server."
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(signature) ||
+            !payMongo.VerifyWebhookSignature(body, signature, timestamp))
+        {
+            return Unauthorized(new { success = false, message = "Invalid webhook signature." });
         }
 
         try
@@ -264,6 +298,7 @@ public class PaymentsController(
             var attributes = data.TryGetProperty("attributes", out var at) ? at : default;
             string? sourceId = null;
             string? paymentId = null;
+            string? sessionId = null;
             var amount = 0m;
             var status = string.Empty;
 
@@ -278,6 +313,14 @@ public class PaymentsController(
                 if (attributes.TryGetProperty("status", out var st) && st.ValueKind == JsonValueKind.String)
                     status = st.GetString() ?? string.Empty;
 
+                if (attributes.TryGetProperty("session", out var sess) && sess.ValueKind == JsonValueKind.Object &&
+                    sess.TryGetProperty("id", out var sessId))
+                    sessionId = sessId.GetString();
+
+                if (attributes.TryGetProperty("checkout_session", out var cs) && cs.ValueKind == JsonValueKind.Object &&
+                    cs.TryGetProperty("id", out var csId))
+                    sessionId = csId.GetString();
+
                 if (attributes.TryGetProperty("source", out var src) && src.ValueKind == JsonValueKind.Object &&
                     src.TryGetProperty("id", out var sid))
                     sourceId = sid.GetString();
@@ -285,6 +328,44 @@ public class PaymentsController(
                 // Fallback for source events
                 if (string.IsNullOrWhiteSpace(sourceId) && string.IsNullOrWhiteSpace(paymentId))
                     sourceId = attributes.TryGetProperty("id", out var rid) ? rid.GetString() : null;
+
+                // Checkout Session events carry the session id as the resource id.
+                if (type.StartsWith("checkout_session", StringComparison.OrdinalIgnoreCase))
+                    sessionId = paymentId;
+            }
+
+            // Checkout Session events (Hosted Checkout page). We only upgrade:
+            // a payment recorded as Paid must never be downgraded again.
+            if (type.StartsWith("checkout_session", StringComparison.OrdinalIgnoreCase))
+            {
+                var statusKey = (status ?? string.Empty).ToLowerInvariant() is "paid"
+                    ? "Paid"
+                    : "Pending";
+
+                Payment? payment = null;
+                if (!string.IsNullOrWhiteSpace(sessionId))
+                    payment = await db.Payments.FirstOrDefaultAsync(p => p.ReferenceId == sessionId);
+
+                if (payment is not null && statusKey == "Paid" && payment.Status != "Paid")
+                {
+                    payment.Status = "Paid";
+                    payment.PaymentDate = DateTime.UtcNow.ToString("yyyy-MM-dd");
+                    payment.UpdatedAt = DateTime.UtcNow;
+
+                    if (payment.BookingId is int bookedId)
+                    {
+                        var booking = await db.Bookings.FirstOrDefaultAsync(b => b.Id == bookedId);
+                        if (booking is not null)
+                        {
+                            booking.Paid = true;
+                            booking.TransactionId = sessionId ?? booking.TransactionId;
+                            booking.UpdatedAt = DateTime.UtcNow;
+                        }
+                    }
+                    await db.SaveChangesAsync();
+                }
+
+                return Ok(new { success = true, received = true, type, status = statusKey });
             }
 
             // Payment events that signal success.
@@ -305,6 +386,12 @@ public class PaymentsController(
 
                 if (payment is not null)
                 {
+                    if (statusKey != "Paid" && payment.Status == "Paid")
+                    {
+                        // Never downgrade an already-processed payment.
+                        return Ok(new { success = true, received = true, type, status = "Paid" });
+                    }
+
                     payment.Status = statusKey;
                     payment.UpdatedAt = DateTime.UtcNow;
                     if (statusKey == "Paid")

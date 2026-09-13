@@ -24,6 +24,7 @@ export const ROLE_NAV = {
     ["payments", "Payments"],
     ["reports", "Reports"],
     ["settings", "System Settings"],
+    ["subscriptions", "Subscriptions"],
     ["profile", "Profile"],
   ],
   "Agency Staff": [
@@ -131,6 +132,7 @@ export const pageMeta = {
   reports: ["Reports & Analytics", "Business performance insights"],
   settings: ["System Settings", "Platform configuration"],
   support: ["Support", "Your support requests"],
+  subscriptions: ["Subscriptions", "Manage agency subscription plans"],
   profile: ["My Profile", "Manage your account"],
 };
 
@@ -149,4 +151,58 @@ export const COLLECTION_MAP = {
   inquiries: "inquiries",
   payments: "payments",
   promotions: "promotions",
+};
+
+// ── Subscription tier access (SaaS feature gating) ──────────────
+// Defines what each tier level can access. When a user's agency has a
+// subscription, their effective access = intersection(role access, tier access).
+export const TIER_ACCESS = {
+  1: {
+    dashboard: "View",
+    packages: "Manage",
+    bookings: "Manage",
+    customers: "View",
+    profile: "Manage",
+    support: "Manage",
+  },
+  2: {
+    dashboard: "View",
+    packages: "Manage",
+    bookings: "Manage",
+    customers: "Manage",
+    flights: "Manage",
+    hotels: "Manage",
+    cars: "Manage",
+    activities: "Manage",
+    destinations: "Manage",
+    suppliers: "View",
+    promotions: "Manage",
+    inquiries: "Manage",
+    payments: "View",
+    reports: "View",
+    profile: "Manage",
+    support: "Manage",
+  },
+  3: {
+    dashboard: "View",
+    packages: "Manage",
+    bookings: "Manage",
+    customers: "Manage",
+    users: "Manage",
+    flights: "Manage",
+    hotels: "Manage",
+    cars: "Manage",
+    activities: "Manage",
+    destinations: "Manage",
+    suppliers: "Manage",
+    promotions: "Manage",
+    inquiries: "Manage",
+    leads: "Manage",
+    payments: "Manage",
+    reports: "Manage",
+    settings: "View",
+    profile: "Manage",
+    support: "Manage",
+    subscriptions: "View",
+  },
 };

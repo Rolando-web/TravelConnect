@@ -1,20 +1,36 @@
 import { useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Camera, Lock, Save, User } from "lucide-react";
+import { Camera, Lock, Save, User, Mail, Shield } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
-const initialProfile = {
-  firstName: "Alex",
-  lastName: "Rivera",
-  email: "alex@travelconnect.com",
-  phone: "+63 917 123 4567",
-  address: "Makati City, Metro Manila, Philippines",
-  company: "TravelConnect",
-  jobTitle: "System Administrator",
-};
+const EXTRAS_KEY = "tc_profile_extras";
+
+function loadExtras() {
+  try {
+    const raw = localStorage.getItem(EXTRAS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
 
 export default function ProfilePage() {
   const { role } = useOutletContext();
-  const [profile, setProfile] = useState(initialProfile);
+  const { user, updateProfile } = useAuth();
+
+  const nameParts = (user?.name || "").split(/\s+/).filter(Boolean);
+  const [profile, setProfile] = useState(() => {
+    const extras = loadExtras();
+    return {
+      firstName: nameParts[0] || "",
+      lastName: nameParts.slice(1).join(" ") || "",
+      email: user?.email || "",
+      phone: extras.phone || "",
+      address: extras.address || "",
+      company: extras.company || "",
+      jobTitle: extras.jobTitle || "",
+    };
+  });
   const [passwords, setPasswords] = useState({
     current: "",
     new: "",
@@ -32,9 +48,22 @@ export default function ProfilePage() {
 
   const handleSaveProfile = (e) => {
     e.preventDefault();
+    const name = `${profile.firstName} ${profile.lastName}`.trim();
+    if (name) updateProfile({ name });
+    localStorage.setItem(
+      EXTRAS_KEY,
+      JSON.stringify({
+        phone: profile.phone,
+        address: profile.address,
+        company: profile.company,
+        jobTitle: profile.jobTitle,
+      })
+    );
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
+
+  const initials = (profile.firstName[0] || "") + (profile.lastName[0] || "");
 
   return (
     <div>
@@ -50,7 +79,7 @@ export default function ProfilePage() {
       {/* Success Notice */}
       {saved && (
         <div className="mb-6 rounded-xl border border-badge-green/30 bg-badge-green/10 px-4 py-3 text-sm text-badge-green">
-          Profile saved successfully.
+          Profile saved successfully. The sidebar now reflects your updated name.
         </div>
       )}
 
@@ -58,10 +87,17 @@ export default function ProfilePage() {
         {/* Avatar Card */}
         <div className="card flex flex-col items-center text-center">
           <div className="relative">
-            <div className="w-24 h-24 rounded-full bg-cyan-accent/20 flex items-center justify-center text-cyan-accent text-3xl font-black">
-              {profile.firstName[0]}
-              {profile.lastName[0]}
-            </div>
+            {user?.photoURL ? (
+              <img
+                src={user.photoURL}
+                alt=""
+                className="w-24 h-24 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-cyan-accent/20 flex items-center justify-center text-cyan-accent text-3xl font-black">
+                {initials.toUpperCase() || "?"}
+              </div>
+            )}
             <button className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-navy-700 border border-navy-600 flex items-center justify-center text-text-secondary hover:bg-navy-600 transition">
               <Camera size={14} />
             </button>
@@ -74,17 +110,30 @@ export default function ProfilePage() {
 
           <div className="w-full mt-6 pt-6 border-t border-navy-700 space-y-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-text-secondary">Member since</span>
-              <span className="font-medium">Jan 2024</span>
+              <span className="text-text-secondary flex items-center gap-1.5">
+                <Mail size={13} /> Sign-in email
+              </span>
+              <span className="font-medium truncate max-w-48">{profile.email}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-text-secondary">Bookings</span>
-              <span className="font-medium">12</span>
+              <span className="text-text-secondary flex items-center gap-1.5">
+                <Shield size={13} /> Account role
+              </span>
+              <span className="font-medium">{role}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-text-secondary">Total spent</span>
-              <span className="font-medium text-badge-green">₱154,800</span>
+              <span className="text-text-secondary">Department</span>
+              <span className="font-medium">{profile.company ? profile.company : "—"}</span>
             </div>
+            <div className="flex justify-between">
+              <span className="text-text-secondary">Job title</span>
+              <span className="font-medium">{profile.jobTitle || "—"}</span>
+            </div>
+            {user?.role !== "Customer" && (
+              <div className="pt-3 mt-3 border-t border-navy-700 rounded-lg bg-cyan-accent/5 px-3 py-2 text-xs text-text-secondary text-left">
+                Changes here update the name shown in the admin sidebar and header instantly.
+              </div>
+            )}
           </div>
         </div>
 
@@ -128,9 +177,12 @@ export default function ProfilePage() {
                   name="email"
                   type="email"
                   value={profile.email}
-                  onChange={handleProfileChange}
-                  className="mt-2 input-field"
+                  disabled
+                  className="mt-2 input-field !text-text-secondary !cursor-not-allowed"
                 />
+                <span className="mt-1 block text-[11px] text-text-secondary">
+                  Email is tied to your sign-in account and can't be changed here.
+                </span>
               </label>
               <label className="block text-xs text-text-secondary">
                 Phone Number

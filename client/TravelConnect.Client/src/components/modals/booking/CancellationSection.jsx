@@ -7,9 +7,12 @@ export default function CancellationSection({ bookingId, onCancelConfirm }) {
 
   const handleConfirm = async () => {
     setIsCancelling(true);
-    await onCancelConfirm(bookingId);
-    setIsCancelling(false);
-    setConfirmCancel(false);
+    try {
+      await onCancelConfirm(bookingId);
+      setConfirmCancel(false);
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
   return (

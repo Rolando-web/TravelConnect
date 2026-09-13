@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TravelConnect.Server.Data;
@@ -6,10 +7,12 @@ using TravelConnect.Server.Models;
 namespace TravelConnect.Server.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class DestinationsController(TravelConnectDbContext db) : ControllerBase
 {
     [HttpGet]
+    [AllowAnonymous]
     public async Task<ActionResult<IEnumerable<Destination>>> GetAll()
     {
         return await db.Destinations
@@ -19,6 +22,7 @@ public class DestinationsController(TravelConnectDbContext db) : ControllerBase
     }
 
     [HttpGet("{id:int}")]
+    [AllowAnonymous]
     public async Task<ActionResult<Destination>> GetById(int id)
     {
         var entity = await db.Destinations.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id);

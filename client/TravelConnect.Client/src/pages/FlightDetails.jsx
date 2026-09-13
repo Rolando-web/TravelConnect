@@ -3,7 +3,8 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   Plane, MapPin, ArrowLeft, CheckCircle2, ShieldCheck, Award, ArrowRight,
   Clock, Calendar, Users, Star, Luggage, Wifi, Utensils, Armchair, Ban,
-  Check, CreditCard, ChevronDown, ChevronUp, Tag, Info, Building2, Car, Gift
+  Check, CreditCard, ChevronDown, ChevronUp, Tag, Info, Building2, Car, Gift,
+  Backpack, Package
 } from "lucide-react";
 import { flightsApi } from "../services/api";
 import { useBooking } from "../context/BookingContext";
@@ -194,6 +195,7 @@ export default function FlightDetails() {
           <img
             src={flight.imageUrl || "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1600&q=80"}
             alt={`${flight.airline} ${flight.flightNumber}`}
+            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1600&q=80"; }}
             className="w-full h-full object-cover scale-105"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-slate-900/80 via-slate-900/65 to-slate-900/90" />
@@ -513,7 +515,7 @@ export default function FlightDetails() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-center space-y-1">
                   <div className="w-10 h-10 mx-auto rounded-full bg-blue-100 flex items-center justify-center">
-                    <span className="emoji text-2xl leading-none" role="img" aria-label="Personal item">🎒</span>
+                    <Backpack size={22} className="text-blue-600" />
                   </div>
                   <h4 className="font-extrabold text-slate-900 text-xs">Personal Item</h4>
                   <p className="text-[11px] text-slate-500">Backpack or purse fits under seat</p>
@@ -524,7 +526,7 @@ export default function FlightDetails() {
 
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-center space-y-1">
                   <div className="w-10 h-10 mx-auto rounded-full bg-amber-100 flex items-center justify-center">
-                    <span className="emoji text-2xl leading-none" role="img" aria-label="Carry-on baggage">🧳</span>
+                    <Luggage size={22} className="text-amber-600" />
                   </div>
                   <h4 className="font-extrabold text-slate-900 text-xs">Carry-on Baggage</h4>
                   <p className="text-[11px] text-slate-500">1 piece, up to 7 kg (56 x 36 x 23 cm)</p>
@@ -535,7 +537,7 @@ export default function FlightDetails() {
 
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-center space-y-1">
                   <div className="w-10 h-10 mx-auto rounded-full bg-emerald-100 flex items-center justify-center">
-                    <span className="emoji text-2xl leading-none" role="img" aria-label="Checked baggage">📦</span>
+                    <Package size={22} className="text-emerald-600" />
                   </div>
                   <h4 className="font-extrabold text-slate-900 text-xs">Checked Baggage</h4>
                   <p className="text-[11px] text-slate-500">{activeTier.baggage.checked}</p>

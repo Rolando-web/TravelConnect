@@ -25,6 +25,8 @@ public class TravelConnectDbContext : DbContext
     public DbSet<SystemUser> SystemUsers => Set<SystemUser>();
     public DbSet<Image> Images => Set<Image>();
     public DbSet<EmailLog> EmailLogs => Set<EmailLog>();
+    public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
+    public DbSet<Subscription> Subscriptions => Set<Subscription>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -49,6 +51,8 @@ public class TravelConnectDbContext : DbContext
         modelBuilder.Entity<Booking>().Property(b => b.RefundAmount).HasColumnType("decimal(18,2)");
         modelBuilder.Entity<Image>().Property(i => i.Data).HasColumnType("varbinary(max)");
         modelBuilder.Entity<Image>().Property(i => i.ContentType).HasMaxLength(64);
+        modelBuilder.Entity<SubscriptionPlan>().Property(p => p.MonthlyPrice).HasColumnType("decimal(18,2)");
+        modelBuilder.Entity<Subscription>().Property(s => s.MonthlyPrice).HasColumnType("decimal(18,2)");
 
         modelBuilder.Entity<Package>().HasOne(p => p.Supplier).WithMany().HasForeignKey(p => p.SupplierId).OnDelete(DeleteBehavior.SetNull);
         modelBuilder.Entity<Flight>().HasOne(f => f.Supplier).WithMany().HasForeignKey(f => f.SupplierId).OnDelete(DeleteBehavior.SetNull);

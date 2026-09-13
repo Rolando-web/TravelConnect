@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Compass, ChevronLeft, ChevronRight } from "lucide-react";
+import { Compass, ChevronLeft, ChevronRight, Palmtree, Plane, ShieldCheck } from "lucide-react";
 import SearchCard from "./SearchCard";
 
 /* ─── Carousel slide data ───────────────────────────────────────────── */
@@ -125,14 +125,14 @@ export default function Hero() {
 
         {/* Quick Travel Highlights Badges */}
         <div className="hidden sm:flex items-center justify-center gap-3 pt-6 text-[11px] font-bold text-slate-200">
-          <span className="bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15">
-            🏖️ 500+ Curated Stays
+          <span className="bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15 flex items-center gap-1.5">
+            <Palmtree size={14} className="text-cyan-300" /> 500+ Curated Stays
           </span>
-          <span className="bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15">
-            ✈️ Verified Airline Routes
+          <span className="bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15 flex items-center gap-1.5">
+            <Plane size={14} className="text-cyan-300" /> Verified Airline Routes
           </span>
-          <span className="bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15">
-            🛡️ 100% Instant Refund Guarantee
+          <span className="bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15 flex items-center gap-1.5">
+            <ShieldCheck size={14} className="text-cyan-300" /> 100% Instant Refund Guarantee
           </span>
         </div>
       </div>

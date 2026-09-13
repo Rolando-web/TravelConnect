@@ -22,8 +22,16 @@ export function CurrencyProvider({ children }) {
     try {
       const cached = localStorage.getItem(RATES_CACHE_KEY);
       const timestamp = localStorage.getItem(RATES_CACHE_TIMESTAMP);
-      if (cached && timestamp && Date.now() - Number(timestamp) < CACHE_DURATION_MS) {
-        return JSON.parse(cached);
+      if (
+        cached &&
+        timestamp &&
+        Date.now() - Number(timestamp) < CACHE_DURATION_MS &&
+        !Number.isNaN(Number(timestamp))
+      ) {
+        const parsed = JSON.parse(cached);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && parsed[DEFAULT_CURRENCY]) {
+          return parsed;
+        }
       }
     } catch {
       // ignore
@@ -65,7 +73,8 @@ export function CurrencyProvider({ children }) {
       let expired = true;
       try {
         const timestamp = localStorage.getItem(RATES_CACHE_TIMESTAMP);
-        expired = !timestamp || Date.now() - Number(timestamp) >= CACHE_DURATION_MS;
+        const ts = Number(timestamp);
+        expired = !timestamp || Number.isNaN(ts) || Date.now() - ts >= CACHE_DURATION_MS;
       } catch {
         // ignore
       }
@@ -91,9 +100,10 @@ export function CurrencyProvider({ children }) {
   // Convert price from PHP (base) to target currency
   const convertPrice = useCallback(
     (amountInPHP, targetCurrency = selectedCurrency) => {
-      if (!amountInPHP || amountInPHP === 0) return 0;
+      const amount = Number(amountInPHP);
+      if (!Number.isFinite(amount) || amount === 0) return 0;
       const rate = exchangeRates[targetCurrency] || 1;
-      return Math.round(amountInPHP * rate * 100) / 100;
+      return Math.round(amount * rate * 100) / 100;
     },
     [exchangeRates, selectedCurrency]
   );
@@ -102,7 +112,8 @@ export function CurrencyProvider({ children }) {
   const formatPrice = useCallback(
     (amount, currencyCode = selectedCurrency) => {
       const currency = currencies.find((c) => c.code === currencyCode) || currencies[0];
-      const formatted = amount.toLocaleString(undefined, {
+      const num = Number(amount);
+      const formatted = (Number.isFinite(num) ? num : 0).toLocaleString(undefined, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       });

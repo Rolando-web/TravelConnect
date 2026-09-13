@@ -1,5 +1,10 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  setPersistence,
+  browserSessionPersistence,
+} from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 // Firebase config pulled from .env (Vite exposes VITE_ prefixed vars)
@@ -19,6 +24,17 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firebase services
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+// Always show Google's account picker when signing in so a previously used
+// Google account can never be silently auto-selected for another login.
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: "select_account" });
+
+// Do not keep the previous account signed in across visits: Firebase auth now
+// lives only in sessionStorage, so closing the tab signs the user out and the
+// app starts signed out on the next visit (no auto-login of the last account).
+setPersistence(auth, browserSessionPersistence).catch((err) =>
+  console.warn("Firebase auth persistence setup failed:", err)
+);
 
 export default app;

@@ -9,15 +9,42 @@
 // In production, store ENCRYPTION_KEY in a secrets manager, not .env.
 
 const ENCRYPTION_KEY = import.meta.env.VITE_ENCRYPTION_KEY;
-const SALT = "travelconnect-v1";
+const SALT = import.meta.env.VITE_ENCRYPTION_SALT || "travelconnect-v1";
 
 let derivedKey = null;
+let keyDisabled = false;
+let keyWarned = false;
+let saltWarned = false;
 
 /**
  * Derives an AES-GCM key from the master passphrase using PBKDF2.
+ * Returns null (and warns) when VITE_ENCRYPTION_KEY is missing so callers
+ * fall back to plaintext instead of silently encrypting with "undefined".
  */
 async function getDerivedKey() {
   if (derivedKey) return derivedKey;
+  if (keyDisabled) return null;
+
+  if (!ENCRYPTION_KEY || typeof ENCRYPTION_KEY !== "string" || ENCRYPTION_KEY.length < 8) {
+    keyDisabled = true;
+    if (!keyWarned) {
+      keyWarned = true;
+      console.warn(
+        "Field-level encryption is DISABLED because VITE_ENCRYPTION_KEY is not set. " +
+          "Sensitive fields will be stored as plaintext. Set a strong passphrase " +
+          "in .env to enable encryption."
+      );
+    }
+    return null;
+  }
+
+  if (SALT === "travelconnect-v1" && !saltWarned) {
+    saltWarned = true;
+    console.warn(
+      "Using the default static encryption salt. In production, set an " +
+        "app-specific VITE_ENCRYPTION_SALT and re-encrypt existing data."
+    );
+  }
 
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
@@ -53,6 +80,8 @@ export async function encrypt(plaintext) {
   if (!plaintext || typeof plaintext !== "string") return plaintext;
 
   const key = await getDerivedKey();
+  if (!key) return plaintext; // encryption disabled — store plaintext
+
   const encoder = new TextEncoder();
   const iv = crypto.getRandomValues(new Uint8Array(12)); // 96-bit IV for GCM
 
@@ -118,12 +147,13 @@ export function isEncrypted(value) {
 
 /**
  * Encrypts specific fields in an object.
- * Fields not in the list are left untouched.
+ * Fields not in the list are left untouched. Already-encrypted values are
+ * passed through so a read→modify→write cycle never double-encrypts.
  */
 export async function encryptFields(data, fields) {
   const result = { ...data };
   for (const field of fields) {
-    if (result[field] && typeof result[field] === "string") {
+    if (result[field] && typeof result[field] === "string" && !isEncrypted(result[field])) {
       result[field] = await encrypt(result[field]);
     }
   }

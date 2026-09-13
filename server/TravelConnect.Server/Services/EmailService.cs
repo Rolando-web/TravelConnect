@@ -105,18 +105,23 @@ public class EmailService
         catch { /* logging failure should not break email flow */ }
     }
 
+    // HTML-encode user-controlled values so email templates cannot be abused
+    // for HTML/script injection via booking data.
+    private static string E(string? value) =>
+        string.IsNullOrEmpty(value) ? string.Empty : System.Net.WebUtility.HtmlEncode(value);
+
     private static string BuildBookingConfirmationHtml(Booking booking, List<BookingFlight> flights)
     {
         var flightRows = string.Join("", flights.Select(f => $@"
             <tr>
                 <td style='padding:12px;border-bottom:1px solid #e5e7eb;'>
-                    <strong>{f.Airline} {f.FlightNumber}</strong><br/>
-                    <span style='color:#6b7280;font-size:13px;'>{f.DepartureCity} → {f.ArrivalCity}</span>
+                    <strong>{E(f.Airline)} {E(f.FlightNumber)}</strong><br/>
+                    <span style='color:#6b7280;font-size:13px;'>{E(f.DepartureCity)} → {E(f.ArrivalCity)}</span>
                 </td>
-                <td style='padding:12px;border-bottom:1px solid #e5e7eb;'>{f.DepartureDate}</td>
-                <td style='padding:12px;border-bottom:1px solid #e5e7eb;'>{f.DepartureTime} — {f.ArrivalTime}</td>
-                <td style='padding:12px;border-bottom:1px solid #e5e7eb;'>{f.Class}</td>
-                <td style='padding:12px;border-bottom:1px solid #e5e7eb;font-weight:600;color:#06D6A0;'>{f.SeatNumber}</td>
+                <td style='padding:12px;border-bottom:1px solid #e5e7eb;'>{E(f.DepartureDate)}</td>
+                <td style='padding:12px;border-bottom:1px solid #e5e7eb;'>{E(f.DepartureTime)} — {E(f.ArrivalTime)}</td>
+                <td style='padding:12px;border-bottom:1px solid #e5e7eb;'>{E(f.Class)}</td>
+                <td style='padding:12px;border-bottom:1px solid #e5e7eb;font-weight:600;color:#06D6A0;'>{E(f.SeatNumber)}</td>
             </tr>"));
 
         return $@"
@@ -131,17 +136,17 @@ public class EmailService
             <div style='padding:32px;'>
                 <div style='background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin-bottom:24px;text-align:center;'>
                     <p style='margin:0;color:#166534;font-size:13px;'>BOOKING REFERENCE</p>
-                    <p style='margin:4px 0 0;font-size:28px;font-weight:700;color:#15803d;letter-spacing:2px;'>{booking.ReferenceNumber}</p>
+                    <p style='margin:4px 0 0;font-size:28px;font-weight:700;color:#15803d;letter-spacing:2px;'>{E(booking.ReferenceNumber)}</p>
                 </div>
                 <h2 style='color:#1f2937;font-size:18px;margin:0 0 8px;'>Passenger Details</h2>
                 <table style='width:100%;margin-bottom:24px;'><tr>
-                    <td style='padding:8px 0;color:#6b7280;'>Name</td><td style='padding:8px 0;font-weight:600;'>{booking.CustomerName}</td>
+                    <td style='padding:8px 0;color:#6b7280;'>Name</td><td style='padding:8px 0;font-weight:600;'>{E(booking.CustomerName)}</td>
                 </tr><tr>
-                    <td style='padding:8px 0;color:#6b7280;'>Email</td><td style='padding:8px 0;'>{booking.CustomerEmail}</td>
+                    <td style='padding:8px 0;color:#6b7280;'>Email</td><td style='padding:8px 0;'>{E(booking.CustomerEmail)}</td>
                 </tr><tr>
-                    <td style='padding:8px 0;color:#6b7280;'>Phone</td><td style='padding:8px 0;'>{booking.CustomerPhone}</td>
+                    <td style='padding:8px 0;color:#6b7280;'>Phone</td><td style='padding:8px 0;'>{E(booking.CustomerPhone)}</td>
                 </tr><tr>
-                    <td style='padding:8px 0;color:#6b7280;'>Travellers</td><td style='padding:8px 0;'>{booking.Travellers}</td>
+                    <td style='padding:8px 0;color:#6b7280;'>Travellers</td><td style='padding:8px 0;'>{E(booking.Travellers.ToString())}</td>
                 </tr></table>
 
                 {(flights.Count > 0 ? $@"
@@ -159,10 +164,10 @@ public class EmailService
 
                 <div style='background:#f8fafc;border-radius:8px;padding:16px;'>
                     <table style='width:100%;'>
-                        <tr><td style='padding:4px 0;color:#6b7280;'>Package</td><td style='padding:4px 0;text-align:right;font-weight:600;'>{booking.PackageName}</td></tr>
-                        <tr><td style='padding:4px 0;color:#6b7280;'>Location</td><td style='padding:4px 0;text-align:right;'>{booking.Location}</td></tr>
-                        <tr><td style='padding:4px 0;color:#6b7280;'>Travel Dates</td><td style='padding:4px 0;text-align:right;'>{booking.StartDate} — {booking.EndDate}</td></tr>
-                        <tr><td style='padding:4px 0;color:#6b7280;'>Payment</td><td style='padding:4px 0;text-align:right;'>{booking.PaymentMethod}</td></tr>
+                        <tr><td style='padding:4px 0;color:#6b7280;'>Package</td><td style='padding:4px 0;text-align:right;font-weight:600;'>{E(booking.PackageName)}</td></tr>
+                        <tr><td style='padding:4px 0;color:#6b7280;'>Location</td><td style='padding:4px 0;text-align:right;'>{E(booking.Location)}</td></tr>
+                        <tr><td style='padding:4px 0;color:#6b7280;'>Travel Dates</td><td style='padding:4px 0;text-align:right;'>{E(booking.StartDate)} — {E(booking.EndDate)}</td></tr>
+                        <tr><td style='padding:4px 0;color:#6b7280;'>Payment</td><td style='padding:4px 0;text-align:right;'>{E(booking.PaymentMethod)}</td></tr>
                         <tr><td style='padding:4px 0;color:#6b7280;font-weight:700;font-size:16px;'>Total Paid</td><td style='padding:4px 0;text-align:right;font-weight:700;font-size:16px;color:#06D6A0;'>₱{booking.TotalAmount:N2}</td></tr>
                     </table>
                 </div>
@@ -196,13 +201,13 @@ public class EmailService
             <div style='padding:32px;'>
                 <div style='background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px;margin-bottom:24px;text-align:center;'>
                     <p style='margin:0;color:#991b1b;font-size:13px;'>BOOKING REFERENCE</p>
-                    <p style='margin:4px 0 0;font-size:24px;font-weight:700;color:#dc2626;'>{booking.ReferenceNumber}</p>
+                    <p style='margin:4px 0 0;font-size:24px;font-weight:700;color:#dc2626;'>{E(booking.ReferenceNumber)}</p>
                 </div>
                 <table style='width:100%;margin-bottom:24px;'>
-                    <tr><td style='padding:8px 0;color:#6b7280;'>Package</td><td style='padding:8px 0;text-align:right;font-weight:600;'>{booking.PackageName}</td></tr>
+                    <tr><td style='padding:8px 0;color:#6b7280;'>Package</td><td style='padding:8px 0;text-align:right;font-weight:600;'>{E(booking.PackageName)}</td></tr>
                     <tr><td style='padding:8px 0;color:#6b7280;'>Original Amount</td><td style='padding:8px 0;text-align:right;'>₱{booking.TotalAmount:N2}</td></tr>
                     <tr><td style='padding:8px 0;color:#6b7280;font-weight:700;'>Refund Amount</td><td style='padding:8px 0;text-align:right;font-weight:700;color:#06D6A0;'>₱{refundAmount:N2}</td></tr>
-                    <tr><td style='padding:8px 0;color:#6b7280;'>Refund Reference</td><td style='padding:8px 0;text-align:right;font-weight:600;'>{refundReference}</td></tr>
+                    <tr><td style='padding:8px 0;color:#6b7280;'>Refund Reference</td><td style='padding:8px 0;text-align:right;font-weight:600;'>{E(refundReference)}</td></tr>
                     <tr><td style='padding:8px 0;color:#6b7280;'>Policy Tier</td><td style='padding:8px 0;text-align:right;'>{tierLabel}</td></tr>
                 </table>
             </div>

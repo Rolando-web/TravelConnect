@@ -8,10 +8,12 @@ import {
   SlidersHorizontal,
   Inbox,
   Star,
+  Info,
 } from "lucide-react";
 import { pageMeta } from "./adminConfig";
 import ProfilePage from "./ProfilePage";
 import SupportPage from "./SupportPage";
+import SystemSettingsPage from "./SystemSettingsPage";
 import CrudModal from "../../components/admin/CrudModal";
 import {
   usersApi,
@@ -26,7 +28,7 @@ import {
   leadsApi,
 } from "../../services/api";
 
-const customPages = { profile: ProfilePage, support: SupportPage };
+const customPages = { profile: ProfilePage, support: SupportPage, settings: SystemSettingsPage };
 
 const statusBadge = {
   Active: "badge-green",
@@ -291,6 +293,7 @@ const PAGES = {
   inquiries: {
     api: inquiriesApi,
     singular: "Inquiry",
+    hint: "Customer messages land here when someone submits the contact / booking check-in form on the site or the /agencies page. Open a record to read the full message, then set Status to Replied and add your Reply below it.",
     fields: [
       { key: "customerName", label: "Customer Name", required: true },
       { key: "customerEmail", label: "Customer Email" },
@@ -301,8 +304,9 @@ const PAGES = {
       { key: "reply", label: "Reply", type: "textarea", rows: 3 },
     ],
     cols: [
-      { h: "CUSTOMER", c: (r) => r.customerName || "—" },
+      { h: "CUSTOMER", c: (r) => <span className="flex flex-col"><span>{r.customerName || "—"}</span>{r.customerEmail && <span className="text-xs text-text-secondary">{r.customerEmail}</span>}</span> },
       { h: "SUBJECT", c: (r) => r.subject || "—" },
+      { h: "MESSAGE", c: (r) => <span className="block max-w-72 truncate text-text-secondary" title={r.message}>{r.message || "—"}</span> },
       { h: "CATEGORY", c: (r) => r.category || "General" },
       { h: "DATE", c: (r) => dateStr(r.createdAt) },
       { h: "STATUS", c: (r) => r.status || "Pending", badge: true },
@@ -492,6 +496,15 @@ export default function AdminManagementPage() {
       {error && (
         <div className="mb-4 rounded-xl border border-badge-red/30 bg-badge-red/10 px-4 py-3 text-sm text-badge-red">
           {error}
+        </div>
+      )}
+
+      {config?.hint && (
+        <div className="mb-5 flex items-start gap-3 rounded-xl border border-cyan-accent/25 bg-cyan-accent/5 px-4 py-3.5">
+          <span className="mt-0.5 w-8 h-8 shrink-0 grid place-items-center rounded-lg bg-cyan-accent/15 text-cyan-accent">
+            <Info size={16} />
+          </span>
+          <p className="text-sm text-text-primary leading-relaxed">{config.hint}</p>
         </div>
       )}
 

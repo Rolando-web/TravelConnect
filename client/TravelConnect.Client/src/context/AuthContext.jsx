@@ -64,6 +64,7 @@ export function AuthProvider({ children }) {
         phone: firebaseUser.phoneNumber || "",
         department: "N/A",
         avatar: "",
+        photoURL: firebaseUser.photoURL || "",
         status: "Active",
         isGoogle: true,
         createdAt: new Date().toISOString(),
@@ -96,6 +97,15 @@ export function AuthProvider({ children }) {
     localStorage.setItem("tc_user", JSON.stringify(profile));
   };
 
+  /* ── Update current user profile (merges + persists) ───────── */
+  const updateProfile = (patch) => {
+    setUser((prev) => {
+      const next = prev ? { ...prev, ...patch } : patch;
+      if (next) localStorage.setItem("tc_user", JSON.stringify(next));
+      return next;
+    });
+  };
+
   /* ── Bootstrap: listen for Firebase auth state ─────────────── */
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
@@ -125,14 +135,13 @@ export function AuthProvider({ children }) {
     const cred = await signInWithEmailAndPassword(auth, email, password);
     const { role, profile } = await resolveRole(cred.user);
 
-    if (!role || !ADMIN_ROLES.includes(role)) {
-      await signOut(auth);
-      throw new Error("ACCOUNT_NOT_FOUND");
+    if (!role || role === "Customer") {
+      await ensureCustomerProfile(cred.user);
     }
 
-    persistProfile(buildProfile(cred.user, role, profile));
+    persistProfile(buildProfile(cred.user, role || "Customer", profile));
     closeLoginModal();
-    return { role };
+    return { role: role || "Customer" };
   };
 
   /* ── Google login ──────────────────────────────────────────── */
@@ -173,6 +182,7 @@ export function AuthProvider({ children }) {
         loginWithGoogle,
         loginWithEmail,
         logout,
+        updateProfile,
         loginModalOpen,
         openLoginModal,
         closeLoginModal,

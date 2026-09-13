@@ -69,8 +69,8 @@
 | `POST /api/bookings/{id}/cancel` | POST | Cancel booking |
 | `POST /api/bookings/{id}/itinerary-pdf` | POST | Generate PDF |
 | `POST /api/bookings/{id}/send-confirmation` | POST | Send email |
-| `POST /api/payments/paymongo/source` | POST | Create PayMongo source |
-| `GET /api/payments/paymongo/source/{id}` | GET | Check source status |
+| `POST /api/payments/paymongo/checkout` | POST | Create PayMongo hosted checkout session |
+| `GET /api/payments/paymongo/checkout/{sessionId}` | GET | Poll checkout session status |
 | `POST /api/payments/paymongo/pay` | POST | Finalize payment |
 | `POST /api/payments/paymongo/webhook` | POST | PayMongo webhook |
 | `GET /api/payments/reconciliation` | GET | Payment reconciliation |

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   MapPin, Calendar, Users, CreditCard, BadgeCheck, CalendarClock,
@@ -13,10 +13,10 @@ import { getRefundPreview, generateItineraryPdf } from "../services/api";
 
 /* ─── Status helpers ─────────────────────────────────────────────────── */
 const STATUS_CONFIG = {
-  upcoming:  { label: "Active & Confirmed", color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20", dot: "bg-emerald-500" },
+  upcoming: { label: "Active & Confirmed", color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20", dot: "bg-emerald-500" },
   completed: { label: "Completed Journey", color: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20", dot: "bg-blue-500" },
   cancelled: { label: "Cancelled", color: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20", dot: "bg-slate-400" },
-  refunded:  { label: "100% Refunded", color: "bg-sky-500/10 text-[#008fe5] dark:text-[#38bdf8] border-sky-500/20", dot: "bg-[#008fe5]" },
+  refunded: { label: "100% Refunded", color: "bg-sky-500/10 text-[#008fe5] dark:text-[#38bdf8] border-sky-500/20", dot: "bg-[#008fe5]" },
 };
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -45,7 +45,7 @@ function LoginGate() {
 
         <button
           onClick={openLoginModal}
-          className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-4 rounded-2xl shadow-md hover:shadow-amber-500/20 hover:-translate-y-0.5 transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer"
+          className="w-full bg-[#008fe5] hover:bg-blue-600 text-slate-950 font-bold py-4 rounded-2xl shadow-md hover:shadow-blue-500/20 hover:-translate-y-0.5 transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer"
         >
           Sign In to Access Itineraries <ArrowRight size={15} />
         </button>
@@ -255,6 +255,14 @@ function BookingsDashboard() {
   const [refundPreview, setRefundPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [downloadingRef, setDownloadingRef] = useState(null);
+  const [actionNotice, setActionNotice] = useState("");
+
+  // Auto-dismiss transient error notices.
+  useEffect(() => {
+    if (!actionNotice) return;
+    const t = setTimeout(() => setActionNotice(""), 4000);
+    return () => clearTimeout(t);
+  }, [actionNotice]);
 
   const upcomingCount = bookings.filter((b) => b.status === "upcoming").length;
   const refundedCount = bookings.filter((b) => b.status === "refunded" || b.status === "cancelled").length;
@@ -289,10 +297,12 @@ function BookingsDashboard() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      // Revoke AFTER the browser has started the download — revoking
+      // synchronously can abort the blob before it is read.
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) {
       console.error("PDF download failed:", err);
-      alert("Could not generate the PDF ticket right now. Please try again.");
+      setActionNotice("Could not generate the PDF ticket right now. Please try again.");
     } finally {
       setDownloadingRef(null);
     }
@@ -318,7 +328,7 @@ function BookingsDashboard() {
       setRefundPreview(null);
     } catch {
       setCancellingInProgress(false);
-      alert("Failed to cancel booking. Please try again.");
+      setActionNotice("Failed to cancel booking. Please try again.");
     }
   };
 
@@ -375,18 +385,16 @@ function BookingsDashboard() {
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
-              className={`px-4 py-2 rounded-2xl text-xs font-semibold transition-all flex items-center gap-2 border ${
-                activeTab === t.id
-                  ? "bg-amber-500 text-slate-950 border-amber-500 shadow-md shadow-amber-500/20 font-bold"
-                  : "bg-white dark:bg-[#0f1422] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/[0.08] hover:bg-slate-100 dark:hover:bg-white/[0.05]"
-              }`}
+              className={`px-4 py-2 rounded-2xl text-xs font-semibold transition-all flex items-center gap-2 border ${activeTab === t.id
+                ? "bg-amber-500 text-slate-950 border-amber-500 shadow-md shadow-amber-500/20 font-bold"
+                : "bg-white dark:bg-[#0f1422] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/[0.08] hover:bg-slate-100 dark:hover:bg-white/[0.05]"
+                }`}
             >
               <span>{t.label}</span>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                activeTab === t.id
-                  ? "bg-slate-950/20 text-slate-950"
-                  : "bg-slate-100 dark:bg-white/[0.08] text-slate-600 dark:text-slate-300"
-              }`}>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${activeTab === t.id
+                ? "bg-slate-950/20 text-slate-950"
+                : "bg-slate-100 dark:bg-white/[0.08] text-slate-600 dark:text-slate-300"
+                }`}>
                 {t.count}
               </span>
             </button>
@@ -567,6 +575,22 @@ function BookingsDashboard() {
               className="w-full py-3 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs uppercase tracking-wider shadow-md hover:bg-amber-400 transition"
             >
               Done
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Inline toast for transient errors (replaces alert()) */}
+      {actionNotice && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[10000] max-w-sm w-full px-4">
+          <div className="bg-red-600 text-white text-xs font-semibold rounded-xl shadow-xl px-4 py-3 flex items-center gap-2">
+            <span className="flex-1">{actionNotice}</span>
+            <button
+              onClick={() => setActionNotice("")}
+              className="ml-2 text-white/70 hover:text-white font-bold"
+              aria-label="Dismiss"
+            >
+              ✕
             </button>
           </div>
         </div>

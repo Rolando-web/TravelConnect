@@ -15,7 +15,6 @@ import { getFirestore } from "firebase-admin/firestore";
 import { readFileSync, existsSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
-import crypto from "crypto";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -52,8 +51,8 @@ const db = getFirestore();
 // ── Input sanitization (mirrors client-side validation) ─────────
 
 const SQL_INJECTION_PATTERNS = [
-  /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|ALTER|CREATE|EXEC|EXECUTE)\b)/i,
-  /(--|;|'|"|\\)/,
+  /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|ALTER|CREATE|EXEC|EXECUTE)\b\s+\S)/i,
+  /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|ALTER|EXEC|EXECUTE)\b\s+[('"])/i,
   /(\b(OR|AND)\b\s+\d+\s*=\s*\d+)/i,
   /(\bSLEEP\s*\()/i,
   /(\bBENCHMARK\s*\()/i,
@@ -70,8 +69,6 @@ function sanitizeString(input) {
   return input
     .replace(/\0/g, "")
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
     .trim();
 }
 
@@ -93,55 +90,52 @@ function validateEmail(email) {
 
 function validatePassword(pw) {
   if (!pw || typeof pw !== "string") return false;
-  // Mirrors the app's login rule (SignInModal): minimum 6 chars.
-  if (pw.length < 6) return false;
+  // Mirror the app's password policy: at least 8 chars with mixed case + a digit.
+  if (pw.length < 8) return false;
   if (pw.length > 128) return false;
+  if (!/[A-Z]/.test(pw)) return false;
+  if (!/[a-z]/.test(pw)) return false;
+  if (!/[0-9]/.test(pw)) return false;
   return true;
 }
 
-// ── Password hashing (SHA-256 + salt for Firestore storage) ────
-
-function hashPassword(password) {
-  const salt = crypto.randomBytes(16).toString("hex");
-  const hash = crypto.createHash("sha256").update(salt + password).digest("hex");
-  return `${salt}:${hash}`;
-}
-
 // ── Seed accounts ───────────────────────────────────────────────
+// Phone numbers must be E.164 (e.g. +639171234567) or Firebase Auth
+// createUser()/updateUser() throws auth/invalid-phone-number.
 const ACCOUNTS = [
   {
     email: "superadmin@travelconnect.com",
-    password: "123123",
+    password: "TravelConnect#2026",
     displayName: "Juan Dela Cruz",
     role: "Super Admin",
-    phone: "+63 917 123 4567",
+    phone: "+639171234567",
     department: "Administration",
     avatar: "JC",
   },
   {
     email: "admin@travelconnect.com",
-    password: "123123",
+    password: "TravelConnect#2026",
     displayName: "Maria Santos",
     role: "Agency Staff",
-    phone: "+63 918 234 5678",
+    phone: "+639182345678",
     department: "Operations",
     avatar: "MS",
   },
   {
     email: "finance@travelconnect.com",
-    password: "123123",
+    password: "TravelConnect#2026",
     displayName: "Pedro Reyes",
     role: "Finance Staff",
-    phone: "+63 919 345 6789",
+    phone: "+639193456789",
     department: "Finance",
     avatar: "PR",
   },
   {
     email: "supplier@travelconnect.com",
-    password: "123123",
+    password: "TravelConnect#2026",
     displayName: "Ana Garcia",
     role: "Supplier",
-    phone: "+63 920 456 7890",
+    phone: "+639204567890",
     department: "Supply Chain",
     avatar: "AG",
   },
@@ -246,10 +240,8 @@ async function seed() {
     // Set custom claims (used for role-based access in frontend)
     await auth.setCustomUserClaims(uid, { role: acct.role });
 
-    // Hash password for Firestore storage (backup verification)
-    const passwordHash = hashPassword(acct.password);
-
-    // Write profile to Firestore with validation passed
+    // Write profile to Firestore with validation passed. Never store a password
+    // hash — Firebase Auth owns credentials; there is no client-side verifier.
     await db.collection("users").doc(uid).set(
       {
         email: acct.email,
@@ -259,7 +251,6 @@ async function seed() {
         department: acct.department,
         avatar: acct.avatar,
         status: "Active",
-        passwordHash, // hashed backup — never store plaintext
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },

@@ -92,6 +92,13 @@ public static class DatabaseInitializer
             IF COL_LENGTH('dbo.Flights', 'SeatConfig') IS NULL
                 ALTER TABLE dbo.Flights ADD SeatConfig nvarchar(max) NOT NULL CONSTRAINT DF_Flights_SeatConfig DEFAULT ('A,B,C,D,E,F');");
 
+        // Ensure new columns exist on pre-existing databases for Payments
+        await db.Database.ExecuteSqlRawAsync(@"
+            IF COL_LENGTH('dbo.Payments', 'SenderName') IS NULL
+                ALTER TABLE dbo.Payments ADD SenderName nvarchar(max) NOT NULL CONSTRAINT DF_Payments_SenderName DEFAULT ('');
+            IF COL_LENGTH('dbo.Payments', 'SenderMobile') IS NULL
+                ALTER TABLE dbo.Payments ADD SenderMobile nvarchar(max) NOT NULL CONSTRAINT DF_Payments_SenderMobile DEFAULT ('');");
+
         // Ensure EmailLogs table exists
         await db.Database.ExecuteSqlRawAsync(@"
             IF OBJECT_ID(N'dbo.EmailLogs', N'U') IS NULL
@@ -109,6 +116,46 @@ public static class DatabaseInitializer
                         FOREIGN KEY (BookingId) REFERENCES dbo.Bookings (Id) ON DELETE SET NULL
                 );
                 CREATE INDEX IX_EmailLogs_BookingId ON dbo.EmailLogs (BookingId);
+            END");
+
+        // Ensure SubscriptionPlans table exists
+        await db.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'dbo.SubscriptionPlans', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.SubscriptionPlans (
+                    Id              int            NOT NULL IDENTITY(1,1) CONSTRAINT PK_SubscriptionPlans PRIMARY KEY,
+                    TierLevel       int            NOT NULL,
+                    Name            nvarchar(max)  NOT NULL,
+                    Description     nvarchar(max)  NOT NULL,
+                    MonthlyPrice    decimal(18,2)  NOT NULL,
+                    MaxUsers        int            NOT NULL,
+                    Features        nvarchar(max)  NOT NULL,
+                    Status          nvarchar(max)  NOT NULL,
+                    CreatedAt       datetime2      NOT NULL,
+                    UpdatedAt       datetime2      NOT NULL
+                );
+            END");
+
+        // Ensure Subscriptions table exists
+        await db.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'dbo.Subscriptions', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.Subscriptions (
+                    Id              int            NOT NULL IDENTITY(1,1) CONSTRAINT PK_Subscriptions PRIMARY KEY,
+                    AgencyName      nvarchar(max)  NOT NULL,
+                    ContactEmail    nvarchar(max)  NOT NULL,
+                    ContactPhone    nvarchar(max)  NOT NULL,
+                    TierLevel       int            NOT NULL,
+                    PlanStatus      nvarchar(max)  NOT NULL,
+                    StartDate       datetime2      NOT NULL,
+                    EndDate         datetime2      NOT NULL,
+                    MonthlyPrice    decimal(18,2)  NOT NULL,
+                    MaxUsers        int            NOT NULL,
+                    LicenseKey      nvarchar(max)  NOT NULL,
+                    Notes           nvarchar(max)  NOT NULL,
+                    CreatedAt       datetime2      NOT NULL,
+                    UpdatedAt       datetime2      NOT NULL
+                );
             END");
 
         // Optionally wipe seed tables before re-seeding
@@ -130,6 +177,44 @@ public static class DatabaseInitializer
 
     private static async Task SeedAsync(TravelConnectDbContext db)
     {
+        // Seed subscription tier plans if empty
+        if (!await db.SubscriptionPlans.AnyAsync())
+        {
+            db.SubscriptionPlans.AddRange(new[]
+            {
+                new SubscriptionPlan
+                {
+                    TierLevel = 1,
+                    Name = "Starter",
+                    Description = "For solo travel consultants and small agencies just getting started. Core booking management and basic catalog.",
+                    MonthlyPrice = 2999m,
+                    MaxUsers = 2,
+                    Features = "dashboard:view,packages:manage,bookings:manage,customers:view,profile:manage,support:manage",
+                    Status = "Active"
+                },
+                new SubscriptionPlan
+                {
+                    TierLevel = 2,
+                    Name = "Professional",
+                    Description = "For established agencies with growing catalogs. Full inventory management, CRM basics, and payment visibility.",
+                    MonthlyPrice = 7999m,
+                    MaxUsers = 10,
+                    Features = "dashboard:view,packages:manage,bookings:manage,customers:manage,flights:manage,hotels:manage,cars:manage,activities:manage,destinations:manage,suppliers:view,promotions:manage,inquiries:manage,payments:view,reports:view,profile:manage,support:manage",
+                    Status = "Active"
+                },
+                new SubscriptionPlan
+                {
+                    TierLevel = 3,
+                    Name = "Enterprise",
+                    Description = "For large agencies needing full platform access. Team management, supplier partnerships, CRM pipeline, and advanced analytics.",
+                    MonthlyPrice = 14999m,
+                    MaxUsers = 25,
+                    Features = "dashboard:view,packages:manage,bookings:manage,customers:manage,users:manage,flights:manage,hotels:manage,cars:manage,activities:manage,destinations:manage,suppliers:manage,promotions:manage,inquiries:manage,leads:manage,payments:manage,reports:manage,settings:view,profile:manage,support:manage,subscriptions:view",
+                    Status = "Active"
+                },
+            });
+            await db.SaveChangesAsync();
+        }
         // Only seed default admin/staff accounts if none exist yet.
         if (!await db.SystemUsers.AnyAsync())
         {

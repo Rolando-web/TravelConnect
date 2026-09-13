@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TravelConnect.Server.Data;
@@ -5,6 +6,7 @@ using TravelConnect.Server.Data;
 namespace TravelConnect.Server.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class DashboardController(TravelConnectDbContext db) : ControllerBase
 {
@@ -13,10 +15,10 @@ public class DashboardController(TravelConnectDbContext db) : ControllerBase
     {
         var totalBookings = await db.Bookings.CountAsync();
         var totalRevenue = await db.Bookings.SumAsync(b => (decimal?)b.TotalAmount) ?? 0m;
-        var completedBookings = await db.Bookings.CountAsync(b => b.Status == "Completed");
-        var pendingBookings = await db.Bookings.CountAsync(b => b.Status == "Pending");
-        var upcomingBookings = await db.Bookings.CountAsync(b => b.Status == "Upcoming");
-        var cancelledBookings = await db.Bookings.CountAsync(b => b.Status == "Cancelled");
+        var completedBookings = await db.Bookings.CountAsync(b => b.Status.ToLower() == "completed");
+        var pendingBookings = await db.Bookings.CountAsync(b => b.Status.ToLower() == "pending");
+        var upcomingBookings = await db.Bookings.CountAsync(b => b.Status.ToLower() == "upcoming");
+        var cancelledBookings = await db.Bookings.CountAsync(b => b.Status.ToLower() == "cancelled" || b.Status.ToLower() == "refunded");
 
         var customers = await db.Customers.CountAsync();
         var suppliers = await db.Suppliers.CountAsync();
@@ -58,6 +60,7 @@ public class DashboardController(TravelConnectDbContext db) : ControllerBase
     }
 
     [HttpGet("public")]
+    [AllowAnonymous]
     public async Task<IActionResult> PublicStats()
     {
         var happyTravelers = await db.Customers.CountAsync();

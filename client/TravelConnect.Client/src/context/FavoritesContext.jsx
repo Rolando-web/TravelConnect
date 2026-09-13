@@ -16,6 +16,36 @@ export function FavoritesProvider({ children }) {
   useEffect(() => {
     setFavorites([]);
     if (!customerKey) return;
+
+    // Migrate favorites saved as a guest into this account on first login so
+    // nothing is silently lost when the storage key changes.
+    try {
+      const guestKey = storageKeyFor(null);
+      const guestRaw = localStorage.getItem(guestKey);
+      const customerRaw = localStorage.getItem(storageKey);
+      if (guestRaw && guestRaw !== customerRaw) {
+        const guestFavs = JSON.parse(guestRaw);
+        const customerFavs = customerRaw ? JSON.parse(customerRaw) : [];
+        if (Array.isArray(guestFavs) && Array.isArray(customerFavs) && guestFavs.length > 0) {
+          const merged = [...customerFavs];
+          const seen = new Set(merged.map((f) => `${f.type}:${String(f.id)}`));
+          for (const g of guestFavs) {
+            const key = `${g.type}:${String(g.id)}`;
+            if (!seen.has(key)) {
+              merged.push(g);
+              seen.add(key);
+            }
+          }
+          localStorage.setItem(storageKey, JSON.stringify(merged));
+          localStorage.removeItem(guestKey);
+          setFavorites(merged);
+          return;
+        }
+      }
+    } catch {
+      /* ignore migration failures — fresh lists are fine */
+    }
+
     try {
       const saved = localStorage.getItem(storageKey);
       if (saved) {

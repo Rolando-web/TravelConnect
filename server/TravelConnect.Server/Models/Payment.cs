@@ -7,6 +7,8 @@ public class Payment : BaseEntity
     public Booking? Booking { get; set; }
     public string CustomerName { get; set; } = string.Empty;
     public string PackageName { get; set; } = string.Empty;
+    public string SenderName { get; set; } = string.Empty;
+    public string SenderMobile { get; set; } = string.Empty;
     public decimal Amount { get; set; }
     public string Method { get; set; } = string.Empty;
     public string Status { get; set; } = "Pending";
