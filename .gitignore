@@ -93,3 +93,12 @@ server/TravelConnect.Server/Properties/PublishProfiles/
 server/TravelConnect.Server/Properties/PublishProfiles/*.pubxml
 server/TravelConnect.Server/web.config
 server/TravelConnect.Server/Properties/*.publishSettings
+
+# MonsterASP WebDeploy publish folders & bundles (contain live site secrets) - never commit
+**/publish-tc/
+**/publish-pc/
+**/publish-*/
+publish-*.zip
+publish-*.txt
+.venv/
+.appenv

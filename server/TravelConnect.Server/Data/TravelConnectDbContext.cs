@@ -41,6 +41,7 @@ public class TravelConnectDbContext : DbContext
         modelBuilder.Entity<Activity>().Property(a => a.Price).HasColumnType("decimal(18,2)");
         modelBuilder.Entity<Activity>().Property(a => a.Rating).HasColumnType("decimal(3,1)");
         modelBuilder.Entity<Customer>().Property(c => c.TotalSpent).HasColumnType("decimal(18,2)");
+        modelBuilder.Entity<Lead>().Property(l => l.Worth).HasColumnType("decimal(18,2)");
         modelBuilder.Entity<Supplier>().Property(s => s.Rating).HasColumnType("decimal(3,1)");
         modelBuilder.Entity<Booking>().Property(b => b.Subtotal).HasColumnType("decimal(18,2)");
         modelBuilder.Entity<Booking>().Property(b => b.DiscountAmount).HasColumnType("decimal(18,2)");

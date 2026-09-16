@@ -384,9 +384,9 @@ const PAGES = {
     ],
     stats: (d) => [
       ["Total Leads", String(d.length), "All leads"],
-      ["New", String(d.filter((r) => (r.stage || "New") === "New").length), "New leads"],
-      ["Qualified", String(d.filter((r) => (r.stage || "") === "Qualified").length), "Qualified"],
-      ["Closed Won", String(d.filter((r) => (r.stage || "") === "Closed Won").length), "Won"],
+      ["Open", String(d.filter((r) => !["Won", "Lost"].includes(r.stage)).length), "In pipeline"],
+      ["Won", String(d.filter((r) => (r.stage || "") === "Won").length), "Converted"],
+      ["Lost", String(d.filter((r) => (r.stage || "") === "Lost").length), "Lost deals"],
     ],
   },
 };

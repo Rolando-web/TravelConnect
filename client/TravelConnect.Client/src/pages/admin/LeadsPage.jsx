@@ -1,23 +1,43 @@
 import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Download, Plus, Search, SlidersHorizontal, Inbox, UserCheck, Info } from "lucide-react";
-import { leadsApi, convertLeadToCustomer } from "../../services/api";
+import { Download, Plus, Search, SlidersHorizontal, Inbox, UserCheck, Info, ChevronRight, XCircle, TrendingUp } from "lucide-react";
+import { leadsApi, convertLeadToCustomer, setLeadStage } from "../../services/api";
 import CrudModal from "../../components/admin/CrudModal";
 import StatCard from "../../components/admin/StatCard";
 import Pagination from "../../components/admin/Pagination";
 
+const PIPELINE = ["New", "Contacted", "Qualified", "Proposal", "Negotiation"];
+
 const stageBadge = {
   New: "badge-orange",
-  Qualified: "badge-cyan",
-  Proposal: "badge-purple",
+  Contacted: "badge-cyan",
+  Qualified: "badge-purple",
+  Proposal: "badge-cyan",
   Negotiation: "badge-orange",
-  "Closed Won": "badge-green",
+  Won: "badge-green",
+  Lost: "badge-red",
 };
 
-const stageFilters = ["All", "New", "Qualified", "Proposal", "Negotiation", "Closed Won"];
+const stageOrder = {
+  New: 0,
+  Contacted: 1,
+  Qualified: 2,
+  Proposal: 3,
+  Negotiation: 4,
+  Won: 5,
+  Lost: 5,
+};
+
+const SOURCES = ["Manual", "Website", "Checkout", "Referral", "Partner", "Walk-in"];
+
+const stageFilters = ["All", ...PIPELINE, "Won", "Lost"];
 
 function initials(name = "") {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "—";
+}
+
+function money(v) {
+  return new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(v ?? 0);
 }
 
 export default function LeadsPage() {
@@ -29,7 +49,7 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState({ open: false, mode: "add", data: null });
   const [saving, setSaving] = useState(false);
-  const [convertingId, setConvertingId] = useState(null);
+  const [busyId, setBusyId] = useState(null);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
 
@@ -47,10 +67,24 @@ export default function LeadsPage() {
 
   const openModal = (mode, data = null) => setModal({ open: true, mode, data });
 
+  const handleStage = async (lead, stage) => {
+    if (busyId) return;
+    if (stage === "Lost" && !window.confirm(`Mark "${lead.name || lead.email}" as Lost?`)) return;
+    setBusyId(lead.id);
+    try {
+      await setLeadStage(lead.id, stage);
+      load();
+    } catch (err) {
+      alert(err.message || "Failed to update stage");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const handleConvert = async (lead) => {
-    if (convertingId) return;
+    if (busyId) return;
     if (!window.confirm(`Convert "${lead.name || lead.email}" to a Customer?`)) return;
-    setConvertingId(lead.id);
+    setBusyId(lead.id);
     try {
       const res = await convertLeadToCustomer(lead.id);
       alert(res?.message || "Lead converted to customer");
@@ -59,15 +93,15 @@ export default function LeadsPage() {
     } catch (err) {
       alert(err.message || "Failed to convert lead");
     } finally {
-      setConvertingId(null);
+      setBusyId(null);
     }
   };
 
   const handleSave = async (form) => {
     setSaving(true);
     try {
-      if (modal.mode === "add") await leadsApi.create(form);
-      else await leadsApi.update(modal.data.id, { ...form, id: modal.data.id });
+      if (modal.mode === "add") await leadsApi.create({ ...form, worth: Number(form.worth || 0) });
+      else await leadsApi.update(modal.data.id, { ...form, id: modal.data.id, worth: Number(form.worth || 0) });
       setModal({ open: false, mode: "add", data: null });
       setLoading(true);
       load();
@@ -83,9 +117,12 @@ export default function LeadsPage() {
     { key: "email", label: "Email", required: true },
     { key: "phone", label: "Phone" },
     { key: "interest", label: "Interest" },
-    { key: "stage", label: "Stage", type: "select", options: ["New", "Qualified", "Proposal", "Negotiation", "Closed Won"] },
+    { key: "source", label: "Source", type: "select", options: SOURCES },
+    { key: "stage", label: "Stage", type: "select", options: stageFilters.slice(1) },
+    { key: "worth", label: "Potential Value (₱)", type: "number" },
+    { key: "nextFollowUp", label: "Next Follow-up", type: "date" },
     { key: "assignedTo", label: "Assigned To" },
-    { key: "lastContact", label: "Last Contact" },
+    { key: "lastContact", label: "Last Contact", type: "date" },
     { key: "notes", label: "Notes", type: "textarea", rows: 3 },
   ];
 
@@ -108,15 +145,19 @@ export default function LeadsPage() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  useMemo(() => setPage(1), [query, activeStage, activeAgent]);
+
+  useEffect(() => { setPage(1); }, [query, activeStage, activeAgent]);
 
   const stageCount = (s) => leads.filter((l) => l.stage === s).length;
+  const openValue = leads
+    .filter((l) => stageOrder[l.stage] != null && stageOrder[l.stage] < 5)
+    .reduce((s, l) => s + Number(l.worth || 0), 0);
 
   const stats = [
-    ["Total Leads", leads.length.toLocaleString(), "In pipeline"],
-    ["New", stageCount("New").toLocaleString(), "Awaiting contact"],
-    ["Qualified", stageCount("Qualified").toLocaleString(), "Hot prospects"],
-    ["Closed Won", stageCount("Closed Won").toLocaleString(), "Converted customer"],
+    ["Pipeline Value", money(openValue), "Open deals"],
+    ["Total Leads", leads.length.toLocaleString(), "All time"],
+    ["Active Stage", stageCount("Contacted") + stageCount("Qualified") + stageCount("Proposal") + stageCount("Negotiation"), "In progress"],
+    ["Won / Lost", `${stageCount("Won")} / ${stageCount("Lost")}`, "Closed outcomes"],
   ];
 
   return (
@@ -125,7 +166,7 @@ export default function LeadsPage() {
         <div>
           <p className="text-text-secondary text-sm">{role} &gt; CRM & Leads</p>
           <h1 className="text-3xl font-black mt-1 font-serif">CRM & Lead Management</h1>
-          <p className="text-text-secondary mt-2">Track leads through the sales pipeline from inquiry to close.</p>
+          <p className="text-text-secondary mt-2">Move leads through the sales pipeline from first contact to close.</p>
         </div>
         <div className="flex gap-2">
           <button className="btn-secondary"><Download size={16} /> Export</button>
@@ -138,12 +179,11 @@ export default function LeadsPage() {
           <Info size={16} />
         </span>
         <p className="text-sm text-text-primary leading-relaxed">
-          <span className="font-bold text-cyan-accent">How the pipeline works:</span> every inquiry sent from
-          the website or booking checkout is logged under <span className="font-semibold">Inquiries</span> and
-          automatically becomes a <span className="font-semibold">New</span> lead here (matched by email). When
-          a traveler{"'"}s booking is paid, their lead is closed as <span className="font-semibold">Closed Won</span> and
-          they appear under <span className="font-semibold">Customers</span>. You can also manually convert a lead with the
-          <span className="font-semibold"> Convert</span> action below.
+          <span className="font-bold text-cyan-accent">How the pipeline works:</span> leads are entered manually or
+          auto-created from website &amp; checkout messages. Sales reps advance them
+          <span className="font-semibold"> New → Contacted → Qualified → Proposal → Negotiation</span>, then close as
+          <span className="font-semibold"> Won</span> (converts to a Customer) or <span className="font-semibold"> Lost</span>.
+          A paid booking also closes the matching lead as Won automatically.
         </p>
       </div>
 
@@ -182,20 +222,20 @@ export default function LeadsPage() {
 
       <section className="card overflow-hidden p-0">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-sm">
+          <table className="w-full min-w-[1100px] text-sm">
             <thead className="bg-cyan-accent text-navy-900 text-left text-xs uppercase tracking-wider">
               <tr>
-                {["Lead", "Email", "Interest", "Stage", "Assigned", "Last Contact", "Actions"].map((c) => (
+                {["Lead", "Email / Interest", "Stage", "Source", "Value", "Next Follow-up", "Assigned", "Actions"].map((c) => (
                   <th key={c} className="px-5 py-3 font-semibold">{c}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="px-5 py-10 text-center text-text-secondary">Loading data...</td></tr>
+                <tr><td colSpan={8} className="px-5 py-10 text-center text-text-secondary">Loading data...</td></tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-14 text-center">
+                  <td colSpan={8} className="px-5 py-14 text-center">
                     <Inbox size={36} className="mx-auto text-text-secondary mb-3" />
                     <p className="text-text-secondary font-semibold">No leads found</p>
                     <p className="text-xs text-text-secondary mt-1">
@@ -204,42 +244,52 @@ export default function LeadsPage() {
                   </td>
                 </tr>
               ) : (
-                paginated.map((l) => (
-                  <tr key={l.id ?? l.email} className="table-row">
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-badge-green/15 flex items-center justify-center text-badge-green text-xs font-bold">{initials(l.name)}</div>
-                        <span className="font-medium">{l.name || "—"}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 text-text-secondary">{l.email || "—"}</td>
-                    <td className="px-5 py-4">{l.interest || "—"}</td>
-                    <td className="px-5 py-4"><span className={stageBadge[l.stage] || "badge-orange"}>{l.stage || "—"}</span></td>
-                    <td className="px-5 py-4 text-text-secondary">{l.assignedTo || "—"}</td>
-                    <td className="px-5 py-4 text-text-secondary font-mono text-xs">{l.lastContact || "—"}</td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => openModal("view", l)} className="text-xs text-cyan-accent hover:underline">View</button>
-                        <button onClick={() => openModal("edit", l)} className="text-xs text-text-secondary hover:text-badge-orange transition">Edit</button>
-                        {(l.stage || "New") !== "Closed Won" && (
-                          <button
-                            onClick={() => handleConvert(l)}
-                            disabled={convertingId === l.id}
-                            className="text-xs text-badge-green hover:underline disabled:opacity-50 flex items-center gap-1"
-                          >
-                            {convertingId === l.id ? (
-                              <span className="w-3.5 h-3.5 border-2 border-badge-green border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <>
+                paginated.map((l) => {
+                  const isClosed = l.stage === "Won" || l.stage === "Lost";
+                  const idx = PIPELINE.indexOf(l.stage);
+                  const nextStage = idx >= 0 && idx < PIPELINE.length - 1 ? PIPELINE[idx + 1] : null;
+                  return (
+                    <tr key={l.id ?? l.email} className="table-row">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-badge-green/15 flex items-center justify-center text-badge-green text-xs font-bold">{initials(l.name)}</div>
+                          <span className="font-medium">{l.name || "—"}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className="block text-text-secondary">{l.email || "—"}</span>
+                        <span className="block text-xs text-text-secondary/70">{l.interest || ""}</span>
+                      </td>
+                      <td className="px-5 py-4"><span className={stageBadge[l.stage] || "badge-orange"}>{l.stage || "—"}</span></td>
+                      <td className="px-5 py-4 text-text-secondary">{l.source || "Manual"}</td>
+                      <td className="px-5 py-4"><span className="flex items-center gap-1 font-mono text-xs"><TrendingUp size={13} className="text-badge-green" /> {money(l.worth)}</span></td>
+                      <td className="px-5 py-4 text-text-secondary font-mono text-xs">{l.nextFollowUp || "—"}</td>
+                      <td className="px-5 py-4 text-text-secondary">{l.assignedTo || "—"}</td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => openModal("view", l)} className="text-xs text-cyan-accent hover:underline">View</button>
+                          <button onClick={() => openModal("edit", l)} className="text-xs text-text-secondary hover:text-badge-orange transition">Edit</button>
+                          {!isClosed && (
+                            <>
+                              <button onClick={() => handleStage(l, nextStage || "Won")} disabled={busyId === l.id} className="text-xs text-cyan-accent hover:underline disabled:opacity-50 flex items-center gap-0.5">
+                                {busyId === l.id ? <span className="w-3.5 h-3.5 border-2 border-cyan-accent border-t-transparent rounded-full animate-spin" /> : <ChevronRight size={13} />}
+                                {nextStage ? `Move to ${nextStage}` : "Close Won"}
+                              </button>
+                              <button onClick={() => handleConvert(l)} disabled={busyId === l.id} className="text-xs text-badge-green hover:underline disabled:opacity-50 flex items-center gap-1">
                                 <UserCheck size={13} /> Convert
-                              </>
-                            )}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                              </button>
+                              <button onClick={() => handleStage(l, "Lost")} disabled={busyId === l.id} className="text-xs text-badge-red hover:underline disabled:opacity-50 flex items-center gap-0.5">
+                                <XCircle size={13} /> Lost
+                              </button>
+                            </>
+                          )}
+                          {l.stage === "Won" && <span className="text-xs text-badge-green font-semibold">Converted ✓</span>}
+                          {l.stage === "Lost" && <button onClick={() => handleStage(l, "New")} disabled={busyId === l.id} className="text-xs text-text-secondary hover:underline disabled:opacity-50">Reopen</button>}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

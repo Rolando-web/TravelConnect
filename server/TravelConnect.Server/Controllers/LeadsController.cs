@@ -33,6 +33,8 @@ public class LeadsController(TravelConnectDbContext db) : ControllerBase
     {
         entity.CreatedAt = DateTime.UtcNow;
         entity.UpdatedAt = DateTime.UtcNow;
+        if (string.IsNullOrWhiteSpace(entity.Source)) entity.Source = "Manual";
+        if (string.IsNullOrWhiteSpace(entity.Stage)) entity.Stage = "New";
         db.Leads.Add(entity);
         await db.SaveChangesAsync();
         return CreatedAtAction(nameof(GetById), new { id = entity.Id }, entity);
@@ -64,6 +66,23 @@ public class LeadsController(TravelConnectDbContext db) : ControllerBase
         db.Leads.Remove(entity);
         await db.SaveChangesAsync();
         return NoContent();
+    }
+
+    // POST api/leads/{id}/stage — quick pipeline move (advance / mark lost /
+    // reopen). Keeps LastContact fresh like a real CRM sales rep workflow.
+    [HttpPost("{id:int}/stage")]
+    public async Task<IActionResult> SetStage(int id, [FromBody] StageRequest request)
+    {
+        var entity = await db.Leads.FirstOrDefaultAsync(e => e.Id == id);
+        if (entity is null) return NotFound(new { message = "Record not found" });
+        if (string.IsNullOrWhiteSpace(request?.Stage))
+            return BadRequest(new { message = "Stage is required." });
+
+        entity.Stage = request.Stage;
+        entity.UpdatedAt = DateTime.UtcNow;
+        entity.LastContact = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        await db.SaveChangesAsync();
+        return Ok(entity);
     }
 
     // POST api/leads/{id}/convert — promote a lead to a paid-account customer.
@@ -105,8 +124,9 @@ public class LeadsController(TravelConnectDbContext db) : ControllerBase
             customer.UpdatedAt = DateTime.UtcNow;
         }
 
-        lead.Stage = "Closed Won";
+        lead.Stage = "Won";
         lead.LastContact = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        lead.NextFollowUp = string.Empty;
         lead.UpdatedAt = DateTime.UtcNow;
 
         await db.SaveChangesAsync();
@@ -118,4 +138,9 @@ public class LeadsController(TravelConnectDbContext db) : ControllerBase
             message = $"Lead {lead.Name} converted to customer"
         });
     }
+}
+
+public class StageRequest
+{
+    public string Stage { get; set; } = string.Empty;
 }

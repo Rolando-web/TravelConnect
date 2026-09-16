@@ -61,6 +61,7 @@ public class InquiriesController(TravelConnectDbContext db) : ControllerBase
                     Phone = string.Empty,
                     Interest = entity.Subject ?? entity.Category ?? string.Empty,
                     Stage = "New",
+                    Source = "Website",
                     LastContact = DateTime.UtcNow.ToString("yyyy-MM-dd"),
                     Notes = $"Created automatically from inquiry: {entity.Message}",
                     CreatedAt = DateTime.UtcNow,

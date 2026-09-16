@@ -190,8 +190,9 @@ public class BookingsController(
                 .FirstOrDefaultAsync(l => l.Email.ToLower() == email);
             if (lead is not null)
             {
-                lead.Stage = "Closed Won";
+                lead.Stage = "Won";
                 lead.LastContact = DateTime.UtcNow.ToString("yyyy-MM-dd");
+                lead.NextFollowUp = string.Empty;
                 lead.UpdatedAt = DateTime.UtcNow;
             }
         }

@@ -99,6 +99,15 @@ public static class DatabaseInitializer
             IF COL_LENGTH('dbo.Payments', 'SenderMobile') IS NULL
                 ALTER TABLE dbo.Payments ADD SenderMobile nvarchar(max) NOT NULL CONSTRAINT DF_Payments_SenderMobile DEFAULT ('');");
 
+        // Ensure new columns exist on pre-existing databases for Leads (CRM)
+        await db.Database.ExecuteSqlRawAsync(@"
+            IF COL_LENGTH('dbo.Leads', 'Source') IS NULL
+                ALTER TABLE dbo.Leads ADD Source nvarchar(max) NOT NULL CONSTRAINT DF_Leads_Source DEFAULT ('Manual');
+            IF COL_LENGTH('dbo.Leads', 'Worth') IS NULL
+                ALTER TABLE dbo.Leads ADD Worth decimal(18,2) NOT NULL CONSTRAINT DF_Leads_Worth DEFAULT (0);
+            IF COL_LENGTH('dbo.Leads', 'NextFollowUp') IS NULL
+                ALTER TABLE dbo.Leads ADD NextFollowUp nvarchar(max) NOT NULL CONSTRAINT DF_Leads_NextFollowUp DEFAULT ('');");
+
         // Ensure EmailLogs table exists
         await db.Database.ExecuteSqlRawAsync(@"
             IF OBJECT_ID(N'dbo.EmailLogs', N'U') IS NULL

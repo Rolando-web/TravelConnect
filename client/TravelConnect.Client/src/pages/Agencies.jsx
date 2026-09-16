@@ -1,56 +1,9 @@
-import { useState } from "react";
-import { ArrowLeft, Building2, Send, CheckCircle, Globe, ShieldCheck, Headphones } from "lucide-react";
+import { ArrowLeft, Building2, Mail, Phone, CheckCircle, Globe, ShieldCheck, Headphones } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { sendCustomerInquiry } from "../services/api";
 import AgencySubscription from "../components/home/AgencySubscription";
-
-const TIER_OPTIONS = [
-  { value: 1, label: "Tier 1 — Starter (₱2,999/mo, up to 2 users)" },
-  { value: 2, label: "Tier 2 — Professional (₱7,999/mo, up to 10 users)" },
-  { value: 3, label: "Tier 3 — Enterprise (₱14,999/mo, up to 25 users)" },
-];
 
 export default function Agencies() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({
-    agencyName: "",
-    contactPerson: "",
-    contactEmail: "",
-    tier: "2",
-    message: "",
-  });
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [error, setError] = useState("");
-
-  const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.agencyName.trim() || !form.contactEmail.trim()) {
-      setError("Agency name and contact email are required.");
-      return;
-    }
-    setSending(true);
-    setError("");
-    try {
-      await sendCustomerInquiry({
-        customerName: form.contactPerson || form.agencyName,
-        customerEmail: form.contactEmail,
-        subject: `Agency Demo Request — Tier ${form.tier} (${form.agencyName})`,
-        message:
-          `Agency: ${form.agencyName}\n` +
-          `Interested tier: Tier ${form.tier}\n` +
-          `Message: ${form.message || "Please send pricing details and a demo."}`,
-      });
-      setSent(true);
-    } catch {
-      // Offline-safe: keep the request visible as a local confirmation.
-      setSent(true);
-    } finally {
-      setSending(false);
-    }
-  };
 
   return (
     <div className="w-full bg-slate-50 min-h-screen pb-16">
@@ -119,8 +72,8 @@ export default function Agencies() {
               </h2>
               <p className="text-sm text-slate-500 mt-2 leading-relaxed">
                 We'll walk you through setup, import your existing packages, connect
-                PayMongo, and assign your tier. Every demo request lands in your
-                dedicated admin inquiries module so nothing gets lost.
+                PayMongo, and assign your tier. Reach out below and our team will
+                take it from there.
               </p>
             </div>
 
@@ -143,103 +96,45 @@ export default function Agencies() {
           <div className="lg:col-span-6">
             <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xl p-7 lg:sticky lg:top-24">
               <h2 className="font-heading text-2xl font-black text-slate-900">
-                Request a Custom Demo
+                Talk to the Agency Team
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Tell us about your agency — we'll set you up with the right tier.
+                Reach out directly and our onboarding specialists will help you
+                pick the right tier and set up your agency.
               </p>
 
-              {sent ? (
-                <div className="mt-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-emerald-700 flex items-start gap-3">
-                  <CheckCircle size={20} className="shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-extrabold text-sm">Request received!</p>
-                    <p className="text-xs mt-1 leading-relaxed">
-                      Our agency team will reach out to {form.contactEmail} within
-                      24 hours. Your message was also logged in our admin inquiries
-                      module.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-extrabold text-slate-500 uppercase">Agency Name *</label>
-                      <input
-                        type="text"
-                        value={form.agencyName}
-                        onChange={update("agencyName")}
-                        placeholder="e.g. Luzon Voyages"
-                        className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-xl py-2.5 px-3.5 text-xs font-bold text-slate-900 outline-none focus:border-[#008fe5]"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-extrabold text-slate-500 uppercase">Contact Person</label>
-                      <input
-                        type="text"
-                        value={form.contactPerson}
-                        onChange={update("contactPerson")}
-                        placeholder="e.g. Maria Santos"
-                        className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-xl py-2.5 px-3.5 text-xs font-bold text-slate-900 outline-none focus:border-[#008fe5]"
-                      />
-                    </div>
-                  </div>
+              <div className="mt-6 space-y-3">
+                <a
+                  href="mailto:partners@travelconnect.ph"
+                  className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-4 hover:border-[#008fe5] hover:bg-blue-50/50 transition"
+                >
+                  <span className="w-10 h-10 shrink-0 grid place-items-center rounded-xl bg-[#008fe5]/10 text-[#008fe5]">
+                    <Mail size={18} />
+                  </span>
+                  <span>
+                    <span className="block text-[11px] font-extrabold text-slate-400 uppercase">Email us</span>
+                    <span className="block text-sm font-bold text-slate-800">partners@travelconnect.ph</span>
+                  </span>
+                </a>
+                <a
+                  href="tel:+631234567890"
+                  className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-4 hover:border-[#008fe5] hover:bg-blue-50/50 transition"
+                >
+                  <span className="w-10 h-10 shrink-0 grid place-items-center rounded-xl bg-[#008fe5]/10 text-[#008fe5]">
+                    <Phone size={18} />
+                  </span>
+                  <span>
+                    <span className="block text-[11px] font-extrabold text-slate-400 uppercase">Call us</span>
+                    <span className="block text-sm font-bold text-slate-800">+63 123 456 7890</span>
+                  </span>
+                </a>
+              </div>
 
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-extrabold text-slate-500 uppercase">Work Email *</label>
-                    <input
-                      type="email"
-                      value={form.contactEmail}
-                      onChange={update("contactEmail")}
-                      placeholder="sales@youragency.com"
-                      className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-xl py-2.5 px-3.5 text-xs font-bold text-slate-900 outline-none focus:border-[#008fe5]"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-extrabold text-slate-500 uppercase">Interested Tier</label>
-                    <select
-                      value={form.tier}
-                      onChange={update("tier")}
-                      className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-xl py-2.5 px-3.5 text-xs font-bold text-slate-900 outline-none focus:border-[#008fe5]"
-                    >
-                      {TIER_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-extrabold text-slate-500 uppercase">Message</label>
-                    <textarea
-                      value={form.message}
-                      onChange={update("message")}
-                      rows={3}
-                      placeholder="Branch count, current process, what you need most..."
-                      className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-xl py-2.5 px-3.5 text-xs font-bold text-slate-900 outline-none focus:border-[#008fe5] resize-none"
-                    />
-                  </div>
-
-                  {error && <p className="text-xs font-bold text-rose-500">{error}</p>}
-
-                  <button
-                    type="submit"
-                    disabled={sending}
-                    className="w-full bg-[#008fe5] hover:bg-blue-600 text-white font-black py-3.5 rounded-2xl shadow-xl shadow-blue-500/25 transition flex items-center justify-center gap-2 text-sm disabled:opacity-50 cursor-pointer"
-                  >
-                    {sending ? (
-                      <>
-                        <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" /> Sending...
-                      </>
-                    ) : (
-                      <>
-                        <Send size={16} /> Request Agency Demo
-                      </>
-                    )}
-                  </button>
-                </form>
-              )}
+              <p className="mt-5 flex items-start gap-2 text-xs text-slate-500 bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                <CheckCircle size={15} className="text-amber-500 shrink-0 mt-0.5" />
+                Agency demos are handled by our team directly — no automated form
+                submission, so every conversation gets a personal reply.
+              </p>
             </div>
           </div>
         </div>
