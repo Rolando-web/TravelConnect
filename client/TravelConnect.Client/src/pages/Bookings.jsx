@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   MapPin, Calendar, Users, CreditCard, BadgeCheck, CalendarClock,
   ArrowRight, Globe, Lock, FileText, RotateCcw, ShieldCheck, CheckCircle2,
-  Award, X, Coins, Check, Clock, Download, Plane, BedDouble, Car
+  Coins, Check, Download, Plane
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useBooking } from "../context/BookingContext";
 import { useCurrency } from "../context/CurrencyContext";
-import { useTheme } from "../context/ThemeContext";
 import { getRefundPreview, generateItineraryPdf } from "../services/api";
 
 /* ─── Status helpers ─────────────────────────────────────────────────── */
@@ -243,10 +242,8 @@ function BookingVoucherCard({ booking, onViewDetails, onRequestCancel, onDownloa
    MAIN BOOKINGS DASHBOARD
 ═══════════════════════════════════════════════════════════════════════ */
 function BookingsDashboard() {
-  const { user } = useAuth();
   const { bookings, cancelBookingTransaction, openBookingDetailsModal, walletBalance } = useBooking();
   const { displayPrice } = useCurrency();
-  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState("upcoming");
   const [cancelModalBooking, setCancelModalBooking] = useState(null);

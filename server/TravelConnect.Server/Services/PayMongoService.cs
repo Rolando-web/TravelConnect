@@ -20,7 +20,6 @@ public class PayMongoService
 {
     private readonly HttpClient _http;
     private readonly string _apiBase;
-    private readonly string _publicKey;
     private readonly string _secretKey;
     private readonly string _webhookSecretKey;
 
@@ -28,9 +27,6 @@ public class PayMongoService
     {
         _http = http;
         _apiBase = options.ApiBaseUrl.TrimEnd('/');
-        // Checkout Session (hosted page) creation/retrieval uses the secret key;
-        // the public key is only used for client-side checks.
-        _publicKey = options.PublicKey;
         _secretKey = options.SecretKey;
         _webhookSecretKey = options.WebhookSecretKey;
     }

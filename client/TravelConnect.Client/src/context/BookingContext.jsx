@@ -173,7 +173,7 @@ export function BookingProvider({ children }) {
         );
       }
       // Deduct from wallet (synchronous read → deduct → persist, no race window)
-      const nextBal = writeWallet(liveBalance - bookingData.totalAmount);
+      writeWallet(liveBalance - bookingData.totalAmount);
       transactionId = `TCM-${Math.floor(100000 + Math.random() * 900000)}`;
     } else if (["gcash", "paymaya", "card"].includes(methodKey)) {
       // PayMongo hosted Checkout Session (checkout.paymongo.com).

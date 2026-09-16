@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import { suppliersApi, packagesApi, assetUrl } from "../../services/api";
 import CrudModal from "../../components/admin/CrudModal";
+import StatCard from "../../components/admin/StatCard";
+import Pagination from "../../components/admin/Pagination";
 
 const statusBadge = { Active: "badge-green", Review: "badge-orange", Inactive: "badge-red" };
 
@@ -66,6 +68,8 @@ export default function SuppliersPage() {
   const [modal, setModal] = useState({ open: false, mode: "add", data: null });
   const [viewing, setViewing] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   const load = () => {
     Promise.allSettled([suppliersApi.list(), packagesApi.list()])
@@ -138,6 +142,10 @@ export default function SuppliersPage() {
     });
   }, [suppliers, query, activeStatus, activeType]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  useMemo(() => setPage(1), [query, activeStatus, activeType]);
+
   const avgRating = suppliers.length
     ? suppliers.reduce((s, v) => s + (v.rating || 0), 0) / suppliers.length
     : 0;
@@ -174,11 +182,7 @@ export default function SuppliersPage() {
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         {stats.map(([label, value, note]) => (
-          <article key={label} className="card">
-            <p className="text-text-secondary text-sm">{label}</p>
-            <p className="text-2xl font-black mt-2">{value}</p>
-            <p className="text-xs text-text-secondary mt-2">{note}</p>
-          </article>
+          <StatCard key={label} label={label} value={value} note={note} />
         ))}
       </div>
 
@@ -233,7 +237,7 @@ export default function SuppliersPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((s) => (
+                paginated.map((s) => (
                   <tr key={s.id ?? s.companyName} className="table-row">
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
@@ -269,8 +273,8 @@ export default function SuppliersPage() {
                       </div>
                     </td>
                     <td className="px-5 py-4">
-                      <span className="flex items-center gap-1 text-badge-orange text-sm font-semibold">
-                        <Star size={14} fill="currentColor" /> {Number(s.rating || 0).toFixed(1)}
+                      <span className="text-badge-orange text-sm font-semibold">
+                        {Number(s.rating || 0).toFixed(1)}
                       </span>
                     </td>
                     <td className="px-5 py-4">
@@ -292,6 +296,7 @@ export default function SuppliersPage() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
       </section>
 
       <CrudModal
@@ -362,8 +367,8 @@ function SupplierViewModal({ supplier: s, onClose, onEdit }) {
                 <h3 className="font-black text-2xl leading-tight">{s.companyName || "—"}</h3>
                 <p className="text-sm text-text-secondary mt-0.5">{s.contactName || "No contact assigned"}</p>
               </div>
-              <span className="flex items-center gap-1 text-badge-orange text-lg font-black whitespace-nowrap">
-                <Star size={18} fill="currentColor" /> {Number(s.rating || 0).toFixed(1)}
+              <span className="text-badge-orange text-lg font-black whitespace-nowrap">
+                {Number(s.rating || 0).toFixed(1)}
               </span>
             </div>
 

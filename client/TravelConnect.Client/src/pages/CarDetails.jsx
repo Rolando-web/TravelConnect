@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
-  Car, MapPin, ArrowLeft, CheckCircle2, ShieldCheck, Users, Gauge, Fuel,
-  ChevronLeft, ChevronRight, ChevronDown, KeyRound, CalendarDays, Timer,
-  Award, Star, Clock, Check, AlertCircle
+  MapPin, ArrowLeft, ShieldCheck, Users, Gauge, Fuel,
+  ChevronLeft, ChevronRight, ChevronDown, KeyRound, Timer,
+  Award, Star, Check, AlertCircle
 } from "lucide-react";
 import { carsApi } from "../services/api";
 import { useBooking } from "../context/BookingContext";
 import { useCurrency } from "../context/CurrencyContext";
-import { useTheme } from "../context/ThemeContext";
 import FavoriteButton from "../components/shared/FavoriteButton";
 
 const FALLBACK_IMG = "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1600&q=80";
@@ -135,7 +134,6 @@ export default function CarDetails() {
   const navigate = useNavigate();
   const { openCheckoutModal } = useBooking();
   const { displayPrice } = useCurrency();
-  const { isDark } = useTheme();
 
   const [car, setCar] = useState(null);
   const [loading, setLoading] = useState(true);

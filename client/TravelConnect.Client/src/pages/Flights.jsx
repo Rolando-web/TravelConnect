@@ -1,14 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  Plane, ArrowRight, Star, MapPin, Clock, Calendar, Eye, Wifi,
-  Luggage, ShieldCheck, CheckCircle2, Search, X, SlidersHorizontal,
-  RotateCcw, Award, ChevronRight, Armchair, Utensils, Zap, HelpCircle
+  Plane, Eye, Wifi,
+  Luggage, ShieldCheck, Search, X,
+  RotateCcw, Utensils
 } from "lucide-react";
 import { useBooking } from "../context/BookingContext";
 import { useCurrency } from "../context/CurrencyContext";
-import { useAvailable } from "../context/AvailableContext";
-import { useTheme } from "../context/ThemeContext";
 import FavoriteButton from "../components/shared/FavoriteButton";
 import FlightFareTierModal from "../components/modals/booking/FlightFareTierModal";
 import PageHeroCarousel from "../components/shared/PageHeroCarousel";
@@ -97,12 +95,10 @@ export default function Flights() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { openCheckoutModal } = useBooking();
-  const { flightRoutes, reachableCities } = useAvailable();
   const { displayPrice, selectedCurrency } = useCurrency();
-  const { isDark } = useTheme();
 
   const [flights, setFlights] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedClass, setSelectedClass] = useState("All");
   const [sortKey, setSortKey] = useState("recommended");
@@ -196,9 +192,6 @@ export default function Flights() {
       }
     });
   }, [flights, search, appliedFrom, appliedTo, appliedDate, selectedClass, sortKey]);
-
-  const routeHasNoFlight =
-    (appliedFrom || appliedTo || search) && filteredFlights.length === 0;
 
   const popularRoutes = [
     { from: "Manila", to: "Tokyo", codeFrom: "MNL", codeTo: "HND" },

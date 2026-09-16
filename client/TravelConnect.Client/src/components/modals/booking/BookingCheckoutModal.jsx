@@ -74,7 +74,7 @@ export default function BookingCheckoutModal() {
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("+63 917 123 4567");
-  const [specialRequests, setSpecialRequests] = useState("");
+  const [specialRequests] = useState("");
 
   // Tracks whether the customer has hand-typed their name: once they do, the
   // email field stops overwriting it with the auto-derived email name.

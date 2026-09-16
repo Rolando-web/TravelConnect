@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { MessageSquare, Plus, Send, Clock, CheckCircle, Inbox } from "lucide-react";
 import { inquiriesApi } from "../../services/api";
+import StatCard from "../../components/admin/StatCard";
+import Pagination from "../../components/admin/Pagination";
 
 const categoryTone = {
   Flight: "badge-cyan",
@@ -31,6 +33,8 @@ export default function SupportPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
   const [form, setForm] = useState({
     subject: "",
     category: "General",
@@ -88,6 +92,9 @@ export default function SupportPage() {
   const pending = tickets.filter((t) => t.status === "Pending").length;
   const replied = tickets.filter((t) => t.status === "Replied").length;
 
+  const totalPages = Math.max(1, Math.ceil(tickets.length / PAGE_SIZE));
+  const paginated = tickets.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   return (
     <div>
       <section className="mb-8">
@@ -104,11 +111,7 @@ export default function SupportPage() {
           ["Pending", pending, "Awaiting response"],
           ["Replied", replied, "Response received"],
         ].map(([label, value, note]) => (
-          <article key={label} className="card">
-            <p className="text-text-secondary text-sm">{label}</p>
-            <p className="text-2xl font-black mt-2">{value}</p>
-            <p className="text-xs text-text-secondary mt-2">{note}</p>
-          </article>
+          <StatCard key={label} label={label} value={value} note={note} />
         ))}
       </div>
 
@@ -197,7 +200,7 @@ export default function SupportPage() {
           </div>
         ) : (
           <div className="divide-y divide-navy-700">
-            {tickets.map((ticket) => (
+            {paginated.map((ticket) => (
               <div
                 key={ticket.id ?? ticket.subject}
                 className="px-6 py-4 hover:bg-navy-700/30 transition"
@@ -243,6 +246,13 @@ export default function SupportPage() {
             ))}
           </div>
         )}
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={tickets.length}
+          pageSize={PAGE_SIZE}
+          onPage={setPage}
+        />
       </div>
     </div>
   );

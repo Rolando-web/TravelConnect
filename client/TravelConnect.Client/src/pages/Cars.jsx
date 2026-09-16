@@ -2,13 +2,12 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import {
   Car, Fuel, Users, Gauge, Filter, Eye, ShieldCheck,
-  MapPin, ArrowRight, CheckCircle2, SlidersHorizontal, LayoutGrid,
-  LayoutList, Search, X, Calendar, KeyRound, ChevronRight, Star,
-  Award, Clock, Compass, HelpCircle, Check
+  MapPin, ArrowRight, CheckCircle2, LayoutGrid,
+  LayoutList, Search, X, KeyRound, Star,
+  Award, Clock, Check
 } from "lucide-react";
 import { useBooking } from "../context/BookingContext";
 import { useCurrency } from "../context/CurrencyContext";
-import { useTheme } from "../context/ThemeContext";
 import FavoriteButton from "../components/shared/FavoriteButton";
 import { carsApi } from "../services/api";
 
@@ -132,7 +131,6 @@ export default function Cars() {
   const [searchParams] = useSearchParams();
   const { openCheckoutModal } = useBooking();
   const { displayPrice, selectedCurrency, currentCurrency } = useCurrency();
-  const { isDark } = useTheme();
 
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);

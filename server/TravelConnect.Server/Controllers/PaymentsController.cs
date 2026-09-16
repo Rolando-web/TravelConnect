@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using TravelConnect.Server.Data;
 using TravelConnect.Server.Models;
@@ -99,6 +100,7 @@ public class PaymentsController(
     // payment entirely on that hosted page — no in-app authorize shortcut.
     [HttpPost("paymongo/checkout")]
     [AllowAnonymous]
+    [EnableRateLimiting("anonymous-write")]
     public async Task<IActionResult> CreatePayMongoCheckout([FromBody] CreateCheckoutRequest req)
     {
         var method = req.Method?.ToLowerInvariant() ?? string.Empty;
@@ -165,6 +167,7 @@ public class PaymentsController(
     // returns the transaction id for the confirmation screen.
     [HttpPost("paymongo/pay")]
     [AllowAnonymous]
+    [EnableRateLimiting("anonymous-write")]
     public async Task<IActionResult> CreatePayMongoPayment([FromBody] CreatePaymentRequest req)
     {
         var method = req.Method?.ToLowerInvariant() ?? string.Empty;

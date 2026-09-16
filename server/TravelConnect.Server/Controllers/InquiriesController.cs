@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using TravelConnect.Server.Data;
 using TravelConnect.Server.Models;
@@ -30,6 +31,7 @@ public class InquiriesController(TravelConnectDbContext db) : ControllerBase
 
     [HttpPost]
     [AllowAnonymous]
+    [EnableRateLimiting("anonymous-write")]
     public async Task<ActionResult<Inquiry>> Create(Inquiry entity)
     {
         entity.CreatedAt = DateTime.UtcNow;

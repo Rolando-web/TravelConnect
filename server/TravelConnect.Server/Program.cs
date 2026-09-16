@@ -1,4 +1,6 @@
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.SqlClient;
 using TravelConnect.Server.Data.Connections;
 using TravelConnect.Server.Extensions;
@@ -11,6 +13,14 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     });
+
+// Cap request bodies (JSON payloads are small; the 10 MB ceiling still
+// accommodates image uploads while blocking oversized data floods).
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 10 * 1024 * 1024; // 10 MB
+    options.Limits.MaxRequestBufferSize = 10 * 1024 * 1024;
+});
 builder.Services.AddTravelConnectSql(builder.Configuration);
 
 var firebaseProjectId = builder.Configuration["Authentication:FirebaseProjectId"] ?? string.Empty;
@@ -59,6 +69,52 @@ builder.Services.AddCors(options =>
     });
 });
 
+// ── Rate limiting ─────────────────────────────────────────────────
+// Anonymously reachable endpoints (inquiries, bookings, payments,
+// leads) are spam/bot targets, so throttle them per client IP. Admins
+// hitting the JSON API from one office IP won't trip the generous
+// default; the "strict" policy only binds the anonymous write paths.
+var clientIp = static (HttpContext ctx) =>
+    ctx.Connection.RemoteIpAddress?.IsIPv4MappedToIPv6 == true
+        ? ctx.Connection.RemoteIpAddress.MapToIPv4().ToString()
+        : ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(
+        ctx => RateLimitPartition.GetFixedWindowLimiter(
+            clientIp(ctx),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 300,
+                QueueLimit = 0,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
+    options.AddPolicy("anonymous-write", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        clientIp(ctx),
+        _ => new FixedWindowRateLimiterOptions
+        {
+            AutoReplenishment = true,
+            PermitLimit = 10,
+            QueueLimit = 0,
+            Window = TimeSpan.FromMinutes(1)
+        }));
+
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        context.HttpContext.Response.ContentType = "application/json";
+        context.HttpContext.Response.Headers.RetryAfter = "60";
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new { message = "Too many requests. Please slow down and try again in a minute." },
+            token);
+    };
+});
+
 var app = builder.Build();
 
 // TLS is normally terminated at the reverse proxy (nginx/Vercel/Render), so
@@ -76,7 +132,35 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
+// Return clean JSON for unhandled errors (never leak stack traces).
+app.UseExceptionHandler(exApp =>
+{
+    exApp.Run(async ctx =>
+    {
+        var ex = ctx.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
+        ctx.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        ctx.Response.ContentType = "application/json";
+        await ctx.Response.WriteAsJsonAsync(new
+        {
+            message = "An unexpected error occurred.",
+            detail = app.Environment.IsDevelopment() ? ex?.Message : null
+        });
+    });
+});
+
+// Basic hardening headers applied to every response.
+app.Use(async (ctx, next) =>
+{
+    ctx.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    ctx.Response.Headers["X-Frame-Options"] = "DENY";
+    ctx.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    ctx.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+    await next();
+});
+
 app.UseCors("ReactPolicy");
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

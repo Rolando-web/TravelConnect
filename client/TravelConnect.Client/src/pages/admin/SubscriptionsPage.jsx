@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { subscriptionsApi } from "../../services/api";
 import CrudModal from "../../components/admin/CrudModal";
+import StatCard from "../../components/admin/StatCard";
+import Pagination from "../../components/admin/Pagination";
 
 const TIER_META = {
   1: { name: "Starter", price: 2999, icon: Sparkles, badge: "badge-cyan", ring: "text-cyan-accent" },
@@ -99,6 +101,8 @@ export default function SubscriptionsPage() {
   const [modal, setModal] = useState({ open: false, mode: "add", data: null });
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   const showToast = (msg) => {
     setToast(msg);
@@ -168,6 +172,10 @@ export default function SubscriptionsPage() {
     });
   }, [subs, query, tierFilter, statusFilter]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  useMemo(() => setPage(1), [query, tierFilter, statusFilter]);
+
   const daysLeft = (sub) => {
     const end = new Date(sub.endDate);
     const diff = end - new Date();
@@ -214,17 +222,14 @@ export default function SubscriptionsPage() {
       )}
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-        {statCards.map(({ label, value, note, icon: Icon }) => (
-          <article key={label} className="card">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-text-secondary text-sm">{label}</p>
-                <p className="text-2xl font-black mt-2">{value}</p>
-                <p className="text-xs text-text-secondary mt-2">{note}</p>
-              </div>
-              <Icon size={20} className="text-cyan-accent/60 mt-1" />
-            </div>
-          </article>
+        {statCards.map(({ label, value, note, icon }) => (
+          <StatCard
+            key={label}
+            label={label}
+            value={value}
+            note={note}
+            icon={icon}
+          />
         ))}
       </div>
 
@@ -356,6 +361,7 @@ export default function SubscriptionsPage() {
               <p className="text-sm mt-1">Create your first agency subscription to get started.</p>
             </div>
           ) : (
+            <>
             <table className="w-full min-w-[860px]">
               <thead>
                 <tr className="border-b border-navy-700 text-left">
@@ -370,7 +376,7 @@ export default function SubscriptionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((s) => {
+                {paginated.map((s) => {
                   const meta = TIER_META[s.tierLevel] || TIER_META[3];
                   const TierIcon = meta.icon;
                   const dl = daysLeft(s);
@@ -388,12 +394,12 @@ export default function SubscriptionsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${meta.badge}`}>
+                        <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold ${meta.badge}`}>
                           <TierIcon size={12} /> Tier {s.tierLevel}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ${STATUS_BADGE[s.planStatus] || "badge-gray"}`}>
+                        <span className={`text-[11px] font-bold ${STATUS_BADGE[s.planStatus] || "badge-gray"}`}>
                           {s.planStatus}
                         </span>
                       </td>
@@ -435,6 +441,14 @@ export default function SubscriptionsPage() {
                 })}
               </tbody>
             </table>
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              total={filtered.length}
+              pageSize={PAGE_SIZE}
+              onPage={setPage}
+            />
+            </>
           )}
         </div>
       </div>

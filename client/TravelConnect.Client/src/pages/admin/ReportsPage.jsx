@@ -1,8 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Download, CalendarRange, Inbox, BarChart3 } from "lucide-react";
+import {
+  Download,
+  CalendarRange,
+  Inbox,
+  BarChart3,
+  Calendar,
+  TrendingUp,
+  CircleDollarSign,
+  CreditCard,
+  Award,
+  CalendarDays,
+  AlertTriangle,
+  RotateCcw,
+  PieChart,
+} from "lucide-react";
 import { bookingsApi } from "../../services/api";
 import ReportChart from "../../components/admin/ReportChart";
+import StatCard from "../../components/admin/StatCard";
 
 function money(v) {
   return `₱${Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -27,7 +42,8 @@ function friendlyDate(ymd) {
 
 function shortDate(ymd) {
   const d = new Date(`${ymd}T00:00:00`);
-  return isNaN(d) ? ymd : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  if (isNaN(d)) return ymd;
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function dayOf(b) {
@@ -100,7 +116,7 @@ function topPackages(filtered) {
     rec.revenue += b.totalAmount ?? b.subtotal ?? 0;
     map.set(name, rec);
   }
-  return [...map.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 8);
+  return [...map.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 6);
 }
 
 const STATUS_COLORS = {
@@ -130,6 +146,20 @@ export default function ReportsPage() {
     load();
   }, []);
 
+  const applyPreset = (days) => {
+    const now = new Date();
+    const past = new Date(Date.now() - (days - 1) * 86400000);
+    setFromDate(localDateStr(past));
+    setToDate(localDateStr(now));
+  };
+
+  const applyThisMonth = () => {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    setFromDate(localDateStr(firstDay));
+    setToDate(localDateStr(now));
+  };
+
   const filtered = useMemo(
     () =>
       bookings.filter((b) => {
@@ -150,69 +180,101 @@ export default function ReportsPage() {
   const bestPkg = topPkgs[0]?.name || null;
 
   const insights = [
-    ["Busiest Day", busiestDay || "—"],
-    ["Peak Revenue Day", peakRevenueDay || "—"],
-    ["Preferred Method", topMethod || "—"],
-    ["Top Package", bestPkg || "—"],
+    {
+      label: "Busiest Booking Day",
+      value: busiestDay ? friendlyDate(busiestDay) : "—",
+      icon: Calendar,
+      tint: "bg-blue-500/15 text-blue-400 border-blue-500/20",
+    },
+    {
+      label: "Peak Revenue Day",
+      value: peakRevenueDay ? friendlyDate(peakRevenueDay) : "—",
+      icon: TrendingUp,
+      tint: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
+    },
+    {
+      label: "Top Payment Method",
+      value: topMethod || "—",
+      icon: CreditCard,
+      tint: "bg-cyan-accent/15 text-cyan-accent border-cyan-accent/20",
+    },
+    {
+      label: "Top Performing Package",
+      value: bestPkg || "—",
+      icon: Award,
+      tint: "bg-amber-500/15 text-amber-400 border-amber-500/20",
+    },
   ];
 
   const statusData = useMemo(() => {
     const labels = [...stats.statuses.keys()];
     return {
       labels,
-      datasets: [{
-        data: labels.map((k) => stats.statuses.get(k)),
-        backgroundColor: labels.map((k) => STATUS_COLORS[k] || "#8D99AE"),
-        borderWidth: 0,
-      }],
+      datasets: [
+        {
+          data: labels.map((k) => stats.statuses.get(k)),
+          backgroundColor: labels.map((k) => STATUS_COLORS[k] || "#8D99AE"),
+          borderWidth: 0,
+        },
+      ],
     };
   }, [stats]);
 
   const methodData = useMemo(() => {
-    const entries = [...stats.methods.entries()].sort((a, b) => b[1] - a[1]);
+    const labels = [...stats.methods.keys()];
     return {
-      labels: entries.map(([k]) => k),
-      datasets: [{
-        data: entries.map(([, v]) => v),
-        backgroundColor: entries.map((_, i) => METHOD_COLORS[i % METHOD_COLORS.length]),
-        borderWidth: 0,
-      }],
+      labels,
+      datasets: [
+        {
+          data: labels.map((k) => stats.methods.get(k)),
+          backgroundColor: labels.map((_, i) => METHOD_COLORS[i % METHOD_COLORS.length]),
+          borderWidth: 0,
+        },
+      ],
     };
   }, [stats]);
 
-  const trendData = useMemo(() => ({
-    labels: trend.labels.map((d) => (d.includes("-") && d.length === 7 ? d : shortDate(d))),
-    datasets: [
-      {
-        label: "Bookings",
-        data: trend.counts,
-        borderColor: "#06D6A0",
-        backgroundColor: "rgba(6,214,160,0.15)",
-        fill: true,
-        tension: 0.3,
-        yAxisID: "y",
-      },
-      {
-        label: "Revenue (₱)",
-        data: trend.revenues,
-        borderColor: "#2EE6B4",
-        backgroundColor: "rgba(46,230,180,0.15)",
-        fill: true,
-        tension: 0.3,
-        yAxisID: "y1",
-      },
-    ],
-  }), [trend]);
+  const trendData = useMemo(
+    () => ({
+      labels: trend.labels.map(shortDate),
+      datasets: [
+        {
+          label: "Bookings",
+          data: trend.counts,
+          borderColor: "#06D6A0",
+          backgroundColor: "rgba(6,214,160,0.15)",
+          fill: true,
+          tension: 0.3,
+          yAxisID: "y",
+        },
+        {
+          label: "Revenue (₱)",
+          data: trend.revenues,
+          borderColor: "#2EE6B4",
+          backgroundColor: "rgba(46,230,180,0.15)",
+          fill: true,
+          tension: 0.3,
+          yAxisID: "y1",
+        },
+      ],
+    }),
+    [trend]
+  );
 
-  const packageData = useMemo(() => ({
-    labels: topPkgs.map((p) => p.name),
-    datasets: [{
-      label: "Revenue (₱)",
-      data: topPkgs.map((p) => p.revenue),
-      backgroundColor: "rgba(6,214,160,0.75)",
-      borderRadius: 6,
-    }],
-  }), [topPkgs]);
+  const packageData = useMemo(
+    () => ({
+      labels: topPkgs.map((p) => p.name),
+      datasets: [
+        {
+          label: "Revenue (₱)",
+          data: topPkgs.map((p) => p.revenue),
+          backgroundColor: "rgba(6,214,160,0.85)",
+          borderRadius: 6,
+        },
+      ],
+    }),
+    [topPkgs]
+  );
 
   const axisColor = { ticks: { color: "#8D99AE" } };
   const gridColor = { grid: { color: "rgba(141,153,174,0.15)" } };
@@ -238,21 +300,18 @@ export default function ReportsPage() {
       createdAt: b.createdAt ? new Date(b.createdAt).toISOString().slice(0, 16).replace("T", " ") : "",
     }));
     const summary = [
-      ["Report range", `${friendlyDate(fromDate)} to ${friendlyDate(toDate)}`],
-      ["Total bookings", String(stats.total)],
-      ["Total revenue", String(stats.revenue)],
-      ["Avg booking value", String(stats.avgValue)],
-      ["Cancellation rate", pct(stats.cancellationRate)],
+      ["Report Generated", new Date().toISOString()],
+      ["Date Range", `${fromDate} to ${toDate}`],
+      ["Total Bookings", String(filtered.length)],
+      ["Total Revenue", String(stats.revenue)],
+      ["Paid Bookings", String(stats.paidCount)],
+      ["Cancelled", String(stats.cancelled)],
+      [],
+      Object.keys(rows[0] || {}),
+      ...rows.map((r) => Object.values(r)),
     ];
-    const headers = Object.keys(rows[0] || {});
-    const lines = [
-      "TravelConnect Reports",
-      ...summary.map((r) => r.join(",")),
-      "",
-      headers.join(","),
-      ...rows.map((r) => headers.map((h) => `"${String(r[h] ?? "").replace(/"/g, '""')}"`).join(",")),
-    ];
-    const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const csv = summary.map((line) => line.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -262,177 +321,329 @@ export default function ReportsPage() {
   };
 
   const kpis = [
-    ["Total Revenue", money(stats.revenue), `${stats.paidCount} paid bookings`, "text-badge-green"],
-    ["Total Bookings", stats.total.toLocaleString(), "Within selected range", "text-badge-green"],
-    ["Avg Booking Value", money(stats.avgValue), "Per booking", "text-badge-green"],
-    ["Cancellation Rate", pct(stats.cancellationRate), `${stats.cancelled} cancelled`, "text-badge-green"],
+    {
+      label: "Total Revenue",
+      value: money(stats.revenue),
+      note: `${stats.paidCount} paid bookings`,
+      icon: CircleDollarSign,
+      color: "text-badge-green",
+    },
+    {
+      label: "Total Bookings",
+      value: stats.total.toLocaleString(),
+      note: "Within selected range",
+      icon: CalendarDays,
+      color: "text-white",
+    },
+    {
+      label: "Avg Booking Value",
+      value: money(stats.avgValue),
+      note: "Per confirmed booking",
+      icon: TrendingUp,
+      color: "text-cyan-accent",
+    },
+    {
+      label: "Cancellation Rate",
+      value: pct(stats.cancellationRate),
+      note: `${stats.cancelled} cancelled trips`,
+      icon: AlertTriangle,
+      color: stats.cancellationRate > 20 ? "text-badge-red" : "text-badge-orange",
+    },
   ];
 
   return (
     <>
+      {/* Header */}
       <section className="flex flex-wrap gap-4 items-start justify-between mb-7">
         <div>
           <p className="text-text-secondary text-sm">{role} &gt; Reports</p>
           <h1 className="text-3xl font-black mt-1 font-serif">Reports & Analytics</h1>
-          <p className="text-text-secondary mt-2">Business performance overview and insights.</p>
+          <p className="text-text-secondary mt-2">
+            Business performance metrics, revenue trajectories, and volume trends.
+          </p>
         </div>
         <button
-          className="btn-secondary bg-badge-green/15 border-badge-green/60 text-badge-green hover:bg-badge-green/25"
+          className="btn-secondary bg-badge-green/15 border-badge-green/60 text-badge-green hover:bg-badge-green/25 cursor-pointer"
           onClick={handleExport}
           disabled={loading || filtered.length === 0}
         >
-          <Download size={16} /> Export to Excel
+          <Download size={16} /> Export to Excel (.csv)
         </button>
       </section>
 
-      <div className="card mb-5 px-4 py-3 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2">
-          <CalendarRange size={15} className="text-text-secondary shrink-0" />
-          <span className="text-xs font-semibold text-text-secondary">FROM</span>
-          <input
-            type="date"
-            value={fromDate}
-            max={toDate}
-            onChange={(e) => setFromDate(e.target.value)}
-            className="rounded-lg border border-navy-700 bg-navy-900 px-2 py-1 text-xs text-text-primary outline-none focus:border-cyan-accent transition"
-          />
+      {/* Date Filter & Preset Controls */}
+      <div className="card mb-6 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-text-secondary mr-1">
+              Presets:
+            </span>
+            <button
+              type="button"
+              onClick={() => applyPreset(7)}
+              className="filter-pill"
+            >
+              Last 7 Days
+            </button>
+            <button
+              type="button"
+              onClick={() => applyPreset(30)}
+              className="filter-pill"
+            >
+              Last 30 Days
+            </button>
+            <button
+              type="button"
+              onClick={applyThisMonth}
+              className="filter-pill"
+            >
+              This Month
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <CalendarRange size={15} className="text-cyan-accent shrink-0" />
+              <span className="text-xs font-semibold text-text-secondary">FROM</span>
+              <input
+                type="date"
+                value={fromDate}
+                max={toDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="rounded-lg border border-navy-700 bg-navy-900 px-2.5 py-1.5 text-xs text-text-primary outline-none focus:border-cyan-accent transition"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-text-secondary">TO</span>
+              <input
+                type="date"
+                value={toDate}
+                min={fromDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="rounded-lg border border-navy-700 bg-navy-900 px-2.5 py-1.5 text-xs text-text-primary outline-none focus:border-cyan-accent transition"
+              />
+            </div>
+            <button
+              type="button"
+              className="btn-primary !px-3 !py-1.5 !text-xs cursor-pointer"
+              onClick={load}
+            >
+              Apply
+            </button>
+            <button
+              type="button"
+              className="btn-secondary !px-3 !py-1.5 !text-xs cursor-pointer"
+              onClick={() => {
+                setFromDate(localDateStr(new Date(Date.now() - 29 * 86400000)));
+                setToDate(localDateStr(new Date()));
+              }}
+              title="Reset to default 30 days"
+            >
+              <RotateCcw size={13} /> Reset
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-text-secondary">TO</span>
-          <input
-            type="date"
-            value={toDate}
-            min={fromDate}
-            onChange={(e) => setToDate(e.target.value)}
-            className="rounded-lg border border-navy-700 bg-navy-900 px-2 py-1 text-xs text-text-primary outline-none focus:border-cyan-accent transition"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <button className="btn-primary !px-3 !py-1.5 !text-xs" onClick={load}>Apply Filter</button>
-          <button
-            className="btn-secondary !px-3 !py-1.5 !text-xs"
-            onClick={() => {
-              setFromDate(localDateStr(new Date(Date.now() - 29 * 86400000)));
-              setToDate(localDateStr(new Date()));
-            }}
-          >
-            Reset
-          </button>
-        </div>
-        <div className="ml-auto flex items-center gap-2 text-xs text-text-secondary">
-          {loading ? "Loading data..." : `Showing ${filtered.length} bookings · ${friendlyDate(fromDate)} → ${friendlyDate(toDate)}`}
+
+        <div className="mt-3 pt-3 border-t border-navy-700/60 flex items-center justify-between text-xs text-text-secondary">
+          <span>
+            {loading
+              ? "Loading data..."
+              : `Analyzing ${filtered.length} total bookings from ${friendlyDate(fromDate)} to ${friendlyDate(toDate)}`}
+          </span>
+          <span className="text-cyan-accent font-medium">
+            Live calculations active
+          </span>
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
-        {kpis.map(([label, value, note, color]) => (
-          <article key={label} className="card">
-            <p className="text-text-secondary text-sm">{label}</p>
-            <p className={`text-2xl font-black mt-2 ${color}`}>{value}</p>
-            <p className="text-xs text-text-secondary mt-2">{note}</p>
-          </article>
+      {/* KPI Stat Cards Row (Right-Aligned Numbers) */}
+      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+        {kpis.map((k) => (
+          <StatCard
+            key={k.label}
+            label={k.label}
+            value={k.value}
+            note={k.note}
+            icon={k.icon}
+            color={k.color}
+          />
         ))}
       </div>
 
       {loading ? (
-        <div className="card text-center py-14 text-text-secondary">Loading data...</div>
+        <div className="card text-center py-16 text-text-secondary">
+          <div className="animate-spin w-8 h-8 border-2 border-cyan-accent border-t-transparent rounded-full mx-auto mb-3" />
+          <p>Compiling analytics records...</p>
+        </div>
       ) : filtered.length === 0 ? (
-        <div className="card text-center py-14">
-          <Inbox size={36} className="mx-auto text-text-secondary mb-3" />
-          <p className="text-text-secondary font-semibold">No bookings in this range</p>
-          <p className="text-xs text-text-secondary mt-1">Try a wider FROM / TO date range.</p>
+        <div className="card text-center py-16">
+          <Inbox size={40} className="mx-auto text-text-secondary mb-3" />
+          <p className="text-text-secondary font-bold text-base">No bookings found in this period</p>
+          <p className="text-xs text-text-secondary mt-1">
+            Try choosing a broader date range or select "Last 30 Days" above.
+          </p>
         </div>
       ) : (
         <>
-          {/* Insights */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-            {insights.map(([label, value]) => (
-              <article key={label} className="rounded-xl bg-navy-900/70 border border-navy-700 px-4 py-3">
-                <p className="text-xs text-text-secondary">{label}</p>
-                <p className="text-lg font-black mt-1">{value}</p>
-              </article>
-            ))}
+          {/* Key Insights Row */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {insights.map((ins) => {
+              const Icon = ins.icon;
+              return (
+                <div
+                  key={ins.label}
+                  className="card !p-4 flex items-center gap-3.5 border border-navy-700 bg-navy-800/90 hover:border-navy-600 transition"
+                >
+                  <div
+                    className={`w-10 h-10 rounded-xl grid place-items-center shrink-0 border ${ins.tint}`}
+                  >
+                    <Icon size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-text-secondary font-medium truncate">
+                      {ins.label}
+                    </p>
+                    <p className="text-sm font-black text-white mt-0.5 truncate">
+                      {ins.value}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          {/* Trend chart — full width */}
-          <ReportChart
-            type="line"
-            title="Bookings & Revenue Over Time"
-            subtitle="Volume and gross revenue across the selected range"
-            data={trendData}
-            height={320}
-            options={{
-              scales: {
-                y: { ...axisColor, ...gridColor, beginAtZero: true, ticks: { ...axisColor.ticks, precision: 0 } },
-                y1: { position: "right", ...axisColor, ...gridColor, beginAtZero: true, grid: { drawOnChartArea: false } },
-                x: axisColor,
-              },
-            }}
-          />
-
-          {/* Doughnut row */}
-          <div className="grid md:grid-cols-2 gap-4 mb-5">
-            <ReportChart
-              type="doughnut"
-              title="Booking Status Breakdown"
-              subtitle="Distribution by current booking status"
-              data={statusData}
-              height={260}
-              options={{ cutout: "62%" }}
-            />
-            <ReportChart
-              type="doughnut"
-              title="Payment Methods"
-              subtitle="How customers paid in the selected range"
-              data={methodData}
-              height={260}
-              options={{ cutout: "62%" }}
-            />
-          </div>
-
-          {/* Top packages — full width */}
-          <ReportChart
-            type="bar"
-            title="Top Packages by Revenue"
-            subtitle="Highest grossing packages in the selected range"
-            data={packageData}
-            height={Math.max(260, topPkgs.length * 50 + 100)}
-            options={{
-              indexAxis: "y",
-              scales: {
-                x: { ...axisColor, ...gridColor, beginAtZero: true },
-                y: axisColor,
-              },
-            }}
-          />
-
-          {/* Snapshot */}
-          <section className="card mt-5">
-            <div className="flex items-center justify-between mb-4">
+          {/* Trend Chart (Line) */}
+          <section className="card mb-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-5 pb-3 border-b border-navy-700">
               <div>
-                <h2 className="font-bold">Performance Snapshot</h2>
-                <p className="text-sm text-text-secondary mt-1">
-                  Summary for {friendlyDate(fromDate)} — {friendlyDate(toDate)}.
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <TrendingUp size={18} className="text-cyan-accent" />
+                  Bookings & Revenue Over Time
+                </h2>
+                <p className="text-xs text-text-secondary mt-0.5">
+                  Volume progression and gross revenue timeline across the selected date range
                 </p>
               </div>
-              <BarChart3 size={18} className="text-cyan-accent" />
             </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[
-                ["Total Revenue", money(stats.revenue)],
-                ["Collected (paid)", money(filtered.filter((b) => b.paid).reduce((s, b) => s + (b.totalAmount ?? b.subtotal ?? 0), 0))],
-                ["Total Bookings", stats.total.toLocaleString()],
-                ["Avg Booking Value", money(stats.avgValue)],
-                ["Cancellations", String(stats.cancelled)],
-                ["Top Package", topPkgs[0]?.name || "—"],
-              ].map(([label, value]) => (
-                <article key={label} className="rounded-xl bg-navy-900/70 border border-navy-700 p-4">
-                  <p className="text-xs text-text-secondary">{label}</p>
-                  <p className="text-lg font-black mt-1">{value}</p>
-                </article>
-              ))}
-            </div>
+            <ReportChart
+              type="line"
+              data={trendData}
+              height={320}
+              options={{
+                scales: {
+                  y: { ...axisColor, ...gridColor, beginAtZero: true, ticks: { ...axisColor.ticks, precision: 0 } },
+                  y1: { position: "right", ...axisColor, ...gridColor, beginAtZero: true, grid: { drawOnChartArea: false } },
+                  x: axisColor,
+                },
+              }}
+            />
           </section>
+
+          {/* Breakdown Row (Doughnut Charts) */}
+          <div className="grid lg:grid-cols-2 gap-6 mb-6">
+            <section className="card">
+              <div className="flex items-center gap-2 mb-4 pb-3 border-b border-navy-700">
+                <PieChart size={18} className="text-cyan-accent" />
+                <div>
+                  <h3 className="font-bold text-white text-base">Booking Status Distribution</h3>
+                  <p className="text-xs text-text-secondary mt-0.5">Ratio of completed, upcoming, pending and cancelled trips</p>
+                </div>
+              </div>
+              <ReportChart
+                type="doughnut"
+                data={statusData}
+                height={260}
+                options={{ cutout: "65%" }}
+              />
+            </section>
+
+            <section className="card">
+              <div className="flex items-center gap-2 mb-4 pb-3 border-b border-navy-700">
+                <CreditCard size={18} className="text-cyan-accent" />
+                <div>
+                  <h3 className="font-bold text-white text-base">Payment Methods Breakdown</h3>
+                  <p className="text-xs text-text-secondary mt-0.5">Share of checkout transactions by payment provider</p>
+                </div>
+              </div>
+              <ReportChart
+                type="doughnut"
+                data={methodData}
+                height={260}
+                options={{ cutout: "65%" }}
+              />
+            </section>
+          </div>
+
+          {/* Package Performance & Performance Snapshot */}
+          <div className="grid lg:grid-cols-12 gap-6 mb-8">
+            {/* Top Packages Bar Chart (7 cols) */}
+            <section className="card lg:col-span-7 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-navy-700">
+                  <Award size={18} className="text-cyan-accent" />
+                  <div>
+                    <h3 className="font-bold text-white text-base">Top Packages by Revenue</h3>
+                    <p className="text-xs text-text-secondary mt-0.5">Highest grossing travel destinations and package deals</p>
+                  </div>
+                </div>
+                <ReportChart
+                  type="bar"
+                  data={packageData}
+                  height={Math.max(260, topPkgs.length * 44 + 60)}
+                  options={{
+                    indexAxis: "y",
+                    scales: {
+                      x: { ...axisColor, ...gridColor, beginAtZero: true },
+                      y: axisColor,
+                    },
+                  }}
+                />
+              </div>
+            </section>
+
+            {/* Performance Snapshot Card (5 cols) */}
+            <section className="card lg:col-span-5 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-navy-700">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 size={18} className="text-cyan-accent" />
+                    <div>
+                      <h3 className="font-bold text-white text-base">Performance Snapshot</h3>
+                      <p className="text-xs text-text-secondary mt-0.5">Key aggregate statistics</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {[
+                    { label: "Gross Total Revenue", val: money(stats.revenue), desc: "All recorded bookings in period" },
+                    {
+                      label: "Captured Payments",
+                      val: money(filtered.filter((b) => b.paid).reduce((s, b) => s + (b.totalAmount ?? b.subtotal ?? 0), 0)),
+                      desc: "Fully paid and confirmed orders",
+                    },
+                    { label: "Confirmed Bookings", val: stats.total.toLocaleString(), desc: "Total transactions created" },
+                    { label: "Average Booking Value", val: money(stats.avgValue), desc: "Average ticket yield" },
+                    { label: "Cancellations Recorded", val: String(stats.cancelled), desc: "Cancelled or refunded reservations" },
+                    { label: "Top Destination Deal", val: topPkgs[0]?.name || "—", desc: "Top grossing package title" },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex items-center justify-between p-3 rounded-xl bg-navy-900/60 border border-navy-700/70"
+                    >
+                      <div className="min-w-0 pr-3">
+                        <p className="text-xs font-semibold text-text-primary truncate">{item.label}</p>
+                        <p className="text-[11px] text-text-secondary truncate">{item.desc}</p>
+                      </div>
+                      <p className="text-sm font-black text-cyan-accent tabular-nums text-right shrink-0">
+                        {item.val}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          </div>
         </>
       )}
     </>

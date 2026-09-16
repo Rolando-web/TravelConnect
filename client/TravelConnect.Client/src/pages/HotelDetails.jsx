@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
-  Hotel, Star, MapPin, ArrowLeft, CheckCircle2, ShieldCheck,
-  ChevronLeft, ChevronRight, ChevronDown, KeyRound, Coffee, Waves, Wifi,
-  Award, Clock, Check, BedDouble, AlertCircle, PhoneCall
+  Star, MapPin, ArrowLeft, ShieldCheck,
+  ChevronLeft, ChevronRight, ChevronDown, KeyRound,
+  Award, Check, BedDouble, AlertCircle, PhoneCall
 } from "lucide-react";
 import { hotelsApi } from "../services/api";
 import { useBooking } from "../context/BookingContext";
 import { useCurrency } from "../context/CurrencyContext";
-import { useTheme } from "../context/ThemeContext";
 import FavoriteButton from "../components/shared/FavoriteButton";
 
 const FALLBACK_IMG = "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1600&q=80";
@@ -117,7 +116,6 @@ export default function HotelDetails() {
   const navigate = useNavigate();
   const { openCheckoutModal } = useBooking();
   const { displayPrice } = useCurrency();
-  const { isDark } = useTheme();
 
   const [hotel, setHotel] = useState(null);
   const [loading, setLoading] = useState(true);

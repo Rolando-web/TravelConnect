@@ -3,6 +3,8 @@ import { useOutletContext } from "react-router-dom";
 import { Download, Plus, Search, SlidersHorizontal, Eye, Pencil, Trash2, Inbox, X, MapPin, Boxes } from "lucide-react";
 import { destinationsApi, packagesApi, assetUrl } from "../../services/api";
 import CrudModal from "../../components/admin/CrudModal";
+import StatCard from "../../components/admin/StatCard";
+import Pagination from "../../components/admin/Pagination";
 
 const statusBadge = { Featured: "badge-green", Active: "badge-cyan", Inactive: "badge-red" };
 
@@ -29,6 +31,8 @@ export default function DestinationsPage() {
   const [viewing, setViewing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   const load = () => {
     Promise.allSettled([destinationsApi.list(), packagesApi.list()])
@@ -108,6 +112,10 @@ export default function DestinationsPage() {
     });
   }, [destinations, query, activeStatus, activeRegion]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  useMemo(() => setPage(1), [query, activeStatus, activeRegion]);
+
   const totalPackages = destinations.reduce((s, d) => s + (d.packages || 0), 0);
   const stats = [
     ["Total Destinations", destinations.length.toLocaleString(), "All regions"],
@@ -150,11 +158,7 @@ export default function DestinationsPage() {
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         {stats.map(([label, value, note]) => (
-          <article key={label} className="card">
-            <p className="text-text-secondary text-sm">{label}</p>
-            <p className="text-2xl font-black mt-2">{value}</p>
-            <p className="text-xs text-text-secondary mt-2">{note}</p>
-          </article>
+          <StatCard key={label} label={label} value={value} note={note} />
         ))}
       </div>
 
@@ -209,7 +213,7 @@ export default function DestinationsPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((d) => (
+                paginated.map((d) => (
                   <tr key={d.id ?? d.name} className="table-row">
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
@@ -246,6 +250,13 @@ export default function DestinationsPage() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={filtered.length}
+          pageSize={PAGE_SIZE}
+          onPage={setPage}
+        />
       </section>
 
       <CrudModal

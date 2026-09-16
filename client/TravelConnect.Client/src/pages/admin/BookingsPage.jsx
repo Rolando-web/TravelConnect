@@ -3,6 +3,8 @@ import { useOutletContext } from "react-router-dom";
 import { Download, Plus, Search, SlidersHorizontal, Inbox, RefreshCcw, Armchair, X } from "lucide-react";
 import { bookingsApi, adminOverrideSeat } from "../../services/api";
 import CrudModal from "../../components/admin/CrudModal";
+import StatCard from "../../components/admin/StatCard";
+import Pagination from "../../components/admin/Pagination";
 
 const statusBadge = {
   Upcoming: "badge-cyan",
@@ -58,6 +60,8 @@ export default function BookingsPage() {
   const [seatModal, setSeatModal] = useState({ open: false, booking: null, seats: {} });
   const [overrideBusy, setOverrideBusy] = useState(false);
   const [overrideMsg, setOverrideMsg] = useState("");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   const load = () => {
     bookingsApi
@@ -172,6 +176,12 @@ export default function BookingsPage() {
     });
   }, [mapped, query, activeStatus, activePayment]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // Reset to page 1 whenever filters change
+  useMemo(() => setPage(1), [query, activeStatus, activePayment]);
+
   const total = bookings.reduce((s, b) => s + (b.totalAmount ?? b.subtotal ?? 0), 0);
   const stats = [
     ["Total Bookings", bookings.length.toLocaleString(), "All time"],
@@ -196,11 +206,7 @@ export default function BookingsPage() {
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         {stats.map(([label, value, note]) => (
-          <article key={label} className="card">
-            <p className="text-text-secondary text-sm">{label}</p>
-            <p className="text-2xl font-black mt-2">{value}</p>
-            <p className="text-xs text-text-secondary mt-2">{note}</p>
-          </article>
+          <StatCard key={label} label={label} value={value} note={note} />
         ))}
       </div>
 
@@ -255,7 +261,7 @@ export default function BookingsPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((b) => (
+                paginated.map((b) => (
                   <tr key={b.id ?? b.ref} className="table-row">
                     <td className="px-5 py-4 font-mono text-xs text-cyan-accent font-semibold">{b.ref}</td>
                     <td className="px-5 py-4">
@@ -288,6 +294,7 @@ export default function BookingsPage() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
       </section>
 
       <CrudModal

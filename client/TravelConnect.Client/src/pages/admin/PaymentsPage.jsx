@@ -3,6 +3,8 @@ import { useOutletContext } from "react-router-dom";
 import { Download, Plus, Search, SlidersHorizontal, Inbox, RefreshCcw, Check, X, ShieldCheck } from "lucide-react";
 import { paymentsApi, getPaymentReconciliation, refundPaymentToWallet } from "../../services/api";
 import CrudModal from "../../components/admin/CrudModal";
+import StatCard from "../../components/admin/StatCard";
+import Pagination from "../../components/admin/Pagination";
 
 const statusBadge = {
   Paid: "badge-green",
@@ -58,6 +60,8 @@ export default function PaymentsPage() {
   const [modal, setModal] = useState({ open: false, mode: "add", data: null });
   const [saving, setSaving] = useState(false);
   const [refundingId, setRefundingId] = useState(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   const classifyRecon = (r) => {
     if (!r.isMatched) {
@@ -147,6 +151,10 @@ export default function PaymentsPage() {
       return matchQuery && matchStatus && matchMethod;
     });
   }, [payments, query, activeStatus, activeMethod]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  useMemo(() => setPage(1), [query, activeStatus, activeMethod]);
 
   const totalCollected = payments.filter((p) => p.status === "Paid").reduce((s, p) => s + (p.amount || 0), 0);
   const stats = [
@@ -273,11 +281,7 @@ export default function PaymentsPage() {
       <>
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         {stats.map(([label, value, note]) => (
-          <article key={label} className="card">
-            <p className="text-text-secondary text-sm">{label}</p>
-            <p className="text-2xl font-black mt-2">{value}</p>
-            <p className="text-xs text-text-secondary mt-2">{note}</p>
-          </article>
+          <StatCard key={label} label={label} value={value} note={note} />
         ))}
       </div>
 
@@ -332,7 +336,7 @@ export default function PaymentsPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((p) => (
+                paginated.map((p) => (
                   <tr key={p.id ?? p.referenceId} className="table-row">
                     <td className="px-5 py-4 font-mono text-xs text-badge-green font-semibold">{p.referenceId || `#PAY-${p.id}`}</td>
                     <td className="px-5 py-4">
@@ -367,6 +371,13 @@ export default function PaymentsPage() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={filtered.length}
+          pageSize={PAGE_SIZE}
+          onPage={setPage}
+        />
       </section>
       </>
       )}

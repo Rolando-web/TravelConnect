@@ -82,3 +82,14 @@ coverage/
 .vercel
 .ui-check/
 **/devcheck_out/
+
+# MonsterASP WebDeploy publish profiles - contain live site WebDeploy password (never commit)
+server/TravelConnect.Server/Properties/PublishProfiles/
+**/PublishProfiles/*.pubxml
+
+# MonsterASP WebDeploy publish settings (.publishSettings) - contain live WebDeploy password (never commit)
+**/*.publishSettings
+# delete superseded hand-written publish profile (official .publishSettings imported instead)
+server/TravelConnect.Server/Properties/PublishProfiles/*.pubxml
+server/TravelConnect.Server/web.config
+server/TravelConnect.Server/Properties/*.publishSettings

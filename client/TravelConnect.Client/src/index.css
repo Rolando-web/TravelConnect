@@ -51,23 +51,27 @@
   }
 
   .badge-green {
-    @apply rounded-full px-2.5 py-1 text-xs font-semibold bg-badge-green/15 text-badge-green;
+    @apply text-xs font-semibold text-badge-green;
   }
 
   .badge-orange {
-    @apply rounded-full px-2.5 py-1 text-xs font-semibold bg-badge-orange/15 text-badge-orange;
+    @apply text-xs font-semibold text-badge-orange;
   }
 
   .badge-red {
-    @apply rounded-full px-2.5 py-1 text-xs font-semibold bg-badge-red/15 text-badge-red;
+    @apply text-xs font-semibold text-badge-red;
   }
 
   .badge-cyan {
-    @apply rounded-full px-2.5 py-1 text-xs font-semibold bg-badge-cyan/15 text-badge-cyan;
+    @apply text-xs font-semibold text-badge-cyan;
   }
 
   .badge-purple {
-    @apply rounded-full px-2.5 py-1 text-xs font-semibold bg-violet-500/15 text-violet-400;
+    @apply text-xs font-semibold text-violet-400;
+  }
+
+  .badge-gray {
+    @apply text-xs font-semibold text-text-secondary;
   }
 
   .input-field {
@@ -140,5 +144,14 @@
       transform: none;
       transition: none;
     }
+  }
+
+  /* Hide scrollbar while preserving scroll functionality */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
   }
 }

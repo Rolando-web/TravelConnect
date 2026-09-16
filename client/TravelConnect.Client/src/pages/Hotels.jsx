@@ -1,14 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  Hotel, Star, MapPin, CheckCircle2, Eye, ShieldCheck,
-  Search, X, LayoutGrid, LayoutList, ArrowRight, Check,
-  BedDouble, Waves, Coffee, Wifi, Award, Compass, KeyRound
+  Hotel, Star, MapPin, Eye, ShieldCheck,
+  Search, X, LayoutGrid, LayoutList,
+  BedDouble, Waves, Coffee, Compass, KeyRound
 } from "lucide-react";
 import { useBooking } from "../context/BookingContext";
 import { useCurrency } from "../context/CurrencyContext";
 import { useAvailable } from "../context/AvailableContext";
-import { useTheme } from "../context/ThemeContext";
 import FavoriteButton from "../components/shared/FavoriteButton";
 import { hotelsApi } from "../services/api";
 
@@ -144,10 +143,9 @@ export default function Hotels() {
   const { openCheckoutModal } = useBooking();
   const { displayPrice, selectedCurrency } = useCurrency();
   const { hotelCities } = useAvailable();
-  const { isDark } = useTheme();
 
   const [hotels, setHotels] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedCity, setSelectedCity] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");

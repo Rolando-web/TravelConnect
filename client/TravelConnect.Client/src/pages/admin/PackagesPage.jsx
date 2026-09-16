@@ -3,6 +3,8 @@ import { useOutletContext } from "react-router-dom";
 import { Download, Plus, Search, SlidersHorizontal, Star, Inbox, Pencil, Eye, X, Tag, MapPin, Clock, Users } from "lucide-react";
 import { packagesApi, assetUrl } from "../../services/api";
 import CrudModal from "../../components/admin/CrudModal";
+import StatCard from "../../components/admin/StatCard";
+import Pagination from "../../components/admin/Pagination";
 
 const tagBadge = {
   "Best Seller": "badge-orange",
@@ -39,6 +41,8 @@ export default function PackagesPage() {
   const [modal, setModal] = useState({ open: false, mode: "add", data: null });
   const [viewing, setViewing] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   const load = () => {
     packagesApi
@@ -103,6 +107,10 @@ export default function PackagesPage() {
     });
   }, [packages, query, activeTag, activeCountry]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  useMemo(() => setPage(1), [query, activeTag, activeCountry]);
+
   const avgPrice = packages.length
     ? packages.reduce((s, p) => s + (p.price || 0), 0) / packages.length
     : 0;
@@ -151,11 +159,7 @@ export default function PackagesPage() {
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         {stats.map(([label, value, note]) => (
-          <article key={label} className="card">
-            <p className="text-text-secondary text-sm">{label}</p>
-            <p className="text-2xl font-black mt-2">{value}</p>
-            <p className="text-xs text-text-secondary mt-2">{note}</p>
-          </article>
+          <StatCard key={label} label={label} value={value} note={note} />
         ))}
       </div>
 
@@ -210,7 +214,7 @@ export default function PackagesPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((p) => (
+                paginated.map((p) => (
                   <tr key={p.id ?? p.name} className="table-row">
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
@@ -232,7 +236,7 @@ export default function PackagesPage() {
                     </td>
                     <td className="px-5 py-4 text-cyan-accent font-bold">{p.duration || "—"}</td>
                     <td className="px-5 py-4 text-badge-green font-semibold">{money(p.price)}</td>
-                    <td className="px-5 py-4 text-badge-orange flex items-center gap-1"><Star size={14} fill="currentColor" /> {Number(p.rating || 0).toFixed(1)}</td>
+                    <td className="px-5 py-4 text-badge-orange font-semibold">{Number(p.rating || 0).toFixed(1)}</td>
                     <td className="px-5 py-4 text-text-secondary">{p.reviews ?? 0} reviews</td>
                     <td className="px-5 py-4"><span className={statusBadge[p.status] || "badge-green"}>{p.status || "—"}</span></td>
                     <td className="px-5 py-4"><span className={tagBadge[p.tag] || "badge-cyan"}>{p.tag || "—"}</span></td>
@@ -248,6 +252,7 @@ export default function PackagesPage() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
       </section>
 
       <CrudModal
@@ -313,8 +318,8 @@ function PackageViewModal({ package: p, onClose, onEdit }) {
                 <h3 className="font-black text-2xl leading-tight">{p.name || "—"}</h3>
                 <p className="text-sm text-text-secondary mt-0.5">{p.duration ? `${p.duration} trip` : "Duration not set"}</p>
               </div>
-              <span className="flex items-center gap-1 text-badge-orange text-lg font-black whitespace-nowrap">
-                <Star size={18} fill="currentColor" /> {Number(p.rating || 0).toFixed(1)}
+              <span className="text-badge-orange text-lg font-black whitespace-nowrap">
+                {Number(p.rating || 0).toFixed(1)}
               </span>
             </div>
 

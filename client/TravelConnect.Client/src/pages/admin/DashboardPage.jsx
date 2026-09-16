@@ -20,6 +20,7 @@ import {
   assetUrl,
 } from "../../services/api";
 import ReportChart from "../../components/admin/ReportChart";
+import StatCard from "../../components/admin/StatCard";
 
 function money(v) {
   return `₱${Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -260,24 +261,16 @@ export default function DashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-8">
-        {kpis.map(({ label, value, subtitle, trend, up, icon: Icon }) => (
-          <article key={label} className="card">
-            <div className="flex items-center justify-between">
-              <div className="w-11 h-11 grid place-items-center rounded-xl bg-cyan-accent/15 text-cyan-accent">
-                <Icon size={21} />
-              </div>
-              <span
-                className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full ${
-                  up ? "bg-badge-green/15 text-badge-green" : "bg-badge-red/15 text-badge-red"
-                }`}
-              >
-                {up ? <TrendingUp size={12} /> : <TrendingDown size={12} />} {trend}
-              </span>
-            </div>
-            <p className="text-2xl font-black mt-4">{value}</p>
-            <p className="text-sm mt-1 text-text-secondary">{label}</p>
-            <p className="text-xs text-text-secondary mt-1">{subtitle}</p>
-          </article>
+        {kpis.map(({ label, value, subtitle, trend, up, icon }) => (
+          <StatCard
+            key={label}
+            label={label}
+            value={value}
+            subtitle={subtitle}
+            trend={trend}
+            up={up}
+            icon={icon}
+          />
         ))}
       </div>
 

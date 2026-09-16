@@ -3,6 +3,8 @@ import { useOutletContext } from "react-router-dom";
 import { Download, Plus, Search, SlidersHorizontal, Inbox } from "lucide-react";
 import { promotionsApi } from "../../services/api";
 import CrudModal from "../../components/admin/CrudModal";
+import StatCard from "../../components/admin/StatCard";
+import Pagination from "../../components/admin/Pagination";
 
 const statusBadge = {
   Active: "badge-green",
@@ -32,6 +34,8 @@ export default function PromotionsPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState({ open: false, mode: "add", data: null });
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   const load = () => {
     promotionsApi
@@ -86,6 +90,10 @@ export default function PromotionsPage() {
     });
   }, [promotions, query, activeStatus, activeType]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  useMemo(() => setPage(1), [query, activeStatus, activeType]);
+
   const discountLabel = (p) => {
     if ((p.discountType || "").toLowerCase() === "fixed") return money(p.discount);
     return `${Number(p.discount || 0)}%`;
@@ -117,11 +125,7 @@ export default function PromotionsPage() {
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         {stats.map(([label, value, note]) => (
-          <article key={label} className="card">
-            <p className="text-text-secondary text-sm">{label}</p>
-            <p className="text-2xl font-black mt-2">{value}</p>
-            <p className="text-xs text-text-secondary mt-2">{note}</p>
-          </article>
+          <StatCard key={label} label={label} value={value} note={note} />
         ))}
       </div>
 
@@ -176,14 +180,14 @@ export default function PromotionsPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((p) => {
+                paginated.map((p) => {
                   const max = p.maxUses || 0;
                   const used = p.usedCount || 0;
                   const pct = max > 0 ? Math.round((used / max) * 100) : 0;
                   return (
                     <tr key={p.id ?? p.code} className="table-row">
                       <td className="px-5 py-4">
-                        <span className="bg-cyan-accent/15 text-cyan-accent px-3 py-1 rounded-lg font-mono font-bold text-xs">
+                        <span className="text-cyan-accent font-mono font-bold text-xs">
                           {p.code || "—"}
                         </span>
                       </td>
@@ -218,6 +222,13 @@ export default function PromotionsPage() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={filtered.length}
+          pageSize={PAGE_SIZE}
+          onPage={setPage}
+        />
       </section>
 
       <CrudModal

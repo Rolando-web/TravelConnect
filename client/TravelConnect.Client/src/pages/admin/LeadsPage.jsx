@@ -3,6 +3,8 @@ import { useOutletContext } from "react-router-dom";
 import { Download, Plus, Search, SlidersHorizontal, Inbox } from "lucide-react";
 import { leadsApi } from "../../services/api";
 import CrudModal from "../../components/admin/CrudModal";
+import StatCard from "../../components/admin/StatCard";
+import Pagination from "../../components/admin/Pagination";
 
 const stageBadge = {
   New: "badge-orange",
@@ -27,6 +29,8 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState({ open: false, mode: "add", data: null });
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   const load = () => {
     leadsApi
@@ -85,6 +89,10 @@ export default function LeadsPage() {
     });
   }, [leads, query, activeStage, activeAgent]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  useMemo(() => setPage(1), [query, activeStage, activeAgent]);
+
   const stageCount = (s) => leads.filter((l) => l.stage === s).length;
 
   const stats = [
@@ -110,11 +118,7 @@ export default function LeadsPage() {
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         {stats.map(([label, value, note]) => (
-          <article key={label} className="card">
-            <p className="text-text-secondary text-sm">{label}</p>
-            <p className="text-2xl font-black mt-2">{value}</p>
-            <p className="text-xs text-text-secondary mt-2">{note}</p>
-          </article>
+          <StatCard key={label} label={label} value={value} note={note} />
         ))}
       </div>
 
@@ -169,7 +173,7 @@ export default function LeadsPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((l) => (
+                paginated.map((l) => (
                   <tr key={l.id ?? l.email} className="table-row">
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
@@ -194,6 +198,13 @@ export default function LeadsPage() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={filtered.length}
+          pageSize={PAGE_SIZE}
+          onPage={setPage}
+        />
       </section>
 
       <CrudModal

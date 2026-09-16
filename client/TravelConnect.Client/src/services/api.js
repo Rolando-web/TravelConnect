@@ -1,6 +1,9 @@
 import { auth } from "./firebase";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5110";
+// Guard: Vercel baked "https://travelconnect.runasp.net " (one invisible space)
+// into a production bundle and every GCash checkout died with "Failed to fetch".
+// Always trim at runtime so a stray space can never corrupt the API base again.
+const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:5110").trim();
 
 // Resolve stored image paths into absolute URLs.
 // e.g. "/api/images/5" -> "http://localhost:5110/api/images/5"

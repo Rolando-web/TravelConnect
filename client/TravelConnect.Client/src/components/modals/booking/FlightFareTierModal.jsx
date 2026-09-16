@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
-  X, Check, ShieldCheck, Plane, Luggage, Utensils, Wifi, Award,
-  CreditCard, ChevronDown, ChevronUp, Building2, Tag, Info
+  X, Check, ShieldCheck, Plane, Luggage, Award,
+  CreditCard, ChevronDown, ChevronUp, Tag, Info
 } from "lucide-react";
 import { useCurrency } from "../../../context/CurrencyContext";
 import { useBooking } from "../../../context/BookingContext";

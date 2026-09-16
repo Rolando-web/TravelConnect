@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   Plane, MapPin, ArrowLeft, CheckCircle2, ShieldCheck, Award, ArrowRight,
-  Clock, Calendar, Users, Star, Luggage, Wifi, Utensils, Armchair, Ban,
-  Check, CreditCard, ChevronDown, ChevronUp, Tag, Info, Building2, Car, Gift,
+  Clock, Calendar, Star, Luggage, Ban,
+  Check, CreditCard, ChevronDown, ChevronUp, Tag, Building2, Car, Gift,
   Backpack, Package
 } from "lucide-react";
 import { flightsApi } from "../services/api";

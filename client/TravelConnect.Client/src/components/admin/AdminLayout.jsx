@@ -103,21 +103,10 @@ export default function AdminLayout() {
           )}
         </div>
 
-        {!collapsed && (
-          <div className="mx-4 mt-5 rounded-xl bg-[#06D6A0]/10 border border-[#06D6A0]/30 p-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#06D6A0] flex items-center justify-center text-[#0B132B] font-bold text-sm shrink-0">
-                {user?.name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || "TC"}
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold truncate">{user?.name || "Admin"}</p>
-                <p className="text-xs text-[#06D6A0] truncate">{role}</p>
-              </div>
-            </div>
-          </div>
-        )}
 
-        <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-6">
+
+
+        <nav className="flex-1 overflow-y-auto no-scrollbar px-3 py-5 space-y-6">
           <NavGroups
             roleKeys={roleKeys}
             navLabel={navLabel}
@@ -205,19 +194,8 @@ export default function AdminLayout() {
               </button>
             </div>
 
-            <div className="mx-4 mt-4 rounded-xl bg-[#06D6A0]/10 border border-[#06D6A0]/30 p-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#06D6A0] flex items-center justify-center text-[#0B132B] font-bold text-sm shrink-0">
-                  {user?.name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || "TC"}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold truncate">{user?.name || "Admin"}</p>
-                  <p className="text-xs text-[#06D6A0] truncate">{role}</p>
-                </div>
-              </div>
-            </div>
 
-            <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-6">
+            <nav className="flex-1 overflow-y-auto no-scrollbar px-3 py-5 space-y-6">
               <NavGroups
                 roleKeys={roleKeys}
                 navLabel={navLabel}

@@ -66,7 +66,7 @@ export default function ProfilePage() {
   const initials = (profile.firstName[0] || "") + (profile.lastName[0] || "");
 
   return (
-    <div>
+    <div className="max-w-5xl mx-auto w-full pb-8">
       {/* Header */}
       <section className="mb-8">
         <p className="text-cyan-accent font-medium text-sm">{role}</p>

@@ -20,7 +20,7 @@ export default function Header() {
   const { isLoggedIn, user, logout, openLoginModal } = useAuth();
   const { walletBalance = 0 } = useBooking();
   const { currentCurrency, displayPrice, openModal: openCurrencyModal } = useCurrency();
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { toggleTheme, isDark } = useTheme();
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 

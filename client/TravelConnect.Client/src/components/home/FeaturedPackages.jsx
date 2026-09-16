@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import {
   Star, Clock, MapPin, ArrowRight, Plane, Hotel, Car, ShieldCheck,
-  CheckCircle2, Tag, Users, Eye, Award
+  CheckCircle2, Award
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useBooking } from "../../context/BookingContext";
 import { useCurrency } from "../../context/CurrencyContext";
 import { packagesApi } from "../../services/api";
@@ -21,7 +21,6 @@ const badge = (pkg) => {
 };
 
 export default function FeaturedPackages() {
-  const navigate = useNavigate();
   const { openCheckoutModal } = useBooking();
   const { displayPrice } = useCurrency();
   const [packages, setPackages] = useState([]);

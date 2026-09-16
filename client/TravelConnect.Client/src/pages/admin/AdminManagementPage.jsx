@@ -15,6 +15,8 @@ import ProfilePage from "./ProfilePage";
 import SupportPage from "./SupportPage";
 import SystemSettingsPage from "./SystemSettingsPage";
 import CrudModal from "../../components/admin/CrudModal";
+import StatCard from "../../components/admin/StatCard";
+import Pagination from "../../components/admin/Pagination";
 import {
   usersApi,
   flightsApi,
@@ -72,10 +74,7 @@ function RateCell({ value, suffix }) {
 function StarRating({ value }) {
   const v = Number(value || 0).toFixed(1);
   return (
-    <span className="inline-flex items-center gap-1">
-      <Star size={14} className="text-badge-orange" fill="currentColor" />
-      <span className="font-semibold tabular-nums">{v}</span>
-    </span>
+    <span className="font-semibold tabular-nums text-badge-orange">{v}</span>
   );
 }
 
@@ -400,6 +399,8 @@ export default function AdminManagementPage() {
   const [error, setError] = useState("");
   const [modal, setModal] = useState({ open: false, mode: "add", data: null });
   const [saving, setSaving] = useState(false);
+  const [tablePage, setTablePage] = useState(1);
+  const PAGE_SIZE = 10;
 
   const config = PAGES[page];
   const [title, subtitle] = pageMeta[page] || ["Management", "Manage your TravelConnect records"];
@@ -445,6 +446,11 @@ export default function AdminManagementPage() {
       Object.values(row).some((v) => String(v ?? "").toLowerCase().includes(q))
     );
   }, [rows, query]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((tablePage - 1) * PAGE_SIZE, tablePage * PAGE_SIZE);
+  // Reset page when query or page route changes
+  useMemo(() => setTablePage(1), [query, page]);
 
   if (!permission)
     return (
@@ -511,18 +517,10 @@ export default function AdminManagementPage() {
       {/* KPI Grid */}
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         {stats.map(([label, value, note]) => (
-          <article key={label} className="card">
-            <p className="text-text-secondary text-sm">{label}</p>
-            <p className="text-2xl font-black mt-2">{value}</p>
-            <p className="text-xs text-text-secondary mt-2">{note}</p>
-          </article>
+          <StatCard key={label} label={label} value={value} note={note} />
         ))}
         {stats.length === 0 && (
-          <article className="card">
-            <p className="text-text-secondary text-sm">No records</p>
-            <p className="text-2xl font-black mt-2">0</p>
-            <p className="text-xs text-text-secondary mt-2">No data available yet</p>
-          </article>
+          <StatCard label="No records" value="0" note="No data available yet" />
         )}
       </div>
 
@@ -585,7 +583,7 @@ export default function AdminManagementPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((row, i) => (
+                paginated.map((row, i) => (
                   <tr key={row.id ?? i} className="table-row">
                     {cols.map((c) => (
                       <td key={c.h} className="px-5 py-4">
@@ -624,6 +622,7 @@ export default function AdminManagementPage() {
             </tbody>
           </table>
         </div>
+        <Pagination page={tablePage} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPage={setTablePage} />
       </section>
 
       {config && (

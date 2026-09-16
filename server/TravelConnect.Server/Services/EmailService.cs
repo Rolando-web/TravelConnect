@@ -1,7 +1,6 @@
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using TravelConnect.Server.Data;
 using TravelConnect.Server.Models;

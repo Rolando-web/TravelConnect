@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using TravelConnect.Server.Data;
 using TravelConnect.Server.Models;
@@ -88,6 +89,7 @@ public class BookingsController(
 
     [HttpPost]
     [AllowAnonymous]
+    [EnableRateLimiting("anonymous-write")]
     public async Task<ActionResult<Booking>> Create(CreateBookingRequest req)
     {
         var booking = req.Booking;
@@ -218,6 +220,7 @@ public class BookingsController(
     // POST api/bookings/{id}/cancel
     [HttpPost("{id:int}/cancel")]
     [AllowAnonymous]
+    [EnableRateLimiting("anonymous-write")]
     public async Task<IActionResult> CancelBooking(int id)
     {
         var booking = await db.Bookings
@@ -287,6 +290,7 @@ public class BookingsController(
     // POST api/bookings/{id}/itinerary-pdf
     [HttpPost("{id:int}/itinerary-pdf")]
     [AllowAnonymous]
+    [EnableRateLimiting("anonymous-write")]
     public async Task<IActionResult> GenerateItineraryPdf(int id)
     {
         var booking = await db.Bookings
