@@ -96,7 +96,14 @@ public class PdfService
                                 table.Cell().Padding(5).Text(f.DepartureDate).FontSize(9);
                                 table.Cell().Padding(5).Text($"{f.DepartureTime} — {f.ArrivalTime}").FontSize(9);
                                 table.Cell().Padding(5).Text(f.Class).FontSize(9);
-                                table.Cell().Padding(5).Text(f.SeatNumber).Bold().FontSize(10).FontColor("#06D6A0");
+                                table.Cell().Padding(5).Column(col =>
+                                {
+                                    foreach (var seatId in (f.SeatNumber ?? string.Empty)
+                                        .Split(',', StringSplitOptions.RemoveEmptyEntries))
+                                    {
+                                        col.Item().Text(seatId.Trim()).Bold().FontSize(10).FontColor("#06D6A0");
+                                    }
+                                });
                             }
                         });
                     }

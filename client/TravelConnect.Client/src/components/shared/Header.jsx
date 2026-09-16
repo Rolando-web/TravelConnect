@@ -411,7 +411,6 @@ export default function Header() {
       {supportModalOpen && (
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
-          onClick={() => setSupportModalOpen(false)}
         >
           <div
             className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative border border-slate-100"

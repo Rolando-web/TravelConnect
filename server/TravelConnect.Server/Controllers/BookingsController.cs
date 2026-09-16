@@ -95,9 +95,16 @@ public class BookingsController(
         var booking = req.Booking;
         booking.CreatedAt = DateTime.UtcNow;
         booking.UpdatedAt = DateTime.UtcNow;
-        booking.BookingFlights = req.FlightSegments?
+
+        var segments = req.FlightSegments?
             .OrderBy(f => f.SegmentOrder)
             .Take(6)
+            .ToList();
+
+        if (segments is not null && segments.Count > 0)
+            await AutoAssignSeatsAsync(booking, segments);
+
+        booking.BookingFlights = segments?
             .Select(f => new BookingFlight
             {
                 SegmentOrder = f.SegmentOrder,
@@ -114,6 +121,10 @@ public class BookingsController(
                 SeatStatus = !string.IsNullOrWhiteSpace(f.SeatNumber) ? "Sold" : "Available"
             })
             .ToList() ?? new List<BookingFlight>();
+
+        booking.SeatNumbers = string.Join(",", booking.BookingFlights
+            .Where(f => !string.IsNullOrWhiteSpace(f.SeatNumber))
+            .Select(f => f.SeatNumber));
 
         db.Bookings.Add(booking);
         await db.SaveChangesAsync();
@@ -144,6 +155,47 @@ public class BookingsController(
             }
         }
 
+        // Pipeline: a paid booking promotes the traveler to a Customer record
+        // and closes their CRM lead as "Closed Won". De-duplicated by email.
+        if (booking.Paid && !string.IsNullOrWhiteSpace(booking.CustomerEmail))
+        {
+            var email = booking.CustomerEmail.Trim().ToLowerInvariant();
+
+            var customer = await db.Customers
+                .FirstOrDefaultAsync(c => c.Email.ToLower() == email);
+            if (customer is null)
+            {
+                customer = new Customer
+                {
+                    Name = booking.CustomerName,
+                    Email = booking.CustomerEmail.Trim(),
+                    Phone = booking.CustomerPhone,
+                    Country = string.Empty,
+                    TotalBookings = 1,
+                    TotalSpent = booking.TotalAmount,
+                    Status = "Active",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                db.Customers.Add(customer);
+            }
+            else
+            {
+                customer.TotalBookings += 1;
+                customer.TotalSpent += booking.TotalAmount;
+                customer.UpdatedAt = DateTime.UtcNow;
+            }
+
+            var lead = await db.Leads
+                .FirstOrDefaultAsync(l => l.Email.ToLower() == email);
+            if (lead is not null)
+            {
+                lead.Stage = "Closed Won";
+                lead.LastContact = DateTime.UtcNow.ToString("yyyy-MM-dd");
+                lead.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
         // Send the booking confirmation email in the background (the customer's
         // checkout screen promises a voucher & invoice by email, so don't let an
         // SMTP hiccup block the booking response). The DI scope is created inside
@@ -163,6 +215,59 @@ public class BookingsController(
         });
 
         return CreatedAtAction(nameof(GetById), new { id = booking.Id }, booking);
+    }
+
+    // Assign one seat per traveller for every segment that has no seat chosen
+    // yet, so a confirmation email always shows concrete seats (real agency
+    // workflow). Seats are drawn from the flight's cabin layout, skipping any
+    // already taken on that flight + date. Stored comma-separated on the
+    // segment, e.g. "12A,12B" for a 2-traveller booking.
+    private async Task AutoAssignSeatsAsync(Booking booking, List<FlightSegmentDto> segments)
+    {
+        if (booking.Travellers < 1) return;
+
+        var flights = await db.Flights.ToListAsync();
+        var flightsByKey = flights
+            .GroupBy(f => f.FlightNumber + "|" + f.DepartureDate)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        for (var i = 0; i < segments.Count; i++)
+        {
+            var seg = segments[i];
+            if (!string.IsNullOrWhiteSpace(seg.SeatNumber)) continue;
+
+            flightsByKey.TryGetValue(seg.FlightNumber + "|" + seg.DepartureDate, out var flight);
+            var totalRows = flight is null || flight.TotalRows <= 0 ? 30 : flight.TotalRows;
+            var columns = flight is not null && !string.IsNullOrWhiteSpace(flight.SeatConfig)
+                ? flight.SeatConfig.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                : new[] { "A", "B", "C", "D", "E", "F" };
+
+            var taken = await db.BookingFlights
+                .Where(bf => bf.FlightNumber == seg.FlightNumber
+                          && bf.DepartureDate == seg.DepartureDate
+                          && bf.SeatStatus != "Available"
+                          && !string.IsNullOrEmpty(bf.SeatNumber))
+                .Select(bf => bf.SeatNumber)
+                .ToListAsync();
+
+            var takenSet = new HashSet<string>(
+                taken.SelectMany(s => s.Split(',', StringSplitOptions.RemoveEmptyEntries)),
+                StringComparer.OrdinalIgnoreCase);
+
+            var assigned = new List<string>();
+            for (var row = 1; row <= totalRows && assigned.Count < booking.Travellers; row++)
+            {
+                foreach (var col in columns)
+                {
+                    var seatId = $"{row}{col}";
+                    if (takenSet.Add(seatId))
+                        assigned.Add(seatId);
+                    if (assigned.Count >= booking.Travellers) break;
+                }
+            }
+
+            segments[i] = seg with { SeatNumber = string.Join(",", assigned.Take(booking.Travellers)) };
+        }
     }
 
     [HttpPut("{id:int}")]

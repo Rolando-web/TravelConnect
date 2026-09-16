@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Download, Plus, Search, SlidersHorizontal, Inbox } from "lucide-react";
-import { leadsApi } from "../../services/api";
+import { Download, Plus, Search, SlidersHorizontal, Inbox, UserCheck, Info } from "lucide-react";
+import { leadsApi, convertLeadToCustomer } from "../../services/api";
 import CrudModal from "../../components/admin/CrudModal";
 import StatCard from "../../components/admin/StatCard";
 import Pagination from "../../components/admin/Pagination";
@@ -29,6 +29,7 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState({ open: false, mode: "add", data: null });
   const [saving, setSaving] = useState(false);
+  const [convertingId, setConvertingId] = useState(null);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
 
@@ -45,6 +46,22 @@ export default function LeadsPage() {
   }, []);
 
   const openModal = (mode, data = null) => setModal({ open: true, mode, data });
+
+  const handleConvert = async (lead) => {
+    if (convertingId) return;
+    if (!window.confirm(`Convert "${lead.name || lead.email}" to a Customer?`)) return;
+    setConvertingId(lead.id);
+    try {
+      const res = await convertLeadToCustomer(lead.id);
+      alert(res?.message || "Lead converted to customer");
+      setLoading(true);
+      load();
+    } catch (err) {
+      alert(err.message || "Failed to convert lead");
+    } finally {
+      setConvertingId(null);
+    }
+  };
 
   const handleSave = async (form) => {
     setSaving(true);
@@ -115,6 +132,20 @@ export default function LeadsPage() {
           <button onClick={() => openModal("add")} className="btn-primary"><Plus size={17} /> Add Lead</button>
         </div>
       </section>
+
+      <div className="mb-5 flex items-start gap-3 rounded-xl border border-cyan-accent/25 bg-cyan-accent/5 px-4 py-3.5">
+        <span className="mt-0.5 w-8 h-8 shrink-0 grid place-items-center rounded-lg bg-cyan-accent/15 text-cyan-accent">
+          <Info size={16} />
+        </span>
+        <p className="text-sm text-text-primary leading-relaxed">
+          <span className="font-bold text-cyan-accent">How the pipeline works:</span> every inquiry sent from
+          the website or booking checkout is logged under <span className="font-semibold">Inquiries</span> and
+          automatically becomes a <span className="font-semibold">New</span> lead here (matched by email). When
+          a traveler{"'"}s booking is paid, their lead is closed as <span className="font-semibold">Closed Won</span> and
+          they appear under <span className="font-semibold">Customers</span>. You can also manually convert a lead with the
+          <span className="font-semibold"> Convert</span> action below.
+        </p>
+      </div>
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         {stats.map(([label, value, note]) => (
@@ -190,6 +221,21 @@ export default function LeadsPage() {
                       <div className="flex items-center gap-2">
                         <button onClick={() => openModal("view", l)} className="text-xs text-cyan-accent hover:underline">View</button>
                         <button onClick={() => openModal("edit", l)} className="text-xs text-text-secondary hover:text-badge-orange transition">Edit</button>
+                        {(l.stage || "New") !== "Closed Won" && (
+                          <button
+                            onClick={() => handleConvert(l)}
+                            disabled={convertingId === l.id}
+                            className="text-xs text-badge-green hover:underline disabled:opacity-50 flex items-center gap-1"
+                          >
+                            {convertingId === l.id ? (
+                              <span className="w-3.5 h-3.5 border-2 border-badge-green border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <>
+                                <UserCheck size={13} /> Convert
+                              </>
+                            )}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -59,6 +59,7 @@ export const destinationsApi = crud("destinations");
 export const promotionsApi = crud("promotions");
 export const suppliersApi = crud("suppliers");
 export const leadsApi = crud("leads");
+export const convertLeadToCustomer = (id) => request(`/api/leads/${id}/convert`, { method: "POST" });
 export const usersApi = crud("users");
 export const inquiriesApi = crud("inquiries");
 export const flightsApi = crud("flights");

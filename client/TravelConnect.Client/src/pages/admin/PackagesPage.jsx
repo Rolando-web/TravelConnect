@@ -274,7 +274,6 @@ export default function PackagesPage() {
 function PackageViewModal({ package: p, onClose, onEdit }) {
   return (
     <div
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       style={{ background: "rgba(2,8,23,0.72)", backdropFilter: "blur(4px)" }}
     >

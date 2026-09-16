@@ -35,7 +35,12 @@ public class SeatMapsController : ControllerBase
             .Select(bf => new { bf.SeatNumber, bf.SeatStatus })
             .ToListAsync();
 
-        var occupiedMap = bookedSeats.ToDictionary(b => b.SeatNumber, b => b.SeatStatus);
+        var occupiedMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var b in bookedSeats)
+        {
+            foreach (var seatId in b.SeatNumber.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                occupiedMap.TryAdd(seatId.Trim(), b.SeatStatus);
+        }
 
         var seats = new List<object>();
         for (int row = 1; row <= totalRows; row++)

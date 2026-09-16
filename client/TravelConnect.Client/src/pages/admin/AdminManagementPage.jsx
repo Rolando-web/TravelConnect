@@ -32,6 +32,8 @@ import {
 
 const customPages = { profile: ProfilePage, support: SupportPage, settings: SystemSettingsPage };
 
+const FALLBACK_FLIGHT_IMG = "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80";
+
 const statusBadge = {
   Active: "badge-green",
   Confirmed: "badge-green",
@@ -81,14 +83,15 @@ function StarRating({ value }) {
 function ImageCell({ primary, sub, imageUrl }) {
   return (
     <div className="flex items-center gap-3">
-      {imageUrl && (
-        <img
-          src={imageUrl}
-          alt={primary || ""}
-          className="h-10 w-14 rounded-lg object-cover shrink-0"
-          onError={(e) => ((e.target.parentElement.hidden = true), null)}
-        />
-      )}
+      <img
+        src={imageUrl || FALLBACK_FLIGHT_IMG}
+        alt={primary || ""}
+        className="h-10 w-14 rounded-lg object-cover shrink-0"
+        onError={(e) => {
+          e.currentTarget.onerror = null;
+          e.currentTarget.src = FALLBACK_FLIGHT_IMG;
+        }}
+      />
       <span className="min-w-0">
         <span className="block truncate font-semibold">{primary}</span>
         {sub && <span className="block text-xs text-text-secondary truncate">{sub}</span>}

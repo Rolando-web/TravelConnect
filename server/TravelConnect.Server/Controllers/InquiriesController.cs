@@ -37,6 +37,38 @@ public class InquiriesController(TravelConnectDbContext db) : ControllerBase
         entity.CreatedAt = DateTime.UtcNow;
         entity.UpdatedAt = DateTime.UtcNow;
         db.Inquiries.Add(entity);
+
+        // Pipeline: every public/checkout inquiry automatically becomes a CRM
+        // lead (New stage) so nothing falls through the cracks. De-duplicated by
+        // email so repeat inquirers keep a single lead record.
+        if (!string.IsNullOrWhiteSpace(entity.CustomerEmail))
+        {
+            var email = entity.CustomerEmail.Trim().ToLowerInvariant();
+            var existing = await db.Leads
+                .FirstOrDefaultAsync(l => l.Email.ToLower() == email);
+
+            if (existing is not null)
+            {
+                existing.LastContact = DateTime.UtcNow.ToString("yyyy-MM-dd");
+                existing.UpdatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                db.Leads.Add(new Lead
+                {
+                    Name = entity.CustomerName ?? string.Empty,
+                    Email = email,
+                    Phone = string.Empty,
+                    Interest = entity.Subject ?? entity.Category ?? string.Empty,
+                    Stage = "New",
+                    LastContact = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                    Notes = $"Created automatically from inquiry: {entity.Message}",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
+        }
+
         await db.SaveChangesAsync();
         return CreatedAtAction(nameof(GetById), new { id = entity.Id }, entity);
     }

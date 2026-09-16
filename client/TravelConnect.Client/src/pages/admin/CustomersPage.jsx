@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Download, Plus, Search, SlidersHorizontal, Inbox } from "lucide-react";
+import { Download, Search, SlidersHorizontal, Inbox } from "lucide-react";
 import { customersApi } from "../../services/api";
 import CrudModal from "../../components/admin/CrudModal";
 import StatCard from "../../components/admin/StatCard";
@@ -51,8 +51,7 @@ export default function CustomersPage() {
   const handleSave = async (form) => {
     setSaving(true);
     try {
-      if (modal.mode === "add") await customersApi.create(form);
-      else await customersApi.update(modal.data.id, { ...form, id: modal.data.id });
+      await customersApi.update(modal.data.id, { ...form, id: modal.data.id });
       setModal({ open: false, mode: "add", data: null });
       setLoading(true);
       load();
@@ -114,7 +113,6 @@ export default function CustomersPage() {
         </div>
         <div className="flex gap-2">
           <button className="btn-secondary"><Download size={16} /> Export</button>
-          <button onClick={() => openModal("add")} className="btn-primary"><Plus size={17} /> Add Customer</button>
         </div>
       </section>
 
@@ -214,7 +212,7 @@ export default function CustomersPage() {
       <CrudModal
         open={modal.open}
         onClose={() => setModal({ open: false, mode: "add", data: null })}
-        title={modal.mode === "add" ? "Add Customer" : modal.mode === "edit" ? "Edit Customer" : "Customer Details"}
+        title={modal.mode === "edit" ? "Edit Customer" : "Customer Details"}
         mode={modal.mode}
         fields={modalFields}
         data={modal.data || {}}

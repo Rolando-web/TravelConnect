@@ -309,7 +309,7 @@ export default function BookingsPage() {
       />
 
       {seatModal.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={() => setSeatModal({ ...seatModal, open: false })}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
           <div className="w-full max-w-md card rounded-2xl p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-2.5">

@@ -109,6 +109,24 @@ public class EmailService
     private static string E(string? value) =>
         string.IsNullOrEmpty(value) ? string.Empty : System.Net.WebUtility.HtmlEncode(value);
 
+    // Render each assigned seat as its own badge so a multi-traveller booking
+    // shows one seat per guest (e.g. "12A" "12B" instead of a single "12A,12B").
+    private static string BuildSeatBadges(string? seatNumber)
+    {
+        if (string.IsNullOrWhiteSpace(seatNumber)) return "—";
+
+        var seats = seatNumber
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim())
+            .Where(s => s.Length > 0)
+            .ToList();
+
+        if (seats.Count == 0) return "—";
+
+        return string.Join("<br/>", seats.Select(s =>
+            $"<span style='display:inline-block;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:4px;padding:2px 8px;margin:2px 2px 2px 0;font-size:12px;'>{E(s)}</span>"));
+    }
+
     private static string BuildBookingConfirmationHtml(Booking booking, List<BookingFlight> flights)
     {
         var flightRows = string.Join("", flights.Select(f => $@"
@@ -120,7 +138,7 @@ public class EmailService
                 <td style='padding:12px;border-bottom:1px solid #e5e7eb;'>{E(f.DepartureDate)}</td>
                 <td style='padding:12px;border-bottom:1px solid #e5e7eb;'>{E(f.DepartureTime)} — {E(f.ArrivalTime)}</td>
                 <td style='padding:12px;border-bottom:1px solid #e5e7eb;'>{E(f.Class)}</td>
-                <td style='padding:12px;border-bottom:1px solid #e5e7eb;font-weight:600;color:#06D6A0;'>{E(f.SeatNumber)}</td>
+                <td style='padding:12px;border-bottom:1px solid #e5e7eb;font-weight:600;color:#06D6A0;'>{BuildSeatBadges(f.SeatNumber)}</td>
             </tr>"));
 
         return $@"

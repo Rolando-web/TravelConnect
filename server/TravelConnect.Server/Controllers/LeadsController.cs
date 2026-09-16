@@ -65,4 +65,57 @@ public class LeadsController(TravelConnectDbContext db) : ControllerBase
         await db.SaveChangesAsync();
         return NoContent();
     }
+
+    // POST api/leads/{id}/convert — promote a lead to a paid-account customer.
+    // Creates a Customer record (or updates the existing one by email) and
+    // marks the lead "Closed Won". Idempotent: converting twice simply updates
+    // the same customer.
+    [HttpPost("{id:int}/convert")]
+    public async Task<IActionResult> ConvertToCustomer(int id)
+    {
+        var lead = await db.Leads.FirstOrDefaultAsync(e => e.Id == id);
+        if (lead is null) return NotFound(new { message = "Lead not found" });
+        if (string.IsNullOrWhiteSpace(lead.Email))
+            return BadRequest(new { message = "Lead has no email to link a customer record." });
+
+        var email = lead.Email.Trim().ToLowerInvariant();
+        var customer = await db.Customers
+            .FirstOrDefaultAsync(c => c.Email.ToLower() == email);
+
+        if (customer is null)
+        {
+            customer = new Customer
+            {
+                Name = lead.Name,
+                Email = lead.Email.Trim(),
+                Phone = lead.Phone,
+                Country = string.Empty,
+                TotalBookings = 0,
+                TotalSpent = 0,
+                Status = "Active",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            db.Customers.Add(customer);
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(customer.Name)) customer.Name = lead.Name;
+            if (string.IsNullOrWhiteSpace(customer.Phone)) customer.Phone = lead.Phone;
+            customer.UpdatedAt = DateTime.UtcNow;
+        }
+
+        lead.Stage = "Closed Won";
+        lead.LastContact = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        lead.UpdatedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            success = true,
+            customerId = customer.Id,
+            message = $"Lead {lead.Name} converted to customer"
+        });
+    }
 }

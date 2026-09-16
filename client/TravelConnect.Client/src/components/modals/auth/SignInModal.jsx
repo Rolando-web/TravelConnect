@@ -121,7 +121,6 @@ export default function SignInModal() {
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
-      onClick={(e) => { if (e.target === e.currentTarget) closeLoginModal(); }}
     >
       {/* Modal card */}
       <div

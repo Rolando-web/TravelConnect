@@ -16,10 +16,7 @@ export default function CurrencyModal() {
   );
 
   return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
-      onClick={closeModal}
-    >
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
       <div
         className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
