@@ -3,5 +3,8 @@
   "installCommand": "cd client/TravelConnect.Client && npm install",
   "buildCommand": "cd client/TravelConnect.Client && npm run build",
   "outputDirectory": "client/TravelConnect.Client/dist",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "http://travelconnect.runasp.net/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
