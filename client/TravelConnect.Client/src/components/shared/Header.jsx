@@ -307,8 +307,8 @@ export default function Header() {
             ))}
           </div>
 
-          {/* Right Action CTA & Theme Switcher */}
-          <div className="hidden md:flex items-center gap-3">
+          {/* Right Action CTA & Theme Switcher — desktop only (lg+) */}
+          <div className="hidden lg:flex items-center gap-3">
             {/* Quick theme icon toggle */}
             <button
               type="button"
@@ -339,19 +339,29 @@ export default function Header() {
             )}
           </div>
 
-          {/* Mobile Menu Toggle Button */}
+          {/* Mobile / Tablet Menu Toggle Button — hidden on desktop (lg+) */}
           <div className="flex lg:hidden items-center gap-2">
+            {/* Show Sign In button on tablet (md-lg) so the header isn't empty */}
+            {!isLoggedIn && (
+              <button
+                onClick={openLoginModal}
+                className="hidden sm:flex items-center gap-2 bg-[#008fe5] hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-full shadow-md text-xs transition-all duration-300"
+              >
+                <User size={13} />
+                Sign In
+              </button>
+            )}
             <button
               type="button"
               onClick={toggleTheme}
-              className="p-2 text-slate-700 dark:text-amber-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] rounded-lg"
+              className="p-2 text-slate-700 dark:text-amber-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] rounded-lg transition"
               title={isDark ? "Light Mode" : "Dark Mode"}
             >
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 text-slate-700 dark:text-slate-200 hover:text-[#008fe5] focus:outline-none rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.06]"
+              className="p-2 text-slate-700 dark:text-slate-200 hover:text-[#008fe5] focus:outline-none rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.06] transition"
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
