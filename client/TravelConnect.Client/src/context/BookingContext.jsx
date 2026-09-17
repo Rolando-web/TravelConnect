@@ -18,7 +18,7 @@ const storageKeyFor = (email) => `travelconnect_user_bookings:${(email || "guest
 const walletStorageKeyFor = (email) => `travelconnect_wallet:${(email || "guest").toLowerCase()}`;
 
 export function BookingProvider({ children }) {
-  const { user } = useAuth();
+  const { user, openLoginModal } = useAuth();
   const customerKey = user?.email || null;
   const storageKey = storageKeyFor(customerKey);
   const walletStorageKey = walletStorageKeyFor(customerKey);
@@ -128,6 +128,14 @@ export function BookingProvider({ children }) {
   }, [bookings, customerKey, storageKey]);
 
   const openCheckoutModal = (pkg, promoCode = "") => {
+    if (!user) {
+      // Guest clicked "Book" — require an account first. Remember the package
+      // so checkout auto-resumes the moment they sign in.
+      pendingCheckoutRef.current = { pkg, promoCode };
+      openLoginModal();
+      return;
+    }
+    pendingCheckoutRef.current = null;
     setCheckoutPackage(pkg);
     setAppliedPromo(promoCode);
     setCheckoutModalOpen(true);

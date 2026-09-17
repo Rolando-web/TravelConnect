@@ -138,7 +138,7 @@ export default function Hero() {
       </div>
 
       {/* ─── Overlapping Search Card (z-40 to sit above Stats) ─────── */}
-      <div className="relative z-40 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 -mb-28 md:-mb-36">
+      <div className="relative z-40 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 -mb-16 sm:-mb-24 md:-mb-36">
         <SearchCard />
       </div>
     </section>

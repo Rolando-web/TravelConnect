@@ -10,17 +10,17 @@ import { hasFlightRoute } from "../../data/availability";
 /* ═══ Location input (reusable for flight & car) ═══════════════════════ */
 function LocationInput({ label, inputRef, placeholder, selected, search, setSearch, showDD, setShowDD, onSelect, showAnywhere = false, mode = "all" }) {
   return (
-    <div className={`space-y-2 relative ${showDD ? "z-[70]" : "z-10"}`} ref={inputRef}>
+    <div className={`space-y-1.5 sm:space-y-2 relative ${showDD ? "z-[70]" : "z-10"}`} ref={inputRef}>
       <label className="block text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider text-left">{label}</label>
       <div className="relative">
-        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400" size={18} />
+        <MapPin className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400" size={18} />
         <input
           type="text"
           placeholder={placeholder}
           value={showDD ? search : `${selected.city} (${selected.code})`}
           onFocus={() => { setSearch(""); setShowDD(true); }}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 focus:border-[#008fe5] focus:bg-white dark:focus:bg-white/10 rounded-2xl py-4 pl-12 pr-4 text-sm font-semibold text-gray-900 dark:text-white outline-none transition-all placeholder-gray-400 dark:placeholder-slate-500"
+          className="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 focus:border-[#008fe5] focus:bg-white dark:focus:bg-white/10 rounded-2xl py-3.5 sm:py-4 pl-11 sm:pl-12 pr-4 text-xs sm:text-sm font-semibold text-gray-900 dark:text-white outline-none transition-all placeholder-gray-400 dark:placeholder-slate-500"
         />
       </div>
       {showDD && (
@@ -39,14 +39,14 @@ function LocationInput({ label, inputRef, placeholder, selected, search, setSear
 /* ═══ Date trigger button ═════════════════════════════════════════════ */
 function DateTrigger({ label, calendarRef, showCalendar, setShowCalendar, setSelectingDateType, departureDate, setDepartureDate, returnDate, setReturnDate, selectingDateType, tripType }) {
   return (
-    <div className={`space-y-2 relative ${showCalendar ? "z-[70]" : "z-10"}`} ref={calendarRef}>
+    <div className={`space-y-1.5 sm:space-y-2 relative ${showCalendar ? "z-[70]" : "z-10"}`} ref={calendarRef}>
       <label className="block text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider text-left">{label}</label>
       <button
         type="button"
         onClick={() => { setSelectingDateType("depart"); setShowCalendar(!showCalendar); }}
-        className="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 text-left rounded-2xl py-4 px-4 text-sm font-semibold text-gray-900 dark:text-white outline-none transition-all flex items-center gap-2 hover:border-[#008fe5]/50"
+        className="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 text-left rounded-2xl py-3.5 sm:py-4 px-3.5 sm:px-4 text-xs sm:text-sm font-semibold text-gray-900 dark:text-white outline-none transition-all flex items-center gap-2 hover:border-[#008fe5]/50 cursor-pointer"
       >
-        <Calendar size={18} className="text-gray-400 dark:text-slate-400" />
+        <Calendar size={18} className="text-gray-400 dark:text-slate-400 shrink-0" />
         <span className="truncate">
           {formatDateLabel(departureDate)}
           {tripType !== "one-way" && returnDate && ` — ${formatDateLabel(returnDate)}`}
@@ -178,10 +178,10 @@ export default function SearchCard() {
   const [toast, setToast] = useState("");
 
   return (
-    <div className="bg-white dark:bg-[#0c1222] rounded-2xl md:rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-white/10 p-6 md:p-10 transition-all duration-300 relative z-30">
+    <div className="bg-white dark:bg-[#0c1222] rounded-2xl md:rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-white/10 p-4 sm:p-6 md:p-10 transition-all duration-300 relative z-30">
 
       {/* ─── Main Tabs ─────────────────────────────────────────────── */}
-      <div className="flex items-center gap-4 pb-4 mb-6 border-b border-gray-100 dark:border-white/10 overflow-x-auto scrollbar-none">
+      <div className="flex items-center justify-start sm:justify-start gap-2 sm:gap-4 pb-3 sm:pb-4 mb-4 sm:mb-6 border-b border-gray-100 dark:border-white/10 overflow-x-auto scrollbar-none">
         {[
           { id: "flights", label: "Flights", Icon: Plane },
           { id: "flight-hotel", label: "Flight + Hotel", Icon: Hotel },
@@ -190,7 +190,7 @@ export default function SearchCard() {
           <button
             key={id}
             onClick={() => setSearchTab(id)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition whitespace-nowrap cursor-pointer ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
               searchTab === id
                 ? "bg-blue-50 dark:bg-[#008fe5]/20 text-[#008fe5] dark:text-cyan-300 font-extrabold shadow-sm"
                 : "text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5"
@@ -203,29 +203,31 @@ export default function SearchCard() {
 
       {/* ─── Trip options (flights only) ───────────────────────────── */}
       {searchTab !== "cars" && (
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 mb-5 border-b border-gray-50 dark:border-white/5">
-          <div className="flex items-center gap-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 mb-5 border-b border-gray-50 dark:border-white/5">
+          <div className="flex flex-wrap items-center justify-start sm:justify-start gap-3 sm:gap-6">
             {["round-trip", "one-way", "multi-city"].map((t) => (
               <label key={t} className="flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-slate-300 cursor-pointer">
                 <input type="radio" checked={tripType === t} onChange={() => setTripType(t)} className="text-[#008fe5] focus:ring-[#008fe5]" />
                 {t === "round-trip" ? "Round-trip" : t === "one-way" ? "One-way" : "Multi-city"}
               </label>
             ))}
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-slate-300 cursor-pointer ml-4">
+            <label className="flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-slate-300 cursor-pointer">
               <input type="checkbox" checked={nonstop} onChange={(e) => setNonstop(e.target.checked)} className="rounded text-[#008fe5] focus:ring-[#008fe5]" />
               Nonstop
             </label>
           </div>
 
           {/* Travelers button */}
-          <div className={`relative ${showTravelers ? "z-[70]" : "z-10"}`} ref={travelersRef}>
+          <div className={`relative w-full sm:w-auto ${showTravelers ? "z-[70]" : "z-10"}`} ref={travelersRef}>
             <button
               type="button"
               onClick={() => setShowTravelers(!showTravelers)}
-              className="flex items-center gap-1 text-xs font-bold text-gray-700 dark:text-slate-200 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 px-4 py-2 rounded-xl transition cursor-pointer"
+              className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-1 text-xs font-bold text-gray-700 dark:text-slate-200 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 px-4 py-2.5 sm:py-2 rounded-xl transition cursor-pointer"
             >
-              <Users size={14} className="text-gray-400 dark:text-slate-400" />
-              {adults + children + infants} Passenger{adults + children + infants > 1 ? "s" : ""} — {cabinClass}
+              <div className="flex items-center gap-1.5 truncate">
+                <Users size={14} className="text-gray-400 dark:text-slate-400 shrink-0" />
+                <span>{adults + children + infants} Passenger{adults + children + infants > 1 ? "s" : ""} — {cabinClass}</span>
+              </div>
             </button>
             {showTravelers && (
               <TravelersPopover
@@ -296,19 +298,19 @@ export default function SearchCard() {
             />
 
             {/* Action buttons */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
               {searchTab === "flights" ? (
                 <>
                   <button
                     type="submit"
-                    className="flex-1 bg-[#008fe5] hover:bg-blue-600 active:scale-[0.98] text-white font-bold py-4 px-6 rounded-2xl shadow-xl shadow-blue-500/20 hover:shadow-blue-500/35 transition flex items-center justify-center gap-2 text-sm"
+                    className="w-full sm:flex-1 bg-[#008fe5] hover:bg-blue-600 active:scale-[0.98] text-white font-bold py-3.5 sm:py-4 px-5 sm:px-6 rounded-2xl shadow-xl shadow-blue-500/20 hover:shadow-blue-500/35 transition flex items-center justify-center gap-2 text-sm cursor-pointer"
                   >
                     <Search size={18} /> Search
                   </button>
                   <button
                     type="button"
                     onClick={() => setSearchTab("flight-hotel")}
-                    className="border-2 border-[#008fe5] text-[#008fe5] hover:bg-blue-50 dark:hover:bg-white/5 active:scale-[0.98] font-bold py-3.5 px-6 rounded-2xl transition flex items-center justify-center gap-2 text-sm whitespace-nowrap bg-white dark:bg-transparent"
+                    className="w-full sm:w-auto border-2 border-[#008fe5] text-[#008fe5] hover:bg-blue-50 dark:hover:bg-white/5 active:scale-[0.98] font-bold py-3 sm:py-3.5 px-5 sm:px-6 rounded-2xl transition flex items-center justify-center gap-2 text-sm whitespace-nowrap bg-white dark:bg-transparent cursor-pointer"
                   >
                     Flight + Hotel
                   </button>
@@ -316,7 +318,7 @@ export default function SearchCard() {
               ) : (
                 <button
                   type="submit"
-                  className="w-full bg-[#008fe5] hover:bg-blue-600 active:scale-[0.98] text-white font-bold py-4 px-6 rounded-2xl shadow-xl shadow-blue-500/20 hover:shadow-blue-500/35 transition flex items-center justify-center gap-2 text-sm"
+                  className="w-full bg-[#008fe5] hover:bg-blue-600 active:scale-[0.98] text-white font-bold py-3.5 sm:py-4 px-6 rounded-2xl shadow-xl shadow-blue-500/20 hover:shadow-blue-500/35 transition flex items-center justify-center gap-2 text-sm cursor-pointer"
                 >
                   <Search size={18} /> Search Packages
                 </button>
@@ -353,7 +355,7 @@ export default function SearchCard() {
             />
             <button
               type="submit"
-              className="w-full bg-[#008fe5] hover:bg-blue-600 active:scale-[0.98] text-white font-bold py-4 px-6 rounded-2xl shadow-xl shadow-blue-500/20 hover:shadow-blue-500/35 transition flex items-center justify-center gap-2 text-sm"
+              className="w-full bg-[#008fe5] hover:bg-blue-600 active:scale-[0.98] text-white font-bold py-3.5 sm:py-4 px-6 rounded-2xl shadow-xl shadow-blue-500/20 hover:shadow-blue-500/35 transition flex items-center justify-center gap-2 text-sm cursor-pointer"
             >
               <Search size={18} /> Search Cars
             </button>

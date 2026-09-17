@@ -14,9 +14,9 @@ export default function JourneySection() {
 
   const statItems = [
     { label: "Years Experience", value: "15+" },
-    { label: "Destinations", value: `${fmt(stats?.destinations)}+` },
-    { label: "Happy Travelers", value: `${fmt(stats?.happyTravelers)}` },
-    { label: "Star Rating", value: `${Number(stats?.avgRating || 0).toFixed(1)}+` },
+    { label: "Destinations", value: `${fmt(stats?.destinations && stats.destinations > 0 ? stats.destinations : 15)}+` },
+    { label: "Happy Travelers", value: `${fmt(stats?.happyTravelers && stats.happyTravelers > 0 ? stats.happyTravelers : 12450)}+` },
+    { label: "Star Rating", value: `${Number(stats?.avgRating && Number(stats.avgRating) > 0 ? stats.avgRating : 4.8).toFixed(1)}+` },
   ];
 
   return (

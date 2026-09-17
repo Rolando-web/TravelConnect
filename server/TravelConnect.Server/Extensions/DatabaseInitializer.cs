@@ -424,5 +424,26 @@ public static class DatabaseInitializer
             });
             await db.SaveChangesAsync();
         }
+
+        // Customers (12 initial international and domestic customer profiles)
+        if (!await db.Customers.AnyAsync())
+        {
+            db.Customers.AddRange(new[]
+            {
+                new Customer { Name = "Maria Santos", Email = "maria.santos@gmail.com", Phone = "+63 917 111 2233", Country = "Philippines", TotalBookings = 4, TotalSpent = 68500m, Status = "Active" },
+                new Customer { Name = "Kenji Sato", Email = "kenji.sato@yahoo.jp", Phone = "+81 90 2345 6789", Country = "Japan", TotalBookings = 2, TotalSpent = 65000m, Status = "Active" },
+                new Customer { Name = "Sarah Jenkins", Email = "sarah.j@outlook.com", Phone = "+1 415 555 0192", Country = "United States", TotalBookings = 3, TotalSpent = 112000m, Status = "Active" },
+                new Customer { Name = "Liam Chen", Email = "liam.chen@singnet.com.sg", Phone = "+65 9123 4567", Country = "Singapore", TotalBookings = 5, TotalSpent = 145000m, Status = "Active" },
+                new Customer { Name = "Chloe Dupont", Email = "chloe.dupont@orange.fr", Phone = "+33 6 12 34 56 78", Country = "France", TotalBookings = 1, TotalSpent = 47800m, Status = "Active" },
+                new Customer { Name = "Oliver Smith", Email = "oliver.smith@gmail.com", Phone = "+61 4 1234 5678", Country = "Australia", TotalBookings = 3, TotalSpent = 89000m, Status = "Active" },
+                new Customer { Name = "Emma Wilson", Email = "emma.w@btinternet.com", Phone = "+44 7700 900123", Country = "United Kingdom", TotalBookings = 2, TotalSpent = 72400m, Status = "Active" },
+                new Customer { Name = "Juan dela Cruz", Email = "juan.delacruz@gmail.com", Phone = "+63 918 333 4455", Country = "Philippines", TotalBookings = 6, TotalSpent = 138000m, Status = "Active" },
+                new Customer { Name = "Lukas Weber", Email = "lukas.weber@web.de", Phone = "+49 170 1234567", Country = "Germany", TotalBookings = 1, TotalSpent = 39600m, Status = "Active" },
+                new Customer { Name = "Min-jun Kim", Email = "minjun.kim@naver.com", Phone = "+82 10 9876 5432", Country = "South Korea", TotalBookings = 2, TotalSpent = 54000m, Status = "Active" },
+                new Customer { Name = "Isabella Rossi", Email = "isabella.rossi@libero.it", Phone = "+39 340 1234567", Country = "Italy", TotalBookings = 2, TotalSpent = 85800m, Status = "Active" },
+                new Customer { Name = "Noah Tremblay", Email = "noah.tremblay@rogers.com", Phone = "+1 514 555 0147", Country = "Canada", TotalBookings = 1, TotalSpent = 51200m, Status = "Active" }
+            });
+            await db.SaveChangesAsync();
+        }
     }
 }

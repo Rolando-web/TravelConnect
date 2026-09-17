@@ -83,20 +83,20 @@ export default function DateRangeCalendar({
 
   const MonthGrid = ({ mInfo }) => (
     <div>
-      <p className="text-center font-extrabold text-sm text-gray-900 dark:text-white mb-3">{mInfo.label}</p>
-      <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-gray-400 dark:text-slate-400">
+      <p className="text-center font-extrabold text-sm text-gray-900 dark:text-white mb-2.5 sm:mb-3">{mInfo.label}</p>
+      <div className="grid grid-cols-7 gap-1 text-center text-[11px] sm:text-xs font-bold text-gray-400 dark:text-slate-400">
         {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
           <span key={d}>{d}</span>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-1 mt-2 text-center text-xs">
+      <div className="grid grid-cols-7 gap-1 mt-1.5 sm:mt-2 text-center text-xs">
         {getCalendarMonthDays(mInfo.year, mInfo.monthIndex).map((day, idx) => (
           <button
             key={idx}
             type="button"
             disabled={!day}
             onClick={() => handleDateClick(day, mInfo)}
-            className={`h-8 w-8 rounded-full font-bold transition flex items-center justify-center cursor-pointer ${
+            className={`h-8 w-8 mx-auto rounded-full font-bold transition flex items-center justify-center cursor-pointer ${
               !day
                 ? "bg-transparent text-transparent pointer-events-none"
                 : isSelected(day, mInfo)
@@ -114,26 +114,26 @@ export default function DateRangeCalendar({
   );
 
   return (
-    <div className="absolute right-0 top-full mt-2 bg-white dark:bg-[#0f172a] border border-gray-200 dark:border-white/10 shadow-2xl rounded-3xl p-6 z-[90] w-[600px] max-w-[92vw] text-left">
+    <div className="absolute left-1/2 -translate-x-1/2 sm:left-auto sm:right-0 sm:translate-x-0 top-full mt-2 bg-white dark:bg-[#0f172a] border border-gray-200 dark:border-white/10 shadow-2xl rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 z-[90] w-[calc(100vw-2rem)] max-w-[620px] text-left max-h-[85vh] overflow-y-auto overscroll-contain animate-fadeIn">
       
       {/* Top Bar: Presets & Month Navigation Controls */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-gray-100 dark:border-white/10 pb-3 mb-4 gap-3">
-        <span className="font-extrabold text-sm text-gray-900 dark:text-white flex items-center gap-1.5">
-          <Calendar size={15} className="text-[#008fe5]" /> Select departure &amp; return dates
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-gray-100 dark:border-white/10 pb-2.5 mb-3 gap-2">
+        <span className="font-extrabold text-xs sm:text-sm text-gray-900 dark:text-white flex items-center gap-1.5">
+          <Calendar size={15} className="text-[#008fe5] shrink-0" /> Select departure &amp; return dates
         </span>
 
-        <div className="flex items-center gap-2 flex-wrap text-xs font-bold">
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto max-w-full scrollbar-none pb-0.5 w-full sm:w-auto">
           <button
             type="button"
             onClick={() => { setDepartureDate("2026-08-25"); setReturnDate("2026-09-08"); setBaseMonthIndex(7); }}
-            className="bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-700 dark:text-slate-200 px-3 py-1.5 rounded-lg transition cursor-pointer"
+            className="shrink-0 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-700 dark:text-slate-200 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer"
           >
             Next 2 weeks
           </button>
           <button
             type="button"
             onClick={() => { setDepartureDate("2026-09-01"); setReturnDate("2026-09-30"); setBaseMonthIndex(8); }}
-            className="bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-700 dark:text-slate-200 px-3 py-1.5 rounded-lg transition cursor-pointer"
+            className="shrink-0 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-700 dark:text-slate-200 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer"
           >
             Next month
           </button>
@@ -150,7 +150,7 @@ export default function DateRangeCalendar({
               key={m.label}
               type="button"
               onClick={() => setBaseMonthIndex(m.idx)}
-              className={`px-2.5 py-1.5 rounded-lg transition cursor-pointer ${
+              className={`shrink-0 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer ${
                 baseMonthIndex === m.idx
                   ? "bg-[#008fe5] text-white shadow-sm"
                   : "bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-700 dark:text-slate-200"
@@ -163,7 +163,7 @@ export default function DateRangeCalendar({
       </div>
 
       {/* Month Navigation Arrows Header */}
-      <div className="flex items-center justify-between px-2 mb-2">
+      <div className="flex items-center justify-between px-1 mb-2">
         <button
           type="button"
           onClick={prevMonth}
@@ -174,8 +174,9 @@ export default function DateRangeCalendar({
           <span className="hidden sm:inline">Prev</span>
         </button>
 
-        <span className="text-xs font-bold text-gray-400 dark:text-slate-400">
-          Showing {month1.shortMonth} &amp; {month2.shortMonth} {month1.year}
+        <span className="text-xs font-bold text-gray-500 dark:text-slate-400">
+          <span className="sm:hidden">{month1.label}</span>
+          <span className="hidden sm:inline">Showing {month1.shortMonth} &amp; {month2.shortMonth} {month1.year}</span>
         </span>
 
         <button
@@ -189,15 +190,17 @@ export default function DateRangeCalendar({
         </button>
       </div>
 
-      {/* Side-by-side Dual Months */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      {/* Responsive Month Display: 1 month on mobile, dual month on tablet/desktop */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <MonthGrid mInfo={month1} />
-        <MonthGrid mInfo={month2} />
+        <div className="hidden sm:block">
+          <MonthGrid mInfo={month2} />
+        </div>
       </div>
 
       {/* Footer */}
-      <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-100 dark:border-white/10 pt-4 mt-4 gap-3">
-        <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">
+      <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-100 dark:border-white/10 pt-3 mt-3 gap-2.5">
+        <span className="text-xs text-gray-500 dark:text-slate-400 font-medium text-center sm:text-left">
           {departureDate ? (
             <>
               Depart: <span className="font-bold text-gray-900 dark:text-white">{formatDateLabel(departureDate)}</span>
@@ -211,7 +214,7 @@ export default function DateRangeCalendar({
         <button
           type="button"
           onClick={onClose}
-          className="w-full sm:w-auto bg-[#008fe5] hover:bg-blue-600 text-white font-bold px-6 py-2 rounded-xl text-xs shadow-md transition cursor-pointer"
+          className="w-full sm:w-auto bg-[#008fe5] hover:bg-blue-600 text-white font-bold px-6 py-2.5 sm:py-2 rounded-xl text-xs shadow-md transition cursor-pointer"
         >
           Confirm departure date
         </button>

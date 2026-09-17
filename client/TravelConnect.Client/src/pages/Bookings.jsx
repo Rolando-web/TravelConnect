@@ -187,24 +187,24 @@ function BookingVoucherCard({ booking, onViewDetails, onRequestCancel, onDownloa
         </div>
 
         {/* Pricing & Action Buttons */}
-        <div className="flex flex-wrap items-end justify-between gap-4 pt-4 border-t border-slate-200/80 dark:border-white/[0.06]">
-          <div>
+        <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-4 pt-4 border-t border-slate-200/80 dark:border-white/[0.06]">
+          <div className="text-center sm:text-left w-full sm:w-auto">
             <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 block">Total Investment</span>
-            <div className="flex items-baseline gap-1">
+            <div className="flex items-baseline justify-center sm:justify-start gap-1">
               <span className="font-heading text-2xl font-bold text-slate-950 dark:text-white">
                 {displayPrice(bookingAmount)}
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5 font-mono">
+            <p className="text-[11px] text-slate-400 flex items-center justify-center sm:justify-start gap-1 mt-0.5 font-mono">
               <CreditCard size={11} /> {booking.paymentMethod?.toUpperCase() || "GCASH / CARD"}
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="w-full sm:w-auto flex flex-wrap items-center justify-center gap-2">
             <button
               onClick={() => onDownloadPdf(booking)}
               disabled={isDownloading}
-              className="bg-slate-100 dark:bg-white/[0.05] hover:bg-slate-200 dark:hover:bg-white/[0.1] text-slate-800 dark:text-slate-200 text-xs font-semibold px-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/[0.08] transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="flex-1 sm:flex-initial bg-slate-100 dark:bg-white/[0.05] hover:bg-slate-200 dark:hover:bg-white/[0.1] text-slate-800 dark:text-slate-200 text-xs font-semibold px-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/[0.08] transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap min-w-[110px]"
             >
               {isDownloading ? (
                 <>
@@ -218,7 +218,7 @@ function BookingVoucherCard({ booking, onViewDetails, onRequestCancel, onDownloa
             </button>
             <button
               onClick={() => onViewDetails(booking)}
-              className="bg-slate-100 dark:bg-white/[0.05] hover:bg-slate-200 dark:hover:bg-white/[0.1] text-slate-800 dark:text-slate-200 text-xs font-semibold px-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/[0.08] transition flex items-center gap-1.5 cursor-pointer"
+              className="flex-1 sm:flex-initial bg-slate-100 dark:bg-white/[0.05] hover:bg-slate-200 dark:hover:bg-white/[0.1] text-slate-800 dark:text-slate-200 text-xs font-semibold px-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/[0.08] transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap min-w-[120px]"
             >
               <FileText size={14} /> View E-Voucher
             </button>
@@ -226,7 +226,7 @@ function BookingVoucherCard({ booking, onViewDetails, onRequestCancel, onDownloa
             {booking.status === "upcoming" && (
               <button
                 onClick={() => onRequestCancel(booking)}
-                className="bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-500/20 text-xs font-semibold px-4 py-2.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                className="w-full sm:w-auto flex-1 sm:flex-initial bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-500/20 text-xs font-semibold px-4 py-2.5 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap min-w-[120px]"
               >
                 <RotateCcw size={14} /> 1-Click Refund
               </button>

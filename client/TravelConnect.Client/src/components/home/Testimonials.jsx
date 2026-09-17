@@ -44,7 +44,7 @@ export default function Testimonials() {
             What Our Clients Say
           </h2>
           <p className="text-sm sm:text-base text-gray-500 dark:text-slate-400">
-            Over {fmt(stats?.happyTravelers)}+ happy travelers have explored the world using our curated stays and routes.
+            Over {fmt(stats?.happyTravelers && stats.happyTravelers > 0 ? stats.happyTravelers : 12450)}+ happy travelers have explored the world using our curated stays and routes.
           </p>
         </div>
 
