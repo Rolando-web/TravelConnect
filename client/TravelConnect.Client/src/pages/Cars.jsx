@@ -9,6 +9,7 @@ import {
 import { useBooking } from "../context/BookingContext";
 import { useCurrency } from "../context/CurrencyContext";
 import FavoriteButton from "../components/shared/FavoriteButton";
+import PageHeroCarousel from "../components/shared/PageHeroCarousel";
 import { carsApi } from "../services/api";
 
 const TYPE_FILTERS = [
@@ -20,8 +21,24 @@ const TYPE_FILTERS = [
   { id: "MPV", label: "Executive MPVs" },
 ];
 
-const CARS_HERO_IMAGE =
-  "https://images.unsplash.com/photo-1553440569-bcc63803a83d?auto=format&fit=crop&w=1920&q=80";
+const CARS_HERO_SLIDES = [
+  {
+    image: "https://images.unsplash.com/photo-1553440569-bcc63803a83d?auto=format&fit=crop&w=2000&q=80",
+    alt: "Luxury chauffeur sedan in an executive garage",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=2000&q=80",
+    alt: "High-performance grand touring sports car",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1494905998402-395d579af36f?auto=format&fit=crop&w=2000&q=80",
+    alt: "Elegant classic cabriolet parked by the coast",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&w=2000&q=80",
+    alt: "Prestige coupe racing down a scenic road",
+  },
+];
 
 const LUXURY_FALLBACK_CARS = [
   {
@@ -221,20 +238,10 @@ export default function Cars() {
   return (
     <div className="w-full bg-slate-50 dark:bg-[#0a0e17] text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-300">
       {/* ─── Editorial Header / Concierge Masthead ─────────────────────── */}
-      <section className="relative pt-20 pb-16 px-4 sm:px-6 lg:px-8 border-b border-slate-200 dark:border-white/[0.07] overflow-hidden">
-        {/* Hero Background Image */}
-        <div className="absolute inset-0">
-          <img
-            src={CARS_HERO_IMAGE}
-            alt="Luxury chauffeur fleet"
-            className="w-full h-full object-cover object-center"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/90 via-slate-900/70 to-slate-50 dark:to-[#0a0e17]" />
-        </div>
-
-        <div className="relative max-w-7xl mx-auto text-center space-y-5">
+      <PageHeroCarousel slides={CARS_HERO_SLIDES} className="pt-20 pb-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto text-center space-y-5">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold tracking-[0.2em] uppercase bg-white/15 text-white border border-white/25 backdrop-blur-md shadow-lg">
-            <Car size={13} className="text-amber-300" />
+            <Car size={14} className="text-amber-300" />
             <span>The Private Fleet · Chauffeur &amp; Bespoke Hire</span>
           </div>
 
@@ -247,7 +254,7 @@ export default function Cars() {
           </p>
 
           {/* Minimalist Trust Ribbon */}
-          <div className="pt-6 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto text-left border-t border-white/20">
+          <div className="pt-6 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto text-left">
             <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white">
               <div className="p-2 rounded-xl bg-white/15 text-amber-300 shrink-0">
                 <KeyRound size={16} />
@@ -289,7 +296,7 @@ export default function Cars() {
             </div>
           </div>
         </div>
-      </section>
+      </PageHeroCarousel>
 
       {/* ─── Flagship Featured Car ────────────────────────────── */}
       {flagshipCar && !hasActiveFilters && (

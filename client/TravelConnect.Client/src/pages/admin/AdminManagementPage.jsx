@@ -13,6 +13,7 @@ import {
 import { pageMeta } from "./adminConfig";
 import ProfilePage from "./ProfilePage";
 import SupportPage from "./SupportPage";
+import HelpdeskInboxPage from "./HelpdeskInboxPage";
 import SystemSettingsPage from "./SystemSettingsPage";
 import CrudModal from "../../components/admin/CrudModal";
 import StatCard from "../../components/admin/StatCard";
@@ -30,7 +31,7 @@ import {
   leadsApi,
 } from "../../services/api";
 
-const customPages = { profile: ProfilePage, support: SupportPage, settings: SystemSettingsPage };
+const customPages = { profile: ProfilePage, support: SupportPage, settings: SystemSettingsPage, helpdesk: HelpdeskInboxPage };
 
 const FALLBACK_FLIGHT_IMG = "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80";
 

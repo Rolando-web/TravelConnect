@@ -64,6 +64,30 @@ export const setLeadStage = (id, stage) =>
   request(`/api/leads/${id}/stage`, { method: "POST", body: JSON.stringify({ stage }) });
 export const usersApi = crud("users");
 export const inquiriesApi = crud("inquiries");
+
+// ── Customer Support Chat ─────────────────────────────────────
+
+// Customer-side: open conversations, read a thread, send a message.
+export const supportApi = {
+  list: () => request("/api/support/conversations"),
+  create: (body) => request("/api/support/conversations", { method: "POST", body: JSON.stringify(body) }),
+  thread: (id) => request(`/api/support/conversations/${id}`),
+  send: (id, body) => request(`/api/support/conversations/${id}/messages`, { method: "POST", body: JSON.stringify(body) }),
+  markRead: (id) => request(`/api/support/conversations/${id}/read`, { method: "PUT" }),
+};
+
+// Agent/Admin helpdesk: inbox, thread, reply, assign, status.
+export const supportAdminApi = {
+  inbox: (query = "") => request(`/api/support/inbox${query}`),
+  thread: (id) => request(`/api/support/inbox/${id}`),
+  reply: (id, body) => request(`/api/support/inbox/${id}/reply`, { method: "POST", body: JSON.stringify(body) }),
+  replyEmail: (id, body) => request(`/api/support/inbox/${id}/reply-email`, { method: "POST", body: JSON.stringify(body) }),
+  read: (id) => request(`/api/support/inbox/${id}/read`, { method: "PUT" }),
+  emails: () => request("/api/support/emails"),
+  assign: (id, body) => request(`/api/support/inbox/${id}/assign`, { method: "PUT", body: JSON.stringify(body) }),
+  status: (id, body) => request(`/api/support/inbox/${id}/status`, { method: "PUT", body: JSON.stringify(body) }),
+  agents: () => request("/api/support/agents"),
+};
 export const flightsApi = crud("flights");
 export const hotelsApi = crud("hotels");
 export const carsApi = crud("cars");
@@ -267,5 +291,15 @@ export async function sendCustomerInquiry(inquiryPayload) {
   return request(`/api/inquiries`, {
     method: "POST",
     body: JSON.stringify(inquiryPayload)
+  });
+}
+
+// Admin notification email for tier inquiries — goes through the backend so
+// it is rate-limited (10/min/IP) instead of firing EmailJS straight from the
+// browser where spammers could hammer the address.
+export async function sendInquiryNotification(payload) {
+  return request(`/api/inquiries/notify`, {
+    method: "POST",
+    body: JSON.stringify(payload)
   });
 }

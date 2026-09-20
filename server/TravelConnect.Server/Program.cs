@@ -52,6 +52,11 @@ builder.Services.AddSingleton<EmailService>();
 builder.Services.AddSingleton<PdfService>();
 builder.Services.AddSingleton<CancellationService>();
 
+// EmailJS admin notifications (sent server-side so the email path is
+// rate-limited like the inquiry endpoint it rides on).
+builder.Services.Configure<EmailJsOptions>(builder.Configuration.GetSection("EmailJs"));
+builder.Services.AddHttpClient<EmailJsService>();
+
 var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
 var corsAllowAll = corsOrigins == null || corsOrigins.Length == 0;
 

@@ -29,6 +29,7 @@ export const ROLE_NAV = {
   ],
   "Agency Staff": [
     ["dashboard", "Dashboard"],
+    ["helpdesk", "Support Helpdesk"],
     ["packages", "Travel Packages"],
     ["flights", "Flights"],
     ["hotels", "Hotels"],
@@ -41,6 +42,7 @@ export const ROLE_NAV = {
     ["suppliers", "Suppliers"],
     ["leads", "CRM & Leads"],
     ["inquiries", "Inquiries"],
+    ["helpdesk", "Support Helpdesk"],
     ["payments", "Payments"],
     ["reports", "Reports"],
     ["profile", "Profile"],
@@ -132,6 +134,7 @@ export const pageMeta = {
   reports: ["Reports & Analytics", "Business performance insights"],
   settings: ["System Settings", "Platform configuration"],
   support: ["Support", "Your support requests"],
+  helpdesk: ["Helpdesk Inbox", "Multi-agent support inbox with assignment"],
   subscriptions: ["Subscriptions", "Manage agency subscription plans"],
   profile: ["My Profile", "Manage your account"],
 };

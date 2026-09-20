@@ -40,16 +40,16 @@ export default function FAQ() {
   };
 
   return (
-    <section id="faqs" className="py-24 bg-white dark:bg-[#0a0f1d] scroll-mt-10 transition-colors duration-300">
+    <section id="faqs" className="py-24 bg-[#0a0f1d] scroll-mt-10 transition-colors duration-300">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}
         <div className="text-center mb-16">
-          <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#008fe5] dark:text-cyan-300 block">Got Questions?</span>
-          <h2 className="text-3xl sm:text-4xl font-heading font-extrabold text-gray-900 dark:text-white mt-2 mb-4">
+          <span className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300 block">Got Questions?</span>
+          <h2 className="text-3xl sm:text-4xl font-heading font-extrabold text-white mt-2 mb-4">
             Frequently Asked Questions
           </h2>
-          <p className="text-sm sm:text-base text-gray-500 dark:text-slate-400 max-w-lg mx-auto">
+          <p className="text-sm sm:text-base text-slate-400 max-w-lg mx-auto">
             Find answers to commonly asked questions about payment, itineraries, cancellations, and support.
           </p>
         </div>
@@ -63,8 +63,8 @@ export default function FAQ() {
                 key={idx}
                 className={`border rounded-2xl transition-all duration-300 overflow-hidden ${
                   isOpen 
-                    ? "border-blue-200 dark:border-blue-500/30 bg-blue-50/20 dark:bg-blue-500/10 shadow-md" 
-                    : "border-gray-150 dark:border-white/10 bg-white dark:bg-[#0f172a] hover:border-gray-300 dark:hover:border-white/20 hover:shadow-sm"
+                    ? "border-blue-500/30 bg-blue-500/10 shadow-md" 
+                    : "border-white/10 bg-[#0f172a] hover:border-white/20 hover:shadow-sm"
                 }`}
               >
                 {/* Accordion Header Button */}
@@ -74,24 +74,24 @@ export default function FAQ() {
                   aria-expanded={isOpen}
                 >
                   <div className="flex items-center gap-3 pr-4">
-                    <HelpCircle className={`shrink-0 ${isOpen ? "text-[#008fe5] dark:text-cyan-300" : "text-gray-400 dark:text-slate-400"}`} size={20} />
-                    <span className={`text-base font-bold transition-colors ${isOpen ? "text-gray-900 dark:text-white" : "text-gray-800 dark:text-slate-200"}`}>
+                    <HelpCircle className={`shrink-0 ${isOpen ? "text-cyan-300" : "text-slate-400"}`} size={20} />
+                    <span className={`text-base font-bold transition-colors ${isOpen ? "text-white" : "text-slate-200"}`}>
                       {faq.question}
                     </span>
                   </div>
                   <ChevronDown 
                     size={18} 
-                    className={`text-gray-500 dark:text-slate-400 transition-transform duration-300 shrink-0 ${isOpen ? "rotate-180 text-[#008fe5] dark:text-cyan-300" : ""}`} 
+                    className={`text-slate-400 transition-transform duration-300 shrink-0 ${isOpen ? "rotate-180 text-cyan-300" : ""}`} 
                   />
                 </button>
 
                 {/* Accordion Content Panel */}
                 <div 
                   className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                    isOpen ? "max-h-60 border-t border-gray-100 dark:border-white/10" : "max-h-0"
+                    isOpen ? "max-h-60 border-t border-white/10" : "max-h-0"
                   }`}
                 >
-                  <div className="p-5 sm:p-6 text-sm text-gray-600 dark:text-slate-300 leading-relaxed">
+                  <div className="p-5 sm:p-6 text-sm text-slate-300 leading-relaxed">
                     {faq.answer}
                   </div>
                 </div>

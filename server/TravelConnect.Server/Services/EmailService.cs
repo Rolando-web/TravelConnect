@@ -66,6 +66,60 @@ public class EmailService
         }
     }
 
+    /// <summary>
+    /// Sends a direct email reply for an inquiry (e.g. a subscription tier
+    /// inquiry) and records it in the email history. Requires the SMTP
+    /// EmailOptions to be configured; returns false if not available.
+    /// </summary>
+    public async Task<bool> SendInquiryReplyAsync(string to, string toName, string subject, string body)
+    {
+        if (string.IsNullOrWhiteSpace(_options.Username) || string.IsNullOrWhiteSpace(_options.Password))
+            return false;
+
+        try
+        {
+            var htmlBody = BuildInquiryReplyHtml(toName, body);
+            await SendEmailAsync(to, subject, htmlBody);
+            await LogEmailAsync(null, to, subject, "subscription_inquiry_reply", "Sent");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            await LogEmailAsync(null, to, subject, "subscription_inquiry_reply", "Failed", ex.Message);
+            return false;
+        }
+    }
+
+    private static string BuildInquiryReplyHtml(string toName, string body)
+    {
+        var greeting = string.IsNullOrWhiteSpace(toName) ? "there" : E(toName);
+        var paragraphs = string.Join("", (body ?? string.Empty)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(p => $"<p style='margin:0 0 12px;line-height:1.6;'>{E(p.Trim())}</p>"));
+
+        return $@"
+        <!DOCTYPE html>
+        <html><head><meta charset='utf-8'/></head>
+        <body style='font-family:Segoe UI,Arial,sans-serif;background:#f9fafb;margin:0;padding:24px;'>
+        <div style='max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);'>
+            <div style='background:linear-gradient(135deg,#008fe5,#06D6A0);padding:28px;text-align:center;'>
+                <h1 style='color:#fff;margin:0;font-size:22px;'>TravelConnect Support</h1>
+                <p style='color:rgba(255,255,255,0.9);margin:6px 0 0;'>Reply from our team</p>
+            </div>
+            <div style='padding:32px;'>
+                <p style='margin:0 0 16px;color:#374151;'>Hi <strong>{greeting}</strong>,</p>
+                {paragraphs}
+                <p style='margin:20px 0 0;color:#9ca3af;font-size:13px;'>
+                    If you have any other questions, just reply to this email or use the chat bubble on the site.
+                </p>
+            </div>
+            <div style='background:#f9fafb;padding:16px;text-align:center;color:#9ca3af;font-size:12px;'>
+                TravelConnect — Your Journey Starts Here
+            </div>
+        </div>
+        </body></html>";
+    }
+
     private async Task SendEmailAsync(string to, string subject, string htmlBody)
     {
         var message = new MimeMessage();

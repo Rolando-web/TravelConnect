@@ -93,12 +93,17 @@ public class DashboardController(TravelConnectDbContext db) : ControllerBase
 
         // From flights (destinations/airports)
         var flightCities = await db.Flights
+            .Where(f => !string.IsNullOrEmpty(f.DepartureCity) || !string.IsNullOrEmpty(f.ArrivalCity))
+            .Select(f => new { f.DepartureCity, f.ArrivalCity })
+            .ToListAsync();
+
+        var flightCityList = flightCities
             .SelectMany(f => new[] { f.DepartureCity, f.ArrivalCity })
             .Where(c => !string.IsNullOrEmpty(c))
             .Distinct()
-            .ToListAsync();
+            .ToList();
 
-        foreach (var city in flightCities)
+        foreach (var city in flightCityList)
         {
             var country = ResolveCountry(city);
             if (!string.IsNullOrEmpty(country)) countries.Add(country);

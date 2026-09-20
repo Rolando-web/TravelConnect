@@ -9,6 +9,7 @@ import { useBooking } from "../context/BookingContext";
 import { useCurrency } from "../context/CurrencyContext";
 import { useAvailable } from "../context/AvailableContext";
 import FavoriteButton from "../components/shared/FavoriteButton";
+import PageHeroCarousel from "../components/shared/PageHeroCarousel";
 import { hotelsApi } from "../services/api";
 
 const HOTEL_CATEGORIES = [
@@ -19,8 +20,24 @@ const HOTEL_CATEGORIES = [
   { id: "Lodge", label: "Lodges" },
 ];
 
-const HOTEL_HERO_IMAGE =
-  "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1920&q=80";
+const HOTEL_HERO_SLIDES = [
+  {
+    image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=2000&q=80",
+    alt: "Luxury resort poolside with palm trees at dusk",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?auto=format&fit=crop&w=2000&q=80",
+    alt: "White-washed cliffside suites above a turquoise sea",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=2000&q=80",
+    alt: "Private villa with infinity pool overlooking the ocean",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=2000&q=80",
+    alt: "Beachfront resort villa with sparkling pool at sunset",
+  },
+];
 
 const LUXURY_FALLBACK_HOTELS = [
   {
@@ -234,44 +251,30 @@ export default function Hotels() {
     <div className="w-full bg-slate-50 dark:bg-[#070b13] text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-300 pb-20">
       
       {/* ─── Architectural Editorial Masthead ─────────────────────────── */}
-      <section className="relative pt-20 pb-10 px-4 sm:px-6 lg:px-8 overflow-hidden border-b border-slate-200/80 dark:border-white/[0.06]">
-        {/* Hero Background Image */}
-        <div className="absolute inset-0">
-          <img
-            src={HOTEL_HERO_IMAGE}
-            alt="Luxury resort and private haven"
-            className="w-full h-full object-cover object-center"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/90 via-slate-900/75 to-slate-50 dark:to-[#0a0f1d]" />
-        </div>
-
-        <div className="relative max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
-            <div className="space-y-2.5">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-semibold tracking-[0.2em] uppercase bg-white/15 text-white border border-white/25 backdrop-blur-md shadow-lg">
-                <Compass size={13} className="text-amber-300" />
-                <span>Curated Resorts &amp; Private Havens</span>
-              </div>
-
-              <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-bold text-white tracking-[0.06em] leading-tight drop-shadow-lg">
-                Stay Somewhere <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-300 via-amber-200 to-amber-400">Beautiful</span>.
-              </h1>
-            </div>
-
-            <p className="text-slate-200 text-xs sm:text-sm max-w-md font-normal leading-relaxed drop-shadow">
-              Curated private islands, oceanfront cliffside suites, and alpine sanctuaries with 100% refund protection.
-            </p>
+      <PageHeroCarousel slides={HOTEL_HERO_SLIDES} className="pt-20 pb-14 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto text-center space-y-5">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold tracking-[0.2em] uppercase bg-white/15 text-white border border-white/25 backdrop-blur-md shadow-lg">
+            <Compass size={14} className="text-amber-300" />
+            <span>Curated Resorts &amp; Private Havens</span>
           </div>
 
+          <h1 className="font-heading text-5xl sm:text-7xl font-bold text-white tracking-[0.06em] leading-[1.02] drop-shadow-lg">
+            Stay Somewhere <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-300 via-amber-200 to-amber-400">Beautiful</span>.
+          </h1>
+
+          <p className="text-slate-200 text-xs sm:text-sm max-w-2xl mx-auto font-normal leading-relaxed drop-shadow">
+            Curated private islands, oceanfront cliffside suites, and alpine sanctuaries with 100% refund protection.
+          </p>
+
           {/* Curated Category Filter Pills */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          <div className="pt-2 flex flex-wrap items-center justify-center gap-2">
             {HOTEL_CATEGORIES.map((cat) => {
               const active = selectedCategory === cat.id;
               return (
                 <button
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.id)}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 shrink-0 border ${
+                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 border ${
                     active
                       ? "bg-[#008fe5] text-white border-[#008fe5] shadow-md shadow-blue-500/20"
                       : "bg-white/15 text-white border-white/30 backdrop-blur-md hover:bg-white/25"
@@ -283,7 +286,7 @@ export default function Hotels() {
             })}
           </div>
         </div>
-      </section>
+      </PageHeroCarousel>
 
       {/* ─── Concierge Filter Ribbon ─────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">

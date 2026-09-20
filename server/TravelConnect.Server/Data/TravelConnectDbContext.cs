@@ -23,6 +23,8 @@ public class TravelConnectDbContext : DbContext
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<Inquiry> Inquiries => Set<Inquiry>();
     public DbSet<SystemUser> SystemUsers => Set<SystemUser>();
+    public DbSet<SupportConversation> SupportConversations => Set<SupportConversation>();
+    public DbSet<SupportMessage> SupportMessages => Set<SupportMessage>();
     public DbSet<Image> Images => Set<Image>();
     public DbSet<EmailLog> EmailLogs => Set<EmailLog>();
     public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();

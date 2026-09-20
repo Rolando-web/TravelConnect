@@ -127,6 +127,46 @@ public static class DatabaseInitializer
                 CREATE INDEX IX_EmailLogs_BookingId ON dbo.EmailLogs (BookingId);
             END");
 
+        // Ensure SupportConversations table exists
+        await db.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'dbo.SupportConversations', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.SupportConversations (
+                    Id                  int            NOT NULL IDENTITY(1,1) CONSTRAINT PK_SupportConversations PRIMARY KEY,
+                    CustomerEmail       nvarchar(max)  NOT NULL,
+                    CustomerName        nvarchar(max)  NOT NULL,
+                    Subject             nvarchar(max)  NOT NULL,
+                    Category            nvarchar(max)  NOT NULL,
+                    Status              nvarchar(max)  NOT NULL,
+                    AssigneeEmail       nvarchar(max)  NOT NULL,
+                    UnreadByAgent       int            NOT NULL,
+                    UnreadByCustomer    int            NOT NULL,
+                    LastMessageAt       datetime2      NOT NULL,
+                    LastMessagePreview  nvarchar(max)  NOT NULL,
+                    CreatedAt           datetime2      NOT NULL,
+                    UpdatedAt           datetime2      NOT NULL
+                );
+            END");
+
+        // Ensure SupportMessages table exists
+        await db.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'dbo.SupportMessages', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.SupportMessages (
+                    Id                      int           NOT NULL IDENTITY(1,1) CONSTRAINT PK_SupportMessages PRIMARY KEY,
+                    SupportConversationId   int           NOT NULL,
+                    SenderEmail             nvarchar(max) NOT NULL,
+                    SenderName              nvarchar(max) NOT NULL,
+                    SenderType              nvarchar(max) NOT NULL,
+                    Body                    nvarchar(max) NOT NULL,
+                    IsRead                  bit           NOT NULL,
+                    CreatedAt               datetime2     NOT NULL,
+                    UpdatedAt               datetime2     NOT NULL,
+                    CONSTRAINT FK_SupportMessages_SupportConversations_SupportConversationId
+                        FOREIGN KEY (SupportConversationId) REFERENCES dbo.SupportConversations (Id) ON DELETE CASCADE
+                );
+            END");
+
         // Ensure SubscriptionPlans table exists
         await db.Database.ExecuteSqlRawAsync(@"
             IF OBJECT_ID(N'dbo.SubscriptionPlans', N'U') IS NULL

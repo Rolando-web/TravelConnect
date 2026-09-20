@@ -19,15 +19,15 @@ export default function Footer() {
     <footer className="bg-slate-950 text-slate-300 pt-16 pb-8 border-t border-slate-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 lg:gap-8 pb-12 border-b border-slate-800">
-          
+
           {/* Logo & Description */}
           <div className="lg:col-span-2 space-y-4">
             <Link to="/" className="flex items-center gap-3 group">
               <div className="bg-white/10 rounded-lg p-1 group-hover:bg-white/15 transition-all">
-                <img 
-                  src={logoImg} 
-                  alt="Travel Connect Logo" 
-                  className="h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105" 
+                <img
+                  src={logoImg}
+                  alt="Travel Connect Logo"
+                  className="h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
                 />
               </div>
               <div className="flex flex-col">
@@ -103,15 +103,15 @@ export default function Footer() {
             <ul className="space-y-3.5 text-sm text-slate-400">
               <li className="flex items-start gap-2.5">
                 <MapPin size={18} className="text-[#008fe5] shrink-0 mt-0.5" />
-                <span>123 Paradise Boulevard, Suite 500, San Francisco, CA</span>
+                <span>Vista Mall, Floor 4, Santo nino, Davao City, Philippines</span>
               </li>
               <li className="flex items-center gap-2.5">
                 <Phone size={18} className="text-[#008fe5] shrink-0" />
-                <span>+1 (800) 555-0199</span>
+                <span>+63 82 286 4251</span>
               </li>
               <li className="flex items-center gap-2.5">
                 <Mail size={18} className="text-[#008fe5] shrink-0" />
-                <span>support@travelconnect.com</span>
+                <span>TravelConnect@gmail.com</span>
               </li>
             </ul>
           </div>

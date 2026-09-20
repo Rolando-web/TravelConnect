@@ -15,8 +15,14 @@ import {
   CircleDollarSign,
   Clock,
   BadgeCheck,
+  Inbox,
+  Headset,
+  Send,
+  Mail,
+  MailCheck,
+  MailX,
 } from "lucide-react";
-import { subscriptionsApi } from "../../services/api";
+import { subscriptionsApi, supportAdminApi } from "../../services/api";
 import CrudModal from "../../components/admin/CrudModal";
 import StatCard from "../../components/admin/StatCard";
 import Pagination from "../../components/admin/Pagination";
@@ -104,10 +110,107 @@ export default function SubscriptionsPage() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
 
+  const [inquiries, setInquiries] = useState([]);
+  const [inquiriesLoading, setInquiriesLoading] = useState(true);
+  const [selectedInquiry, setSelectedInquiry] = useState(null);
+  const [inquiryThread, setInquiryThread] = useState(null);
+  const [inquiryThreadLoading, setInquiryThreadLoading] = useState(false);
+  const [inquiryReply, setInquiryReply] = useState("");
+  const [inquirySending, setInquirySending] = useState(false);
+
   const showToast = (msg) => {
     setToast(msg);
     window.setTimeout(() => setToast(null), 3000);
   };
+
+  // Subscription tier inquiries posted from the landing page modal land in
+  // the customer-support inbox with Category = "Subscription". This is the
+  // Super Admin inbox for them — read, badge, and reply from here.
+  const loadInquiries = async (asLoading = true) => {
+    if (asLoading) setInquiriesLoading(true);
+    try {
+      const data = await supportAdminApi.inbox("?category=Subscription");
+      setInquiries(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.warn("Failed to load subscription inquiries:", err.message);
+      setInquiries([]);
+    } finally {
+      setInquiriesLoading(false);
+    }
+  };
+
+  const openInquiry = async (id) => {
+    setSelectedInquiry(id);
+    setInquiryThreadLoading(true);
+    setInquiryThread(null);
+    try {
+      const data = await supportAdminApi.thread(id);
+      setInquiryThread(data);
+      await supportAdminApi.read(id);
+      await loadInquiries(false);
+    } catch (err) {
+      setInquiryThread(null);
+      setToast(err.message || "Failed to load thread");
+    } finally {
+      setInquiryThreadLoading(false);
+    }
+  };
+
+  const sendInquiryReply = async () => {
+    if (!selectedInquiry || !inquiryReply.trim()) return;
+    setInquirySending(true);
+    try {
+      await supportAdminApi.reply(selectedInquiry, { body: inquiryReply.trim() });
+      setInquiryReply("");
+      await openInquiry(selectedInquiry);
+      await loadInquiries(false);
+      setToast("Reply sent to the customer");
+    } catch (err) {
+      setToast(err.message || "Failed to send reply");
+    } finally {
+      setInquirySending(false);
+    }
+  };
+
+  // Same composer, but delivers as a real email (SMTP) to the customer's
+  // inbox, keeps a copy in the chat thread, and logs it in Email History.
+  const sendEmailReply = async () => {
+    if (!selectedInquiry || !inquiryReply.trim()) return;
+    setInquirySending(true);
+    try {
+      const result = await supportAdminApi.replyEmail(selectedInquiry, { body: inquiryReply.trim() });
+      setInquiryReply("");
+      await openInquiry(selectedInquiry);
+      await loadInquiries(false);
+      await loadEmailHistory(false);
+      setToast(result?.sent ? "Email reply sent to the customer" : "Reply saved to chat, but the email could not be sent");
+    } catch (err) {
+      setToast(err.message || "Failed to send email reply");
+    } finally {
+      setInquirySending(false);
+    }
+  };
+
+  const [emailHistory, setEmailHistory] = useState([]);
+  const [emailHistoryLoading, setEmailHistoryLoading] = useState(true);
+
+  const loadEmailHistory = async (asLoading = true) => {
+    if (asLoading) setEmailHistoryLoading(true);
+    try {
+      const data = await supportAdminApi.emails();
+      setEmailHistory(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.warn("Failed to load email history:", err.message);
+      setEmailHistory([]);
+    } finally {
+      setEmailHistoryLoading(false);
+    }
+  };
+
+  const unreadInquiries = useMemo(
+    () => inquiries.filter((i) => (i.unreadByAgent || 0) > 0).length,
+    [inquiries]
+  );
 
   const load = () => {
     setLoading(true);
@@ -126,6 +229,8 @@ export default function SubscriptionsPage() {
 
   useEffect(() => {
     load();
+    loadInquiries();
+    loadEmailHistory();
   }, []);
 
   const openModal = (mode, data = null) => setModal({ open: true, mode, data });
@@ -308,6 +413,247 @@ export default function SubscriptionsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Subscription inquiries inbox */}
+      <div className="mb-8">
+        <div className="flex flex-wrap gap-3 items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold">Subscription Inquiries</h2>
+            <span className="text-xs text-text-secondary bg-navy-800 rounded-full px-2.5 py-1">{inquiries.length}</span>
+            {unreadInquiries > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-badge-red text-white text-[11px] font-bold px-2.5 py-1">
+                <Inbox size={12} /> {unreadInquiries} new
+              </span>
+            )}
+          </div>
+          <span className="text-xs text-text-secondary">
+            Tier 1 / 2 / 3 inquiries from the landing page — reply and it goes straight to the customer's chat.
+          </span>
+        </div>
+
+        <div className="grid lg:grid-cols-[340px_1fr] gap-4 items-start">
+          {/* Inquiry list */}
+          <div className="card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-text-secondary flex items-center gap-2">
+                <Inbox size={15} className="text-cyan-accent" /> New messages
+              </h3>
+              <button
+                onClick={() => loadInquiries()}
+                className="text-xs text-text-secondary hover:text-cyan-accent flex items-center gap-1"
+                title="Refresh"
+              >
+                <RefreshCw size={13} /> Refresh
+              </button>
+            </div>
+
+            {inquiriesLoading ? (
+              <div className="text-xs text-text-secondary py-8 text-center">Loading inquiries…</div>
+            ) : inquiries.length === 0 ? (
+              <div className="text-center py-10 text-text-secondary">
+                <Headset size={32} className="mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No subscription inquiries yet.</p>
+                <p className="text-xs mt-1">Tier requests from the website will appear here.</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                {inquiries.map((t) => {
+                  const tierMatch = /tier\s*([123])/i.exec(t.subject || "");
+                  const meta = TIER_META[Number(tierMatch?.[1])] || TIER_META[1];
+                  const TIcon = meta.icon || Sparkles;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => openInquiry(t.id)}
+                      className={`w-full text-left px-3 py-2.5 rounded-xl transition border ${
+                        selectedInquiry === t.id
+                          ? "bg-cyan-accent/10 border-cyan-accent/40"
+                          : "bg-navy-900/50 border-navy-800 hover:bg-navy-900"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="flex items-center gap-1.5 text-[13px] font-semibold truncate">
+                          <TIcon size={12} className={meta.ring} />
+                          {t.subject || "Subscription inquiry"}
+                        </p>
+                        {t.unreadByAgent > 0 && (
+                          <span className="shrink-0 bg-red-500 text-white rounded-full min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center text-[10px] font-bold">
+                            {t.unreadByAgent}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-text-secondary mt-0.5 truncate">
+                        {t.customerName} · {t.lastMessagePreview || "no messages yet"}
+                      </p>
+                      <p className="text-[10px] text-text-secondary/60 mt-1">
+                        {t.lastMessageAt ? new Date(t.lastMessageAt).toLocaleString() : ""}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Reply pane */}
+          <div className="card p-4 min-h-[380px]">
+            {!selectedInquiry ? (
+              <div className="text-center py-20">
+                <Headset size={40} className="mx-auto text-navy-700 mb-3" />
+                <p className="text-sm text-text-secondary">
+                  Select a subscription inquiry to read the message and reply as Super Admin.
+                </p>
+              </div>
+            ) : inquiryThreadLoading ? (
+              <div className="text-center py-20 text-sm text-text-secondary">Loading thread…</div>
+            ) : inquiryThread ? (
+              <div>
+                <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
+                  <div>
+                    <h3 className="text-base font-bold">{inquiryThread.subject || "Subscription inquiry"}</h3>
+                    <p className="text-xs text-text-secondary mt-0.5">
+                      {inquiryThread.customerName || "Customer"} · {inquiryThread.customerEmail}
+                    </p>
+                  </div>
+                  <span className={`text-[11px] font-bold ${inquiryThread.status === "Replied" ? "badge-cyan" : inquiryThread.status === "Resolved" ? "badge-green" : "badge-orange"}`}>
+                    {inquiryThread.status || "Open"}
+                  </span>
+                </div>
+
+                <div className="space-y-3 mb-4 max-h-[320px] overflow-y-auto pr-1">
+                  {Array.isArray(inquiryThread.messages) && inquiryThread.messages.length > 0 ? (
+                    inquiryThread.messages.map((m, i) => {
+                      const isAgent = String(m.senderType || "").toLowerCase() === "agent";
+                      return (
+                        <div key={m.id ?? i} className={`flex ${isAgent ? "justify-end" : "justify-start"}`}>
+                          <div
+                            className={`max-w-[75%] px-3.5 py-2.5 rounded-2xl text-sm leading-snug ${
+                              isAgent
+                                ? "bg-cyan-accent text-white rounded-br-md"
+                                : "bg-navy-800 text-slate-100 rounded-bl-md"
+                            }`}
+                          >
+                            <p className="text-[10px] font-semibold mb-1 opacity-80">{m.senderName || m.senderEmail}</p>
+                            {m.body}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-xs text-text-secondary text-center py-8">No messages yet.</div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 border-t border-navy-700 pt-3">
+                  <textarea
+                    value={inquiryReply}
+                    onChange={(e) => setInquiryReply(e.target.value)}
+                    rows={2}
+                    placeholder="Reply as Super Admin…"
+                    className="flex-1 px-3 py-2 rounded-xl bg-navy-900 border border-navy-700 text-sm placeholder:text-text-secondary focus:outline-none focus:border-cyan-accent resize-none"
+                  />
+                  <div className="shrink-0 flex flex-col gap-1.5">
+                    <button
+                      onClick={sendInquiryReply}
+                      disabled={inquirySending || !inquiryReply.trim()}
+                      className="h-9 px-3.5 rounded-xl bg-cyan-accent hover:bg-cyan-accent/80 text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-40 transition"
+                      title="Send as a chat message (client's support bubble)"
+                    >
+                      <Send size={13} /> Chat
+                    </button>
+                    <button
+                      onClick={sendEmailReply}
+                      disabled={inquirySending || !inquiryReply.trim()}
+                      className="h-9 px-3.5 rounded-xl bg-navy-700 hover:bg-navy-600 text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-40 transition"
+                      title="Send a real email to the customer and log it in Email History"
+                    >
+                      <Mail size={13} /> Email
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-20 text-sm text-text-secondary">Couldn't load this thread.</div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Email history */}
+      <div className="mb-8">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <Mail size={17} className="text-cyan-accent" /> Email History
+            </h2>
+            <span className="text-xs text-text-secondary bg-navy-800 rounded-full px-2.5 py-1">{emailHistory.length}</span>
+          </div>
+          <button
+            onClick={() => loadEmailHistory()}
+            className="text-xs text-text-secondary hover:text-cyan-accent flex items-center gap-1"
+          >
+            <RefreshCw size={13} /> Refresh
+          </button>
+        </div>
+
+        <div className="card overflow-x-auto">
+          {emailHistoryLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin w-7 h-7 border-2 border-[#06D6A0] border-t-transparent rounded-full" />
+            </div>
+          ) : emailHistory.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-text-secondary">
+              <Mail size={34} className="mb-3 opacity-50" />
+              <p className="font-medium">No subscription inquiry emails yet</p>
+              <p className="text-sm mt-1">Tier inquiries from the website and email replies will appear here.</p>
+            </div>
+          ) : (
+            <table className="w-full min-w-[720px]">
+              <thead>
+                <tr className="border-b border-navy-700 text-left">
+                  <th className="px-4 py-3 text-xs font-bold text-text-secondary">Type</th>
+                  <th className="px-4 py-3 text-xs font-bold text-text-secondary">Subject</th>
+                  <th className="px-4 py-3 text-xs font-bold text-text-secondary">Recipient</th>
+                  <th className="px-4 py-3 text-xs font-bold text-text-secondary">Status</th>
+                  <th className="px-4 py-3 text-xs font-bold text-text-secondary">Sent At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {emailHistory.map((e) => {
+                  const isNotice = e.type === "subscription_inquiry_notice";
+                  const isSent = e.status === "Sent" || e.status === "sent";
+                  return (
+                    <tr key={e.id} className="border-b border-navy-800/60 last:border-0 hover:bg-navy-900/40 transition">
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold ${isNotice ? "badge-cyan" : "badge-green"}`}>
+                          {isNotice ? <Inbox size={11} /> : <MailCheck size={11} />}
+                          {isNotice ? "Inquiry Notice" : "Reply Email"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm font-medium">{e.subject || "—"}</td>
+                      <td className="px-4 py-3 text-sm text-text-secondary">{e.recipientEmail || "—"}</td>
+                      <td className="px-4 py-3">
+                        {isSent ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#06D6A0]">
+                            <MailCheck size={12} /> Sent
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-badge-red">
+                            <MailX size={12} /> Failed
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-text-secondary">
+                        {e.sentAt ? new Date(e.sentAt).toLocaleString() : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 

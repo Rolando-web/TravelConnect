@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useRef } from "react";
+import { Lock } from "lucide-react";
 import {
   createBooking,
   cancelBookingApi,
@@ -32,6 +33,19 @@ export function BookingProvider({ children }) {
 
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedBookingDetails, setSelectedBookingDetails] = useState(null);
+
+  // Persists the pending package across the login gate so checkout
+  // auto-resumes the moment the guest signs in.
+  const pendingCheckoutRef = useRef(null);
+
+  // Short-lived "guest gate" toast: shown when a not-logged-in user taps
+  // Book / Reserve / Book Bundle, so the click never feels dead.
+  const [notice, setNotice] = useState("");
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(""), 3500);
+    return () => clearTimeout(t);
+  }, [notice]);
 
   // Read the authoritative wallet balance. localStorage is the single source of
   // truth so concurrent wallet operations (double-taps / two wallets in flight)
@@ -132,6 +146,7 @@ export function BookingProvider({ children }) {
       // Guest clicked "Book" — require an account first. Remember the package
       // so checkout auto-resumes the moment they sign in.
       pendingCheckoutRef.current = { pkg, promoCode };
+      setNotice("Please log in first — your booking is saved and will resume after you sign in.");
       openLoginModal();
       return;
     }
@@ -421,6 +436,15 @@ export function BookingProvider({ children }) {
   return (
     <BookingContext.Provider value={value}>
       {children}
+      {notice && (
+        <div
+          role="status"
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[3000] px-5 py-3 rounded-xl bg-slate-900/90 dark:bg-slate-800/95 text-white text-sm font-medium shadow-2xl backdrop-blur animate-slide-up"
+        >
+          <Lock size={14} className="inline -mt-0.5 mr-2" />
+          {notice}
+        </div>
+      )}
     </BookingContext.Provider>
   );
 }
