@@ -155,3 +155,6 @@
     scrollbar-width: none; /* Firefox */
   }
 }
+
+/* ── Testimonials: infinite X-axis marquee ─────────────────────── */
+/* Driven by requestAnimationFrame in Testimonials.jsx */

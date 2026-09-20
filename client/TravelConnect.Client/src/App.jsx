@@ -37,6 +37,8 @@ import ProfilePage from "./pages/admin/ProfilePage";
 import SupportPage from "./pages/admin/SupportPage";
 import SubscriptionsPage from "./pages/admin/SubscriptionsPage";
 import AdminManagementPage from "./pages/admin/AdminManagementPage";
+import SupportHubPage from "./pages/admin/SupportHubPage";
+import { SupportPage as CustomerSupportPage } from "./components/support/SupportChatWidget";
 
 export default function App() {
   useEffect(() => {
@@ -68,6 +70,7 @@ export default function App() {
                   <Route path="reports" element={<ReportsPage />} />
                   <Route path="profile" element={<ProfilePage />} />
                   <Route path="support" element={<SupportPage />} />
+                  <Route path="support-hub" element={<SupportHubPage />} />
                   <Route path="subscriptions" element={<SubscriptionsPage />} />
                   <Route path=":page" element={<AdminManagementPage />} />
                 </Route>
@@ -83,6 +86,7 @@ export default function App() {
                   <Route path="deals/:id" element={<DealDetails />} />
                   <Route path="bookings" element={<Bookings />} />
                   <Route path="saved" element={<Saved />} />
+                  <Route path="support" element={<CustomerSupportPage />} />
                   <Route path="agencies" element={<Agencies />} />
                   <Route path="packages" element={<Deals />} />
                   <Route path="packages/:id" element={<DealDetails />} />

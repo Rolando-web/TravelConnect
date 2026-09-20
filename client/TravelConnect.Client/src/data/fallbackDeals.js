@@ -116,7 +116,7 @@ export const FALLBACK_DEALS = [
     rating: 4.6,
     reviews: 134,
     tag: "BUDGET",
-    imageUrl: "https://images.unsplash.com/photo-1559399274-6fd2e29cb54a?w=800&q=80",
+    imageUrl: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800&q=80",
     inclusions: "2 nights beachfront hotel|Daily breakfast|City tour|Airport transfers"
   },
   {
@@ -223,7 +223,7 @@ export const COMBO_DEALS = [
     rating: 4.6,
     reviews: 58,
     tag: "FLY + DRIVE",
-    imageUrl: "https://images.unsplash.com/photo-1559399274-6fd2e29cb54a?w=800&q=80",
+    imageUrl: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800&q=80",
     combo: {
       type: "flight+car",
       label: "Flight + Car",

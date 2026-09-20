@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import Header from "./Header";
 import Footer from "./Footer";
 import { SignInModal } from "../modals";
+import { SupportChatWidget } from "../support/SupportChatWidget";
 
 export default function Layout() {
   return (
@@ -16,6 +17,9 @@ export default function Layout() {
       <main className="flex-grow w-full relative">
         <Outlet />
       </main>
+
+      {/* Floating customer support chat */}
+      <SupportChatWidget />
 
       {/* Footer component */}
       <Footer />

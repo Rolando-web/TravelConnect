@@ -49,6 +49,7 @@ const ICONS = {
   profile: UserCircle,
   support: MessageSquare,
   subscriptions: CreditCard,
+  "support-hub": MessageSquare,
 };
 
 const GROUPS = {
@@ -58,7 +59,7 @@ const GROUPS = {
   Operations: ["bookings", "payments"],
   Growth: ["leads", "promotions", "inquiries"],
   Services: ["flights", "hotels", "cars", "activities"],
-  System: ["reports", "settings", "subscriptions", "support", "profile"],
+  System: ["reports", "settings", "subscriptions", "support-hub", "support", "profile"],
 };
 
 export default function AdminLayout() {

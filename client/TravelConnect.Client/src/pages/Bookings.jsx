@@ -79,7 +79,7 @@ function BookingVoucherCard({ booking, onViewDetails, onRequestCancel, onDownloa
   const isDownloading = downloadingRef === (booking.id || booking.referenceNumber);
 
   return (
-    <div className="group relative rounded-3xl bg-white dark:bg-[#0f1422] border border-slate-200/80 dark:border-white/[0.08] hover:border-amber-400/40 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col sm:flex-row">
+    <div className="group relative rounded-3xl bg-white dark:bg-[#0f1422] border border-slate-200/80 dark:border-white/[0.08] hover:border-[#008fe5]/40 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col sm:flex-row">
       {/* Visual Thumbnail */}
       <div className="relative w-full sm:w-48 h-48 sm:h-auto flex-shrink-0 bg-slate-100 dark:bg-[#0a0e17]">
         <img
@@ -107,7 +107,7 @@ function BookingVoucherCard({ booking, onViewDetails, onRequestCancel, onDownloa
         <div>
           <div className="flex items-start justify-between gap-3 mb-2">
             <div>
-              <span className="text-[10px] font-mono uppercase tracking-wider text-amber-700 dark:text-amber-400 font-bold block mb-0.5">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-[#008fe5] dark:text-[#38bdf8] font-bold block mb-0.5">
                 {booking.category?.toUpperCase() || "TRAVEL PACKAGE"} · ITINERARY VOUCHER
               </span>
               <h3 className="font-heading text-lg sm:text-xl font-bold text-slate-950 dark:text-white leading-tight">
@@ -120,16 +120,16 @@ function BookingVoucherCard({ booking, onViewDetails, onRequestCancel, onDownloa
           </div>
 
           <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mb-3 font-normal">
-            <MapPin size={13} className="text-amber-500 shrink-0" />
+            <MapPin size={13} className="text-[#008fe5] shrink-0" />
             <span>{booking.location || "Philippines"}</span>
           </p>
 
           <div className="flex flex-wrap items-center gap-2.5 text-xs">
             <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-white/[0.04] px-3 py-1 rounded-xl text-slate-700 dark:text-slate-300 border border-slate-200/70 dark:border-white/[0.06]">
-              <Calendar size={13} className="text-amber-500" /> {booking.startDate || "Confirmed Schedule"}
+              <Calendar size={13} className="text-[#008fe5]" /> {booking.startDate || "Confirmed Schedule"}
             </span>
             <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-white/[0.04] px-3 py-1 rounded-xl text-slate-700 dark:text-slate-300 border border-slate-200/70 dark:border-white/[0.06]">
-              <Users size={13} className="text-amber-500" /> {booking.travellers || 1} Guest{booking.travellers > 1 ? "s" : ""}
+              <Users size={13} className="text-[#008fe5]" /> {booking.travellers || 1} Guest{booking.travellers > 1 ? "s" : ""}
             </span>
             <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400 ml-auto">
               REF: <strong className="text-slate-800 dark:text-slate-200">{booking.id || booking.referenceNumber}</strong>
@@ -383,13 +383,13 @@ function BookingsDashboard() {
               key={t.id}
               onClick={() => setActiveTab(t.id)}
               className={`px-4 py-2 rounded-2xl text-xs font-semibold transition-all flex items-center gap-2 border ${activeTab === t.id
-                ? "bg-amber-500 text-slate-950 border-amber-500 shadow-md shadow-amber-500/20 font-bold"
+                ? "bg-[#008fe5] text-white border-[#008fe5] shadow-md shadow-blue-500/20 font-bold"
                 : "bg-white dark:bg-[#0f1422] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/[0.08] hover:bg-slate-100 dark:hover:bg-white/[0.05]"
                 }`}
             >
               <span>{t.label}</span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${activeTab === t.id
-                ? "bg-slate-950/20 text-slate-950"
+                ? "bg-white/20 text-white"
                 : "bg-slate-100 dark:bg-white/[0.08] text-slate-600 dark:text-slate-300"
                 }`}>
                 {t.count}
@@ -401,7 +401,7 @@ function BookingsDashboard() {
         {/* List of Bookings */}
         {visible.length === 0 ? (
           <div className="py-20 text-center space-y-4 rounded-3xl bg-white dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/[0.06] p-8 shadow-sm">
-            <div className="w-14 h-14 mx-auto rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+            <div className="w-14 h-14 mx-auto rounded-full bg-sky-500/10 text-[#008fe5] dark:text-[#38bdf8] flex items-center justify-center">
               <CalendarClock size={24} />
             </div>
             <h3 className="font-heading text-xl font-bold text-slate-950 dark:text-white">
@@ -413,7 +413,7 @@ function BookingsDashboard() {
             <div className="flex items-center justify-center gap-3 pt-2">
               <Link
                 to="/hotels"
-                className="px-4 py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold uppercase tracking-wider shadow-sm hover:shadow-amber-500/20 transition"
+                className="px-4 py-2.5 rounded-xl bg-[#008fe5] text-white text-xs font-bold uppercase tracking-wider shadow-sm hover:shadow-blue-500/20 transition"
               >
                 Browse Hotels
               </Link>
@@ -569,7 +569,7 @@ function BookingsDashboard() {
 
             <button
               onClick={() => setRefundSuccessData(null)}
-              className="w-full py-3 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs uppercase tracking-wider shadow-md hover:bg-amber-400 transition"
+              className="w-full py-3 rounded-xl bg-[#008fe5] text-white font-bold text-xs uppercase tracking-wider shadow-md hover:bg-blue-600 transition"
             >
               Done
             </button>

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using TravelConnect.Server.Data;
 using TravelConnect.Server.Models;
 using TravelConnect.Server.Services;
@@ -29,21 +30,74 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
 
     private string CurrentEmail() =>
         User.FindFirst("email")?.Value ??
+        User.FindFirst(ClaimTypes.Email)?.Value ??
         User.FindFirst("preferred_username")?.Value ??
         string.Empty;
 
-    // An agent is any logged-in SystemUser who is Active and not just a
-    // bare "Customer" record (staff, agency staff, finance, supplier, etc.).
-    private async Task<bool> IsAgentAsync()
+    // Support is split by responsibility:
+    //   • Tier / subscription inquiries  → Super Admin only
+    //   • Refunds & general customer problems → Agency Staff only
+    // so each inbox is only reachable by the team meant to handle it.
+
+    private async Task<SystemUser?> CurrentSystemUserAsync()
     {
-        if (string.IsNullOrWhiteSpace(CurrentUid())) return false;
-        var su = await db.SystemUsers
-            .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.FirebaseUid == CurrentUid());
+        var uid = CurrentUid();
+
+        // Fast path: already linked by the Firebase UID.
+        if (!string.IsNullOrWhiteSpace(uid))
+        {
+            var byUid = await db.SystemUsers
+                .FirstOrDefaultAsync(u => u.FirebaseUid == uid);
+            if (byUid is not null) return byUid;
+        }
+
+        // Fallback: link by the verified Firebase token email so seeded
+        // accounts (FirebaseUid == "") work immediately, then persist the UID
+        // so later requests take the fast path.
+        var email = CurrentEmail();
+        if (!string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(uid))
+        {
+            var byEmail = await db.SystemUsers
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
+            if (byEmail is not null)
+            {
+                if (!string.Equals(byEmail.FirebaseUid, uid, StringComparison.Ordinal))
+                {
+                    byEmail.FirebaseUid = uid;
+                    byEmail.UpdatedAt = DateTime.UtcNow;
+                    await db.SaveChangesAsync();
+                }
+                return byEmail;
+            }
+        }
+
+        return null;
+    }
+
+    private async Task<bool> IsSuperAdminAsync()
+    {
+        var su = await CurrentSystemUserAsync();
         return su is not null &&
                su.Status.Equals("Active", StringComparison.OrdinalIgnoreCase) &&
-               !su.Role.Equals("Customer", StringComparison.OrdinalIgnoreCase);
+               su.Role == "Super Admin";
     }
+
+    private async Task<bool> IsAgencyStaffAsync()
+    {
+        var su = await CurrentSystemUserAsync();
+        return su is not null &&
+               su.Status.Equals("Active", StringComparison.OrdinalIgnoreCase) &&
+               su.Role == "Agency Staff";
+    }
+
+    private static bool IsTierConversation(string? category) =>
+        string.Equals(category, "Subscription", StringComparison.OrdinalIgnoreCase);
+
+    // Only the role responsible for a conversation's category may read or act
+    // on it. Returns false (and the caller returns Forbid) when the caller is
+    // the wrong team.
+    private static bool CanModerate(string? category, bool isSuper, bool isStaff) =>
+        IsTierConversation(category) ? isSuper : isStaff;
 
     /* ── customer side: my conversations + thread + send ─────────── */
 
@@ -169,7 +223,10 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
     [HttpGet("inbox")]
     public async Task<ActionResult<IEnumerable<SupportConversation>>> Inbox(string? status, string? assignee, string? category)
     {
-        if (!await IsAgentAsync()) return Forbid();
+        var super = await IsSuperAdminAsync();
+        var staff = await IsAgencyStaffAsync();
+        var tierView = IsTierConversation(category);
+        if (tierView ? !super : !staff) return Forbid();
         var query = db.SupportConversations.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(status) && status != "All")
             query = query.Where(c => c.Status == status);
@@ -184,9 +241,11 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
     [HttpGet("inbox/{id:int}")]
     public async Task<ActionResult<object>> GetAgentThread(int id)
     {
-        if (!await IsAgentAsync()) return Forbid();
         var conv = await db.SupportConversations.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
         if (conv is null) return NotFound(new { message = "Conversation not found" });
+        var super = await IsSuperAdminAsync();
+        var staff = await IsAgencyStaffAsync();
+        if (!CanModerate(conv.Category, super, staff)) return Forbid();
         var messages = await db.SupportMessages
             .AsNoTracking()
             .Where(m => m.SupportConversationId == id)
@@ -198,9 +257,11 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
     [HttpPut("inbox/{id:int}/read")]
     public async Task<IActionResult> ReadAsAgent(int id)
     {
-        if (!await IsAgentAsync()) return Forbid();
         var conv = await db.SupportConversations.FirstOrDefaultAsync(c => c.Id == id);
         if (conv is null) return NotFound(new { message = "Conversation not found" });
+        var super = await IsSuperAdminAsync();
+        var staff = await IsAgencyStaffAsync();
+        if (!CanModerate(conv.Category, super, staff)) return Forbid();
         conv.UnreadByAgent = 0;
         conv.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
@@ -213,7 +274,7 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
     [HttpGet("emails")]
     public async Task<ActionResult<IEnumerable<EmailLog>>> EmailHistory()
     {
-        if (!await IsAgentAsync()) return Forbid();
+        if (!await IsSuperAdminAsync()) return Forbid();
         return await db.EmailLogs
             .AsNoTracking()
             .Where(e => e.Type == "subscription_inquiry_notice" ||
@@ -225,9 +286,11 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
     [HttpPost("inbox/{id:int}/reply")]
     public async Task<ActionResult<SupportMessage>> ReplyAsAgent(int id, AgentReplyRequest request)
     {
-        if (!await IsAgentAsync()) return Forbid();
         var conv = await db.SupportConversations.FirstOrDefaultAsync(c => c.Id == id);
         if (conv is null) return NotFound(new { message = "Conversation not found" });
+        var super = await IsSuperAdminAsync();
+        var staff = await IsAgencyStaffAsync();
+        if (!CanModerate(conv.Category, super, staff)) return Forbid();
 
         var agentEmail = CurrentEmail();
         var msg = new SupportMessage
@@ -249,7 +312,6 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
         conv.Status = "Replied";
         conv.UpdatedAt = DateTime.UtcNow;
 
-        db.SupportMessages.Add(msg);
         await db.SaveChangesAsync();
         return Ok(msg);
     }
@@ -260,9 +322,11 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
     [HttpPost("inbox/{id:int}/reply-email")]
     public async Task<ActionResult<object>> ReplyAsAgentByEmail(int id, AgentReplyRequest request)
     {
-        if (!await IsAgentAsync()) return Forbid();
         var conv = await db.SupportConversations.FirstOrDefaultAsync(c => c.Id == id);
         if (conv is null) return NotFound(new { message = "Conversation not found" });
+        var super = await IsSuperAdminAsync();
+        var staff = await IsAgencyStaffAsync();
+        if (!CanModerate(conv.Category, super, staff)) return Forbid();
 
         var body = request.Body?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(body))
@@ -302,9 +366,11 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
     [HttpPut("inbox/{id:int}/assign")]
     public async Task<IActionResult> Assign(int id, AssignRequest request)
     {
-        if (!await IsAgentAsync()) return Forbid();
         var conv = await db.SupportConversations.FirstOrDefaultAsync(c => c.Id == id);
         if (conv is null) return NotFound(new { message = "Conversation not found" });
+        var super = await IsSuperAdminAsync();
+        var staff = await IsAgencyStaffAsync();
+        if (!CanModerate(conv.Category, super, staff)) return Forbid();
         conv.AssigneeEmail = Normalize(request.AssigneeEmail ?? string.Empty);
         conv.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
@@ -314,9 +380,11 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
     [HttpPut("inbox/{id:int}/status")]
     public async Task<IActionResult> SetStatus(int id, StatusRequest request)
     {
-        if (!await IsAgentAsync()) return Forbid();
         var conv = await db.SupportConversations.FirstOrDefaultAsync(c => c.Id == id);
         if (conv is null) return NotFound(new { message = "Conversation not found" });
+        var super = await IsSuperAdminAsync();
+        var staff = await IsAgencyStaffAsync();
+        if (!CanModerate(conv.Category, super, staff)) return Forbid();
         conv.Status = request.Status ?? "Open";
         conv.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();

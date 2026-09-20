@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using TravelConnect.Server.Data;
 using TravelConnect.Server.Models;
 
@@ -14,9 +15,31 @@ public class SubscriptionsController(TravelConnectDbContext db) : ControllerBase
     private async Task<bool> IsSuperAdmin()
     {
         var uid = User.FindFirst("uid")?.Value;
-        if (string.IsNullOrWhiteSpace(uid)) return false;
-        var user = await db.SystemUsers.AsNoTracking()
-            .FirstOrDefaultAsync(u => u.FirebaseUid == uid);
+
+        SystemUser? user = null;
+        if (!string.IsNullOrWhiteSpace(uid))
+            user = await db.SystemUsers.FirstOrDefaultAsync(u => u.FirebaseUid == uid);
+
+        // Seeded accounts start with an empty FirebaseUid, so fall back to the
+        // verified Firebase token email and persist the binding on first use.
+        if (user is null && !string.IsNullOrWhiteSpace(uid))
+        {
+            var email = User.FindFirst("email")?.Value ??
+                        User.FindFirst(ClaimTypes.Email)?.Value ??
+                        User.FindFirst("preferred_username")?.Value;
+            if (!string.IsNullOrWhiteSpace(email))
+            {
+                user = await db.SystemUsers
+                    .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
+                if (user is not null && !string.Equals(user.FirebaseUid, uid, StringComparison.Ordinal))
+                {
+                    user.FirebaseUid = uid;
+                    user.UpdatedAt = DateTime.UtcNow;
+                    await db.SaveChangesAsync();
+                }
+            }
+        }
+
         return user?.Role == "Super Admin";
     }
 

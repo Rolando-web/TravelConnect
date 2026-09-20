@@ -1,27 +1,57 @@
 import { useState, useEffect, useRef } from "react";
-import { Headset, X, Send, Paperclip, MessageSquare, RefreshCw } from "lucide-react";
+import { Headset, X, Send, Paperclip, MessageSquare, RefreshCw, Crown, LifeBuoy, ShoppingBag } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { useBooking } from "../../context/BookingContext";
 import { supportApi } from "../../services/api";
 
-const DEFAULT_SUBJECT = "General support request";
 const WELCOME = {
   role: "agent",
   body: "Hi! You're chatting with the TravelConnect support team. Tell us how we can help.",
   at: new Date().toISOString(),
 };
 
+// A customer picks a topic when they start a chat. The topic becomes the
+// conversation Category, which routes each thread to the right admin inbox:
+//   • Subscription → Super Admin (Support Hub → Tier Inquiries)
+//   • Problem / General → Agency Staff (Support Hub → Customer Problems)
+const TOPICS = [
+  {
+    key: "General",
+    label: "General Support",
+    subject: "General support request",
+    desc: "Site questions or help with a booking",
+    icon: LifeBuoy,
+  },
+  {
+    key: "Subscription",
+    label: "Agency & Tier Plan",
+    subject: "Agency subscription & tier inquiry",
+    desc: "Tiers, pricing, or account upgrades",
+    icon: Crown,
+  },
+  {
+    key: "Problem",
+    label: "Refund / Problem",
+    subject: "Refund or booking problem",
+    desc: "Refunds, cancellations, or issues",
+    icon: ShoppingBag,
+  },
+];
+
+const HEADER_NOTE = {
+  Subscription: "Handled by the Super Admin",
+  Problem: "Handled by our Agency Staff",
+  General: "Typically replies in minutes",
+};
+
 /**
  * Floating Customer Support Chat — a small bubble that anyone can open,
  * plus the full Experience (page/route) wired by the Support page.
  *
- * Login gate: same pattern as booking checkout — guests get the sign-in
- * modal opened and the thread they were typing is resumed automatically
- * after they authenticate.
+ * Guests pick a topic first; if they're not signed in the sign-in modal
+ * opens and the thread they chose is resumed after they authenticate.
  */
 export function SupportChatWidget() {
   const { isLoggedIn, user, openLoginModal } = useAuth();
-  const { openLoginModal: _unused0 } = useBooking(); // keep bundle tree-shakeable
   const [open, setOpen] = useState(false);
   const [conv, setConv] = useState(null); // active conversation
   const [messages, setMessages] = useState([]);
@@ -31,6 +61,13 @@ export function SupportChatWidget() {
   const [unreadPing, setUnreadPing] = useState(false);
   const pendingRef = useRef(null);
   const listEndRef = useRef(null);
+
+  // The full /support page can open the bubble too.
+  useEffect(() => {
+    const openBubble = () => setOpen(true);
+    window.addEventListener("tc:opensupport", openBubble);
+    return () => window.removeEventListener("tc:opensupport", openBubble);
+  }, []);
 
   // Poll for admin replies while the bubble is closed so the client gets a
   // red ping the moment there's a new message (e.g. a Super Admin replying
@@ -58,46 +95,39 @@ export function SupportChatWidget() {
     };
   }, [isLoggedIn, open]);
 
-  // Resume a draft thread after login (mirror of booking's pendingCheckout).
-  useEffect(() => {
-    if (isLoggedIn && pendingRef.current) {
-      const resume = pendingRef.current;
-      pendingRef.current = null;
-      sendFirst(resume.subject);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoggedIn]);
-
   // Auto-scroll to newest message.
   useEffect(() => {
     listEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const ensureSession = async (subject = DEFAULT_SUBJECT) => {
+  /** A topic chip was tapped: gate on login, then open/resume that thread. */
+  const pickTopic = (topic) => {
+    pendingRef.current = { subject: topic.subject, category: topic.key };
     if (!isLoggedIn) {
-      pendingRef.current = { subject };
       openLoginModal();
-      return null;
+      return;
     }
-    return sendFirst(subject);
+    sendFirst(topic.subject, topic.key);
   };
 
-  /** Open (or resume) the customer's conversation: first create if new. */
-  async function sendFirst(subject) {
+  /** Open (or resume) the customer's conversation by topic/category. */
+  async function sendFirst(subject, category) {
+    const cat = category || "General";
     setLoading(true);
     try {
       let id = conv?.id;
       if (!id) {
         const list = await supportApi.list();
-        if (Array.isArray(list) && list.length > 0) {
-          id = list[0].id;
-        }
-        if (!id) {
-          const created = await supportApi.create({ subject });
-          id = created.id;
-        }
+        const prior =
+          Array.isArray(list) &&
+          list.find((c) => String(c.category || "").toLowerCase() === cat.toLowerCase());
+        if (prior) id = prior.id;
       }
-      setConv({ id });
+      if (!id) {
+        const created = await supportApi.create({ subject, category: cat });
+        id = created.id;
+      }
+      setConv({ id, category: cat });
       const thread = await supportApi.thread(id);
       setMessages(Array.isArray(thread.messages) ? thread.messages : []);
       try {
@@ -114,6 +144,16 @@ export function SupportChatWidget() {
       setOpen(true);
     }
   }
+
+  // Resume a draft thread after login (mirror of booking's pendingCheckout).
+  useEffect(() => {
+    if (isLoggedIn && pendingRef.current) {
+      const resume = pendingRef.current;
+      pendingRef.current = null;
+      sendFirst(resume.subject, resume.category);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn]);
 
   async function handleSend() {
     const text = draft.trim();
@@ -134,10 +174,7 @@ export function SupportChatWidget() {
     <>
       {/* Bubble toggle */}
       <button
-        onClick={() => {
-          if (!open) ensureSession();
-          else setOpen(false);
-        }}
+        onClick={() => setOpen(!open)}
         aria-label="Chat with customer support"
         className="fixed bottom-5 right-5 z-50 w-14 h-14 rounded-full bg-[#008fe5] hover:bg-[#0079c4] text-white shadow-2xl flex items-center justify-center transition-transform hover:scale-105"
       >
@@ -159,7 +196,9 @@ export function SupportChatWidget() {
             </div>
             <div className="flex-1">
               <p className="text-sm font-bold leading-tight">TravelConnect Support</p>
-              <p className="text-[11px] text-white/80">Typically replies in minutes</p>
+              <p className="text-[11px] text-white/80">
+                {conv ? HEADER_NOTE[conv.category] || HEADER_NOTE.General : "Pick a topic to start"}
+              </p>
             </div>
             <button onClick={() => setOpen(false)} className="text-white/80 hover:text-white" aria-label="Close chat">
               <X size={18} />
@@ -202,61 +241,88 @@ export function SupportChatWidget() {
             <div ref={listEndRef} />
           </div>
 
+          {/* Topic picker (before any conversation exists) */}
+          {!conv && (
+            <div className="px-3 py-3 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 space-y-2">
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
+                {isLoggedIn ? "What do you need help with?" : "Pick a topic, then sign in"}
+              </p>
+              {TOPICS.map((t) => {
+                const TIcon = t.icon;
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => pickTopic(t)}
+                    className="flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-[#008fe5] hover:bg-[#008fe5]/5 transition"
+                  >
+                    <span className="w-8 h-8 rounded-lg bg-[#008fe5]/10 text-[#008fe5] flex items-center justify-center shrink-0">
+                      <TIcon size={15} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[13px] font-semibold text-slate-800 dark:text-slate-100">{t.label}</span>
+                      <span className="block text-[11px] text-slate-400 truncate">{t.desc}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {/* Composer */}
-          <div className="flex items-center gap-2 px-3 py-2.5 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-            <Paperclip size={18} className="text-slate-400" />
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSend()}
-              placeholder={isLoggedIn ? "Type your message…" : "Sign in to start chatting…"}
-              disabled={!isLoggedIn}
-              className="flex-1 text-[13px] px-3 py-2 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-[#008fe5]/40"
-            />
-            <button
-              onClick={handleSend}
-              disabled={!isLoggedIn || sending || !draft.trim()}
-              className="w-9 h-9 rounded-full bg-[#008fe5] hover:bg-[#0079c4] text-white flex items-center justify-center disabled:opacity-40 transition"
-              aria-label="Send message"
-            >
-              <Send size={16} />
-            </button>
-          </div>
+          {conv && (
+            <div className="flex items-center gap-2 px-3 py-2.5 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+              <Paperclip size={18} className="text-slate-400" />
+              <input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                placeholder={isLoggedIn ? "Type your message…" : "Sign in to start chatting…"}
+                disabled={!isLoggedIn}
+                className="flex-1 text-[13px] px-3 py-2 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-[#008fe5]/40"
+              />
+              <button
+                onClick={handleSend}
+                disabled={!isLoggedIn || sending || !draft.trim()}
+                className="w-9 h-9 rounded-full bg-[#008fe5] hover:bg-[#0079c4] text-white flex items-center justify-center disabled:opacity-40 transition"
+                aria-label="Send message"
+              >
+                <Send size={16} />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </>
   );
 }
 
-/** Full-page support experience (route /support): same thread, roomier layout. */
+/** Full-page support experience (route /support): opens the chat bubble. */
 export function SupportPage() {
-  const { isLoggedIn, user, openLoginModal } = useAuth();
   return (
-    <div className="max-w-7xl mx-auto px-4 py-10">
-      <div className="flex items-center gap-3 mb-6">
+    <div className="max-w-3xl mx-auto px-4 py-14">
+      <div className="flex items-center gap-3 mb-4">
         <div className="w-11 h-11 rounded-xl bg-[#008fe5] text-white flex items-center justify-center">
           <MessageSquare size={22} />
         </div>
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">Customer Support</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Chat with our travel specialists — replies in minutes.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Agency &amp; tier plans go to the Super Admin; refunds and booking problems go to our Agency Staff.
+          </p>
         </div>
       </div>
-      {!isLoggedIn ? (
-        <div className="border border-slate-200 dark:border-slate-700 rounded-2xl p-10 text-center bg-white dark:bg-slate-900">
-          <p className="text-slate-600 dark:text-slate-300 mb-4">Sign in to chat with our support team.</p>
-          <button
-            onClick={openLoginModal}
-            className="px-5 py-2.5 rounded-full bg-[#008fe5] hover:bg-[#0079c4] text-white text-sm font-semibold transition"
-          >
-            Sign in to chat
-          </button>
-        </div>
-      ) : (
-        <div className="flex items-center justify-center py-16">
-          <p className="text-sm text-slate-500">Open the chat bubble (bottom-right) to start a conversation.</p>
-        </div>
-      )}
+      <div className="border border-slate-200 dark:border-slate-700 rounded-2xl p-8 text-center bg-white dark:bg-slate-900">
+        <Headset size={34} className="mx-auto mb-3 text-[#008fe5]" />
+        <p className="text-slate-600 dark:text-slate-300 mb-4">
+          Tell us what you need and we'll route it to the right team.
+        </p>
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent("tc:opensupport"))}
+          className="px-5 py-2.5 rounded-full bg-[#008fe5] hover:bg-[#0079c4] text-white text-sm font-semibold transition"
+        >
+          Open the chat
+        </button>
+      </div>
     </div>
   );
 }
