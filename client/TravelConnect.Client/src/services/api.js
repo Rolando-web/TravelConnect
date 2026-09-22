@@ -5,6 +5,19 @@ import { auth } from "./firebase";
 // Always trim at runtime so a stray space can never corrupt the API base again.
 const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:5110").trim();
 
+const DEFAULT_TIMEOUT_MS = 12000;
+
+// Every outbound call is bounded by an AbortController so a slow or unreachable
+// backend (a sleeping shared host, a dead proxy target, or an ad-blocker killing
+// the request) can never hold the UI hostage for the browser's ~30s timeout.
+function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() =>
+    clearTimeout(timer)
+  );
+}
+
 // Resolve stored image paths into absolute URLs.
 // e.g. "/api/images/5" -> "http://localhost:5110/api/images/5"
 export function assetUrl(path) {
@@ -26,7 +39,7 @@ async function request(url, options = {}) {
     ...(await authHeaders()),
     ...(options.headers || {})
   };
-  const response = await fetch(`${API_URL}${url}`, {
+  const response = await fetchWithTimeout(`${API_URL}${url}`, {
     ...options,
     headers
   });
@@ -111,7 +124,7 @@ export const subscriptionsApi = {
 export async function uploadImage(file) {
   const form = new FormData();
   form.append("file", file);
-  const response = await fetch(`${API_URL}/api/images`, {
+  const response = await fetchWithTimeout(`${API_URL}/api/images`, {
     method: "POST",
     body: form,
     headers: await authHeaders()
@@ -133,7 +146,7 @@ export async function getPublicStats() {
 
 export async function testApi() {
   try {
-    const response = await fetch(`${API_URL}/api/test`);
+    const response = await fetchWithTimeout(`${API_URL}/api/test`);
     if (!response.ok) throw new Error("API test failed");
     return await response.json();
   } catch (_err) {
@@ -200,7 +213,7 @@ export async function validatePromoCode(code, totalAmount) {
 // Opens a PayMongo-hosted payment page (checkout.paymongo.com) where the
 // customer picks their e-wallet and completes the payment.
 export async function createPayMongoCheckout(payload) {
-  const response = await fetch(`${API_URL}/api/payments/paymongo/checkout`, {
+  const response = await fetchWithTimeout(`${API_URL}/api/payments/paymongo/checkout`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -214,13 +227,13 @@ export async function createPayMongoCheckout(payload) {
 
 // Polls a checkout session for its payment status (paid / cancelled / failed / pending).
 export async function getPayMongoCheckoutStatus(sessionId) {
-  const response = await fetch(`${API_URL}/api/payments/paymongo/checkout/${sessionId}`);
+  const response = await fetchWithTimeout(`${API_URL}/api/payments/paymongo/checkout/${sessionId}`);
   if (!response.ok) throw new Error("Failed to fetch payment status");
   return await response.json();
 }
 
 export async function finalizePayMongoPayment(payload) {
-  const response = await fetch(`${API_URL}/api/payments/paymongo/pay`, {
+  const response = await fetchWithTimeout(`${API_URL}/api/payments/paymongo/pay`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -237,7 +250,7 @@ export async function finalizePayMongoPayment(payload) {
 // Step 1 — create a Payment Intent so we have an idempotent record to attach
 // the tokenized card to and a client key for 3-D Secure.
 export async function createCardIntent(payload) {
-  const response = await fetch(`${API_URL}/api/payments/paymongo/card/intent`, {
+  const response = await fetchWithTimeout(`${API_URL}/api/payments/paymongo/card/intent`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -253,7 +266,7 @@ export async function createCardIntent(payload) {
 // server-side by PayMongo; this returns the 3-D Secure redirect URL when the
 // card requires it.
 export async function attachCard(payload) {
-  const response = await fetch(`${API_URL}/api/payments/paymongo/card/attach`, {
+  const response = await fetchWithTimeout(`${API_URL}/api/payments/paymongo/card/attach`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -268,7 +281,7 @@ export async function attachCard(payload) {
 // Step 3 — poll the intent. The server records the payment + marks the
 // booking paid only once PayMongo reports the intent succeeded.
 export async function getCardIntentStatus(intentId) {
-  const response = await fetch(`${API_URL}/api/payments/paymongo/card/${intentId}`);
+  const response = await fetchWithTimeout(`${API_URL}/api/payments/paymongo/card/${intentId}`);
   if (!response.ok) throw new Error("Failed to fetch payment status");
   return await response.json();
 }
@@ -303,9 +316,9 @@ export async function getRefundPreview(bookingId) {
 // ── PDF itinerary & confirmation email ──────────────────────────
 
 export async function generateItineraryPdf(bookingId) {
-  const response = await fetch(`${API_URL}/api/bookings/${bookingId}/itinerary-pdf`, {
+  const response = await fetchWithTimeout(`${API_URL}/api/bookings/${bookingId}/itinerary-pdf`, {
     method: "POST"
-  });
+  }, 30000);
   if (!response.ok) {
     const errBody = await response.json().catch(() => null);
     throw new Error(errBody?.message || "PDF generation failed");

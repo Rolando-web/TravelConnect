@@ -11,6 +11,17 @@ import { ADMIN_ROLES } from "../pages/admin/adminConfig";
 
 const AuthContext = createContext(null);
 
+// Bound async ops so a blocked/offline Firestore (e.g. an ad-blocker killing
+// firestore.googleapis.com) can't stall login for the SDK's full retry window.
+const FIRESTORE_TIMEOUT_MS = 4000;
+const withFirestoreTimeout = (promise, ms = FIRESTORE_TIMEOUT_MS) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Firestore request timed out")), ms)
+    )
+  ]);
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -25,7 +36,7 @@ export function AuthProvider({ children }) {
 
     // 1) Try Firestore users/{uid}
     try {
-      const snap = await getDoc(doc(db, "users", uid));
+      const snap = await withFirestoreTimeout(getDoc(doc(db, "users", uid)));
       if (snap.exists()) {
         const data = snap.data();
         if (data.role) {
@@ -70,7 +81,7 @@ export function AuthProvider({ children }) {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      await setDoc(doc(db, "users", firebaseUser.uid), profile, { merge: true });
+      await withFirestoreTimeout(setDoc(doc(db, "users", firebaseUser.uid), profile, { merge: true }));
       return profile;
     } catch (err) {
       console.warn("Could not write customer profile:", err.message);
@@ -120,7 +131,7 @@ export function AuthProvider({ children }) {
       const { role, profile } = await resolveRole(fbUser);
 
       if (role === "Customer") {
-        await ensureCustomerProfile(fbUser);
+        ensureCustomerProfile(fbUser).catch(() => {});
       }
 
       persistProfile(buildProfile(fbUser, role, profile));
@@ -136,7 +147,7 @@ export function AuthProvider({ children }) {
     const { role, profile } = await resolveRole(cred.user);
 
     if (!role || role === "Customer") {
-      await ensureCustomerProfile(cred.user);
+      ensureCustomerProfile(cred.user).catch(() => {});
     }
 
     persistProfile(buildProfile(cred.user, role || "Customer", profile));
@@ -150,7 +161,7 @@ export function AuthProvider({ children }) {
     const { role, profile } = await resolveRole(cred.user);
 
     if (role === "Customer") {
-      await ensureCustomerProfile(cred.user);
+      ensureCustomerProfile(cred.user).catch(() => {});
     }
 
     persistProfile(buildProfile(cred.user, role, profile));
