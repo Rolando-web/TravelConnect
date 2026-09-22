@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { AuthProvider } from "./context/AuthContext";
 import { BookingProvider } from "./context/BookingContext";
 import { FavoritesProvider } from "./context/FavoritesContext";
@@ -8,37 +8,47 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { AvailableProvider } from "./context/AvailableContext";
 import Layout from "./components/shared/Layout";
 import Home from "./pages/Home";
-import Flights from "./pages/Flights";
-import FlightDetails from "./pages/FlightDetails";
-import Hotels from "./pages/Hotels";
-import HotelDetails from "./pages/HotelDetails";
-import Cars from "./pages/Cars";
-import CarDetails from "./pages/CarDetails";
-import Deals from "./pages/Deals";
-import DealDetails from "./pages/DealDetails";
-import Bookings from "./pages/Bookings";
-import Saved from "./pages/Saved";
-import Agencies from "./pages/Agencies";
 import { BookingCheckoutModal, BookingDetailsModal, CurrencyModal } from "./components/modals";
 import { testApi } from "./services/api";
 import AdminLayout from "./components/admin/AdminLayout";
 import ProtectedRoute from "./components/admin/ProtectedRoute";
-import DashboardPage from "./pages/admin/DashboardPage";
-import CustomersPage from "./pages/admin/CustomersPage";
-import SuppliersPage from "./pages/admin/SuppliersPage";
-import PackagesPage from "./pages/admin/PackagesPage";
-import DestinationsPage from "./pages/admin/DestinationsPage";
-import BookingsPage from "./pages/admin/BookingsPage";
-import PaymentsPage from "./pages/admin/PaymentsPage";
-import LeadsPage from "./pages/admin/LeadsPage";
-import PromotionsPage from "./pages/admin/PromotionsPage";
-import ReportsPage from "./pages/admin/ReportsPage";
-import ProfilePage from "./pages/admin/ProfilePage";
-import SupportPage from "./pages/admin/SupportPage";
-import SubscriptionsPage from "./pages/admin/SubscriptionsPage";
-import AdminManagementPage from "./pages/admin/AdminManagementPage";
-import SupportHubPage from "./pages/admin/SupportHubPage";
-import { SupportPage as CustomerSupportPage } from "./components/support/SupportChatWidget";
+import { CustomerSupportExperience } from "./components/support/SupportChatWidget";
+
+const Flights = lazy(() => import("./pages/Flights"));
+const FlightDetails = lazy(() => import("./pages/FlightDetails"));
+const Hotels = lazy(() => import("./pages/Hotels"));
+const HotelDetails = lazy(() => import("./pages/HotelDetails"));
+const Cars = lazy(() => import("./pages/Cars"));
+const CarDetails = lazy(() => import("./pages/CarDetails"));
+const Deals = lazy(() => import("./pages/Deals"));
+const DealDetails = lazy(() => import("./pages/DealDetails"));
+const Bookings = lazy(() => import("./pages/Bookings"));
+const Saved = lazy(() => import("./pages/Saved"));
+const Agencies = lazy(() => import("./pages/Agencies"));
+const DashboardPage = lazy(() => import("./pages/admin/DashboardPage"));
+const CustomersPage = lazy(() => import("./pages/admin/CustomersPage"));
+const SuppliersPage = lazy(() => import("./pages/admin/SuppliersPage"));
+const PackagesPage = lazy(() => import("./pages/admin/PackagesPage"));
+const DestinationsPage = lazy(() => import("./pages/admin/DestinationsPage"));
+const BookingsPage = lazy(() => import("./pages/admin/BookingsPage"));
+const PaymentsPage = lazy(() => import("./pages/admin/PaymentsPage"));
+const LeadsPage = lazy(() => import("./pages/admin/LeadsPage"));
+const PromotionsPage = lazy(() => import("./pages/admin/PromotionsPage"));
+const ReportsPage = lazy(() => import("./pages/admin/ReportsPage"));
+const ProfilePage = lazy(() => import("./pages/admin/ProfilePage"));
+const SupportPage = lazy(() => import("./pages/admin/SupportPage"));
+const SubscriptionsPage = lazy(() => import("./pages/admin/SubscriptionsPage"));
+const AdminManagementPage = lazy(() => import("./pages/admin/AdminManagementPage"));
+const SupportHubPage = lazy(() => import("./pages/admin/SupportHubPage"));
+const PaymentResultPage = lazy(() => import("./pages/PaymentResultPage"));
+
+function SuspenseFallback() {
+  return (
+    <div className="flex min-h-[50vh] items-center justify-center" role="status" aria-label="Loading">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-sky-500 border-t-transparent" />
+    </div>
+  );
+}
 
 export default function App() {
   useEffect(() => {
@@ -55,7 +65,9 @@ export default function App() {
             <CurrencyProvider>
               <AvailableProvider>
               <BrowserRouter>
+              <Suspense fallback={<SuspenseFallback />}>
               <Routes>
+                <Route path="/payment-result" element={<PaymentResultPage />} />
                 <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
                   <Route index element={<DashboardPage />} />
                   <Route path="dashboard" element={<DashboardPage />} />
@@ -86,7 +98,7 @@ export default function App() {
                   <Route path="deals/:id" element={<DealDetails />} />
                   <Route path="bookings" element={<Bookings />} />
                   <Route path="saved" element={<Saved />} />
-                  <Route path="support" element={<CustomerSupportPage />} />
+                  <Route path="support" element={<CustomerSupportExperience />} />
                   <Route path="agencies" element={<Agencies />} />
                   <Route path="packages" element={<Deals />} />
                   <Route path="packages/:id" element={<DealDetails />} />
@@ -94,6 +106,7 @@ export default function App() {
                   <Route path="promotions" element={<Deals />} />
                 </Route>
               </Routes>
+              </Suspense>
               <BookingCheckoutModal />
               <BookingDetailsModal />
               <CurrencyModal />

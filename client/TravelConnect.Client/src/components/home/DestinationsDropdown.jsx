@@ -1,5 +1,5 @@
 import { useRef, useMemo } from "react";
-import { Compass, Sparkles } from "lucide-react";
+import { Compass } from "lucide-react";
 import { useAvailable } from "../../context/AvailableContext";
 import { groupDestinations } from "../../data/destinationMeta";
 

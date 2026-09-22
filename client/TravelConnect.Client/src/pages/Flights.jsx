@@ -352,6 +352,8 @@ export default function Flights() {
               <img
                 src="https://images.unsplash.com/photo-1558389186-4386d1bea007?auto=format&fit=crop&w=1200&q=80"
                 alt="Airport departure terminal at dusk"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
@@ -430,6 +432,8 @@ export default function Flights() {
                       <img
                         src={flight.imageUrl || "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80"}
                         alt={`${flight.airline} ${flight.flightNumber}`}
+                        loading="lazy"
+                        decoding="async"
                         onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80"; }}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />

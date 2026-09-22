@@ -13,6 +13,7 @@ public class DestinationsController(TravelConnectDbContext db) : ControllerBase
 {
     [HttpGet]
     [AllowAnonymous]
+    [ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any, NoStore = false)]
     public async Task<ActionResult<IEnumerable<Destination>>> GetAll()
     {
         return await db.Destinations

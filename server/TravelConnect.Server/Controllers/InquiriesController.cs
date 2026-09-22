@@ -11,15 +11,20 @@ namespace TravelConnect.Server.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/[controller]")]
-public class InquiriesController(TravelConnectDbContext db, EmailJsService emailJs) : ControllerBase
+public class InquiriesController(TravelConnectDbContext db, EmailJsService emailJs, EmailService emailService) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Inquiry>>> GetAll()
+    public async Task<ActionResult<IEnumerable<Inquiry>>> GetAll(int? page = null, int? pageSize = null)
     {
-        return await db.Inquiries
+        // Server-side paging enforced so unbounded list loads can't balloon;
+        // default page size stays generous for client-rendered admin tables.
+        var ps = Math.Clamp(pageSize ?? 200, 1, 500);
+        IQueryable<Inquiry> query = db.Inquiries
             .AsNoTracking()
-            .OrderByDescending(e => e.UpdatedAt)
-            .ToListAsync();
+            .OrderByDescending(e => e.UpdatedAt);
+        if (page is > 0)
+            query = query.Skip((page.Value - 1) * ps);
+        return await query.Take(ps).ToListAsync();
     }
 
     [HttpGet("{id:int}")]
@@ -76,31 +81,49 @@ public class InquiriesController(TravelConnectDbContext db, EmailJsService email
         // the Subscription page filters Category == "Subscription") and
         // (b) is instantly visible + reply-able from the client-side chat
         // widget (conversations are matched by the customer email).
+        // Reuses the customer's most recent open thread for the same category
+        // so repeat submissions don't stack duplicate conversations.
         if (!string.IsNullOrWhiteSpace(entity.CustomerEmail))
         {
             var customerEmail = entity.CustomerEmail.Trim().ToLowerInvariant();
-            var thread = new SupportConversation
+            var category = string.IsNullOrWhiteSpace(entity.Category) ? "General" : entity.Category.Trim();
+            var subject = string.IsNullOrWhiteSpace(entity.Subject) ? "General support" : entity.Subject.Trim();
+
+            var thread = await db.SupportConversations
+                .FirstOrDefaultAsync(c =>
+                    c.CustomerEmail.ToLower() == customerEmail &&
+                    c.Category == category &&
+                    c.Status != "Resolved" && c.Status != "Closed");
+
+            if (thread is null)
             {
-                CustomerEmail = customerEmail,
-                CustomerName = entity.CustomerName?.Trim() ?? string.Empty,
-                Subject = string.IsNullOrWhiteSpace(entity.Subject)
-                    ? "General support"
-                    : entity.Subject.Trim(),
-                Category = string.IsNullOrWhiteSpace(entity.Category)
-                    ? "General"
-                    : entity.Category.Trim(),
-                Status = "Open",
-                AssigneeEmail = string.Empty,
-                UnreadByAgent = 1,
-                UnreadByCustomer = 0,
-                LastMessageAt = DateTime.UtcNow,
-                LastMessagePreview = (entity.Message ?? string.Empty).Length > 120
-                    ? entity.Message![..120] + "…"
-                    : entity.Message ?? string.Empty,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-            db.SupportConversations.Add(thread);
+                thread = new SupportConversation
+                {
+                    CustomerEmail = customerEmail,
+                    CustomerName = entity.CustomerName?.Trim() ?? string.Empty,
+                    Subject = subject,
+                    Category = category,
+                    Status = "Open",
+                    AssigneeEmail = string.Empty,
+                    UnreadByAgent = 1,
+                    UnreadByCustomer = 0,
+                    CreatedAt = DateTime.UtcNow
+                };
+                db.SupportConversations.Add(thread);
+                await db.SaveChangesAsync();
+            }
+            else
+            {
+                thread.Subject = subject;
+                thread.Status = "Open";
+                thread.UnreadByAgent++;
+            }
+
+            thread.LastMessageAt = DateTime.UtcNow;
+            thread.LastMessagePreview = (entity.Message ?? string.Empty).Length > 120
+                ? entity.Message![..120] + "…"
+                : entity.Message ?? string.Empty;
+            thread.UpdatedAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
 
             if (!string.IsNullOrWhiteSpace(entity.Message))
@@ -157,6 +180,24 @@ public class InquiriesController(TravelConnectDbContext db, EmailJsService email
             string.IsNullOrWhiteSpace(tier) ? "General" : tier,
             string.IsNullOrWhiteSpace(planName) ? "TravelConnect plan" : planName);
 
+        // EmailJS blocks calls from non-browser apps with 403 unless the
+        // account has "Allow EmailJS API for non-browser applications" enabled
+        // (dashboard → Account → Security). Fall back to SMTP so the owner
+        // still gets notified; the provider that actually delivered is the
+        // one recorded in the email history below.
+        var sendError = string.Empty;
+        if (!sent)
+        {
+            var fallback = await emailService.SendSubscriptionInquiryNoticeAsync(
+                name, email,
+                string.IsNullOrWhiteSpace(time) ? DateTime.Now.ToString("MMM d, yyyy, h:mm tt") : time,
+                string.IsNullOrWhiteSpace(message) ? "Interested in this plan." : message,
+                string.IsNullOrWhiteSpace(tier) ? "General" : tier,
+                string.IsNullOrWhiteSpace(planName) ? "TravelConnect plan" : planName);
+            sent = fallback.Sent;
+            sendError = fallback.Error ?? string.Empty;
+        }
+
         // Record the inbound notification in the email history so the admin
         // Subscription page can show every email that was sent for it.
         try
@@ -167,7 +208,9 @@ public class InquiriesController(TravelConnectDbContext db, EmailJsService email
                 Subject = $"{tier} — {planName} subscription inquiry",
                 Type = "subscription_inquiry_notice",
                 Status = sent ? "Sent" : "Failed",
-                ErrorMessage = sent ? "" : "EmailJS notification could not be sent",
+                ErrorMessage = sent ? "" : (string.IsNullOrWhiteSpace(sendError)
+                    ? "Email notification could not be sent"
+                    : sendError),
                 SentAt = DateTime.UtcNow
             });
             await db.SaveChangesAsync();

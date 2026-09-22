@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using TravelConnect.Server.Data;
 using TravelConnect.Server.Models;
@@ -33,6 +34,7 @@ public class PackagesController(TravelConnectDbContext db) : ControllerBase
 
     [HttpGet("featured/{count:int}")]
     [AllowAnonymous]
+    [ResponseCache(Duration = 120, Location = ResponseCacheLocation.Any, NoStore = false)]
     public async Task<ActionResult<IEnumerable<Package>>> GetFeatured(int count = 6)
     {
         return await db.Packages
@@ -45,21 +47,25 @@ public class PackagesController(TravelConnectDbContext db) : ControllerBase
 
     [HttpGet("location/{location}")]
     [AllowAnonymous]
+    [EnableRateLimiting("public-read")]
     public async Task<ActionResult<IEnumerable<Package>>> GetByLocation(string location)
     {
         return await db.Packages
             .Where(p => p.Location.ToLower().Contains(location.ToLower()))
             .AsNoTracking()
+            .Take(200)
             .ToListAsync();
     }
 
     [HttpGet("tag/{tag}")]
     [AllowAnonymous]
+    [EnableRateLimiting("public-read")]
     public async Task<ActionResult<IEnumerable<Package>>> GetByTag(string tag)
     {
         return await db.Packages
             .Where(p => p.Tag == tag)
             .AsNoTracking()
+            .Take(200)
             .ToListAsync();
     }
 

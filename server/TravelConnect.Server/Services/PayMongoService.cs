@@ -11,10 +11,37 @@ public class PayMongoOptions
     public string PublicKey { get; set; } = string.Empty;
     public string ApiBaseUrl { get; set; } = "https://api.paymongo.com";
     public string WebhookSecretKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// This build is TEST-MODE ONLY. Gate payments on PayMongo's sandbox
+    /// (sk_test_/pk_test_); live keys are rejected by <see cref="PayMongoService
+    /// .GuardTestMode"/> unless this is explicitly set to "live".
+    /// </summary>
+    public string Mode { get; set; } = "test";
 }
 
 public record CheckoutSessionResult(string SessionId, string CheckoutUrl, string Status);
 public record CheckoutSessionStatusResult(string SessionId, string Status, string? FailureReason);
+
+// In-app card payment (PayMongo Payment Intents). Card details are collected
+// on our checkout page, tokenized server-side, then attached to a Payment
+// Intent which may escalate to 3-D Secure (next_action.redirect).
+public record CardPaymentIntentResult(
+    string IntentId,
+    string ClientKey,
+    string Status,
+    string? RedirectUrl = null,
+    string? FailureReason = null,
+    decimal AmountPesos = 0,
+    string? BookingReference = null);
+
+public record CardDetails(
+    string Number,
+    int ExpMonth,
+    int ExpYear,
+    string Cvc,
+    string? HolderName = null,
+    string? BillingEmail = null);
 
 public class PayMongoService
 {
@@ -25,10 +52,31 @@ public class PayMongoService
 
     public PayMongoService(HttpClient http, PayMongoOptions options)
     {
+        GuardTestMode(options);
         _http = http;
         _apiBase = options.ApiBaseUrl.TrimEnd('/');
         _secretKey = options.SecretKey;
         _webhookSecretKey = options.WebhookSecretKey;
+    }
+
+    /// <summary>
+    /// Enforces the TEST-MODE-ONLY guarantee for payments: if a live PayMongo
+    /// key is ever configured, the process refuses to start (fail fast) instead
+    /// of charging real cards. Flipping <see cref="PayMongoOptions.Mode"/> to
+    /// "live" is the explicit, auditable opt-in for a future production rollout.
+    /// </summary>
+    public static void GuardTestMode(PayMongoOptions options)
+    {
+        var secretLive = options.SecretKey.StartsWith("sk_live_", StringComparison.OrdinalIgnoreCase);
+        var publicLive = options.PublicKey.StartsWith("pk_live_", StringComparison.OrdinalIgnoreCase);
+
+        if ((secretLive || publicLive) &&
+            !"live".Equals(options.Mode, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "PayMongo LIVE key detected while Mode=test. This build is TEST-MODE ONLY — " +
+                "use sk_test_/pk_test_ sandbox keys, or explicitly set PayMongo:Mode=live.");
+        }
     }
 
     private static HttpRequestMessage BuildRequest(HttpMethod method, string url, string apiKey,
@@ -213,6 +261,251 @@ public class PayMongoService
         var expected = Convert.ToHexString(hash);
         return FixedTimeEquals(expected, signature?.Replace("-", "").ToUpperInvariant() ?? string.Empty);
     }
+
+    // ── Card payments (Payment Intents) ─────────────────────────────────
+
+    // Creates a card-only Payment Intent. The customer's card is attached in a
+    // second call; if 3-D Secure is required the intent moves to
+    // "awaiting_next_action" with a redirect URL the client must open.
+    public async Task<CardPaymentIntentResult> CreateCardPaymentIntentAsync(
+        long amountCentavos,
+        string description,
+        string returnUrl,
+        string? bookingReference = null)
+    {
+        var payload = new
+        {
+            data = new
+            {
+                attributes = new
+                {
+                    amount = amountCentavos,
+                    currency = "PHP",
+                    description,
+                    payment_method_allowed = new[] { "card" },
+                    payment_method_options = new
+                    {
+                        card = new { request_three_d_secure = "any" }
+                    },
+                    return_url = returnUrl,
+                    metadata = new Dictionary<string, string>
+                    {
+                        ["booking_reference"] = bookingReference ?? string.Empty
+                    }
+                }
+            }
+        };
+
+        var root = await PostAsync("/v1/payment_intents", payload, _secretKey);
+        var data = root.TryGetProperty("data", out var d) ? d : root;
+        var attrs = data.TryGetProperty("attributes", out var a) ? a : data;
+
+        var id = data.TryGetProperty("id", out var idProp) && idProp.ValueKind == JsonValueKind.String
+            ? idProp.GetString() ?? string.Empty
+            : (attrs.TryGetProperty("id", out var aid) && aid.ValueKind == JsonValueKind.String
+                ? aid.GetString() ?? string.Empty
+                : string.Empty);
+
+        var clientKey = attrs.TryGetProperty("client_key", out var ck) && ck.ValueKind == JsonValueKind.String
+            ? ck.GetString() ?? string.Empty
+            : string.Empty;
+        var status = attrs.TryGetProperty("status", out var st) && st.ValueKind == JsonValueKind.String
+            ? st.GetString() ?? "awaiting_payment_method"
+            : "awaiting_payment_method";
+
+        return new CardPaymentIntentResult(id, clientKey, NormalizeIntentStatus(status));
+    }
+
+    // Tokenizes the card and attaches it to a Payment Intent. The intent is
+    // then attempted by PayMongo, which either succeeds, fails, or requests
+    // 3-D Secure (redirect). Never store the card on disk — it only transits
+    // from the checkout form to PayMongo in memory.
+    public async Task<CardPaymentIntentResult> AttachCardToPaymentIntentAsync(
+        string intentId,
+        CardDetails card)
+    {
+        if (string.IsNullOrWhiteSpace(intentId))
+            throw new ArgumentException("Payment intent id is required.", nameof(intentId));
+
+        var paymentMethodPayload = new
+        {
+            data = new
+            {
+                attributes = new
+                {
+                    type = "card",
+                    details = new
+                    {
+                        card_number = card.Number.Replace(" ", string.Empty),
+                        exp_month = card.ExpMonth,
+                        exp_year = card.ExpYear,
+                        cvc = card.Cvc
+                    },
+                    billing = new
+                    {
+                        name = string.IsNullOrWhiteSpace(card.HolderName) ? "Cardholder" : card.HolderName,
+                        email = string.IsNullOrWhiteSpace(card.BillingEmail)
+                            ? "guest@travelconnect.ph"
+                            : card.BillingEmail
+                    }
+                }
+            }
+        };
+        JsonElement pmRoot;
+        try
+        {
+            pmRoot = await PostAsync("/v1/payment_methods", paymentMethodPayload, _secretKey);
+        }
+        catch (HttpRequestException ex) when (TryGetPayMongoErrorDetail(ex, out var reason))
+        {
+            // Card was rejected before tokenization (test-mode card vs live-mode
+            // request, invalid format, etc.) — surface PayMongo's human message.
+            throw new HttpRequestException(reason, ex);
+        }
+        var pmData = pmRoot.TryGetProperty("data", out var pmd) ? pmd : pmRoot;
+        var pmId = pmData.TryGetProperty("id", out var pmIdProp) && pmIdProp.ValueKind == JsonValueKind.String
+            ? pmIdProp.GetString() ?? string.Empty
+            : string.Empty;
+        if (string.IsNullOrWhiteSpace(pmId))
+            throw new HttpRequestException("PayMongo did not return a card token.");
+
+        var attachPayload = new
+        {
+            data = new
+            {
+                attributes = new { payment_method = pmId }
+            }
+        };
+        JsonElement root;
+        try
+        {
+            root = await PostAsync($"/v1/payment_intents/{intentId}/attach", attachPayload, _secretKey);
+        }
+        catch (HttpRequestException ex) when (TryGetPayMongoErrorDetail(ex, out var reason))
+        {
+            // PayMongo declined the card at attach (insufficient funds, expired
+            // card, invalid CVC, …). The intent is terminal-failed; surface a
+            // friendly failure instead of a cryptic raw 400.
+            return new CardPaymentIntentResult(intentId, string.Empty, "failed", null, reason);
+        }
+        var data = root.TryGetProperty("data", out var d) ? d : root;
+        var attrs = data.TryGetProperty("attributes", out var a) ? a : data;
+
+        return NormalizeIntentResponse(intentId, attrs);
+    }
+
+    // Reads a Payment Intent after 3-D Secure so the checkout can poll for a
+    // terminal state (succeeded / failed).
+    public async Task<CardPaymentIntentResult> GetCardPaymentIntentAsync(string intentId)
+    {
+        var root = await GetAsync($"/v1/payment_intents/{intentId}", _secretKey);
+        var data = root.TryGetProperty("data", out var d) ? d : root;
+        var attrs = data.TryGetProperty("attributes", out var a) ? a : data;
+        return NormalizeIntentResponse(intentId, attrs);
+    }
+
+    // Pulls the human-readable `detail` (plus machine `sub_code`) out of a
+    // PayMongo error response that PostAsync embeds in its HttpRequestException
+    // message, so declines and card rejections appear as friendly text.
+    private static bool TryGetPayMongoErrorDetail(HttpRequestException ex, out string? detail)
+    {
+        detail = null;
+        var bodyStart = ex.Message.IndexOf('{');
+        if (bodyStart < 0) return false;
+        var body = ex.Message.Substring(bodyStart);
+        if (body.IndexOf("errors", StringComparison.OrdinalIgnoreCase) < 0) return false;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            if (doc.RootElement.TryGetProperty("errors", out var errors) &&
+                errors.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var error in errors.EnumerateArray())
+                {
+                    if (error.ValueKind != JsonValueKind.Object) continue;
+                    if (error.TryGetProperty("detail", out var d) &&
+                        d.ValueKind == JsonValueKind.String &&
+                        !string.IsNullOrWhiteSpace(d.GetString()))
+                    {
+                        detail = d.GetString();
+                        if (error.TryGetProperty("sub_code", out var sc) &&
+                            sc.ValueKind == JsonValueKind.String &&
+                            !string.IsNullOrWhiteSpace(sc.GetString()))
+                        {
+                            detail = $"{detail} [{sc.GetString()}]";
+                        }
+                        return true;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Not valid JSON — treat as unparsed and let the caller rethrow.
+        }
+        return false;
+    }
+
+    private static CardPaymentIntentResult NormalizeIntentResponse(string intentId, JsonElement attrs)
+    {
+        var status = attrs.TryGetProperty("status", out var st) && st.ValueKind == JsonValueKind.String
+            ? st.GetString() ?? string.Empty
+            : string.Empty;
+
+        string? redirectUrl = null;
+        if (status.Equals("awaiting_next_action", StringComparison.OrdinalIgnoreCase) &&
+            attrs.TryGetProperty("next_action", out var na) && na.ValueKind == JsonValueKind.Object &&
+            na.TryGetProperty("redirect", out var redir) && redir.ValueKind == JsonValueKind.Object &&
+            redir.TryGetProperty("url", out var url) && url.ValueKind == JsonValueKind.String)
+        {
+            redirectUrl = url.GetString();
+        }
+
+        string? failureReason = null;
+        if (attrs.TryGetProperty("last_payment_error", out var lpe))
+        {
+            if (lpe.ValueKind == JsonValueKind.String)
+                failureReason = lpe.GetString();
+            else if (lpe.ValueKind == JsonValueKind.Object &&
+                     lpe.TryGetProperty("message", out var msg) && msg.ValueKind == JsonValueKind.String)
+                failureReason = msg.GetString();
+        }
+
+        var amountPesos = 0m;
+        if (attrs.TryGetProperty("amount", out var amt) &&
+            amt.TryGetInt64(out var cents))
+        {
+            amountPesos = cents / 100m;
+        }
+
+        string? bookingRef = null;
+        if (attrs.TryGetProperty("metadata", out var meta) && meta.ValueKind == JsonValueKind.Object &&
+            meta.TryGetProperty("booking_reference", out var br) && br.ValueKind == JsonValueKind.String)
+        {
+            bookingRef = br.GetString();
+        }
+
+        return new CardPaymentIntentResult(
+            intentId,
+            string.Empty,
+            NormalizeIntentStatus(status),
+            redirectUrl,
+            failureReason,
+            amountPesos,
+            string.IsNullOrWhiteSpace(bookingRef) ? null : bookingRef);
+    }
+
+    private static string NormalizeIntentStatus(string raw) => raw.ToLowerInvariant() switch
+    {
+        "succeeded" => "succeeded",
+        "failed" => "failed",
+        "awaiting_next_action" => "awaiting_next_action",
+        "awaiting_payment_method" => "awaiting_payment_method",
+        "processing" => "processing",
+        "canceled" => "canceled",
+        _ => "awaiting_payment_method"
+    };
 
     private static bool FixedTimeEquals(string a, string b)
     {

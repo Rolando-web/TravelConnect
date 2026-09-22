@@ -1,12 +1,6 @@
 /* ─── Travelers + Cabin class popover ───────────────────────────────── */
-export default function TravelersPopover({
-  adults, setAdults,
-  children, setChildren,
-  infants, setInfants,
-  cabinClass, setCabinClass,
-  onClose,
-}) {
-  const CounterRow = ({ label, sub, value, setValue, min = 0 }) => (
+function CounterRow({ label, sub, value, setValue, min = 0 }) {
+  return (
     <div className="flex items-center justify-between">
       <div>
         <p className="text-sm font-bold text-gray-900 dark:text-white">{label}</p>
@@ -33,6 +27,15 @@ export default function TravelersPopover({
       </div>
     </div>
   );
+}
+
+export default function TravelersPopover({
+  adults, setAdults,
+  children, setChildren,
+  infants, setInfants,
+  cabinClass, setCabinClass,
+  onClose,
+}) {
 
   return (
     <div className="absolute left-1/2 -translate-x-1/2 sm:left-auto sm:right-0 sm:translate-x-0 mt-2 bg-white dark:bg-[#0f172a] border border-gray-200 dark:border-white/10 shadow-2xl rounded-2xl p-4 sm:p-6 z-[80] w-[calc(100vw-2rem)] max-w-xs sm:w-72 space-y-4 text-left animate-fadeIn">

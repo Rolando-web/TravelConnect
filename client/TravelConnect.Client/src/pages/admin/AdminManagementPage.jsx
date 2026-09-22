@@ -7,7 +7,6 @@ import {
   ShieldAlert,
   SlidersHorizontal,
   Inbox,
-  Star,
   Info,
 } from "lucide-react";
 import { pageMeta } from "./adminConfig";
@@ -454,7 +453,7 @@ export default function AdminManagementPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((tablePage - 1) * PAGE_SIZE, tablePage * PAGE_SIZE);
   // Reset page when query or page route changes
-  useMemo(() => setTablePage(1), [query, page]);
+  useEffect(() => setTablePage(1), [query]);
 
   if (!permission)
     return (

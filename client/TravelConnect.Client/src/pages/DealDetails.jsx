@@ -225,7 +225,7 @@ export default function DealDetails() {
                           : "border-slate-200 opacity-60 hover:opacity-100"
                       }`}
                     >
-                      <img src={slide.image} alt={slide.label} className="w-full h-full object-cover" />
+                      <img src={slide.image} alt={slide.label} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                     </button>
                   ))}
                 </div>

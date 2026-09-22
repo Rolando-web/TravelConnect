@@ -383,7 +383,7 @@ export default function CarDetails() {
                         : "border-slate-200 dark:border-white/10 opacity-60 hover:opacity-100"
                     }`}
                   >
-                    <img src={slide.image} alt={slide.label} className="w-full h-full object-cover" />
+                    <img src={slide.image} alt={slide.label} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/30" />
                     <span className="absolute bottom-1.5 left-2 text-[9px] font-mono uppercase tracking-wider text-white">
                       {slide.label.split(" ")[0]}

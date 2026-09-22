@@ -16,10 +16,11 @@ public class BookingsController(
     IServiceScopeFactory scopeFactory,
     PdfService pdfService,
     CancellationService cancellationService,
+    PromoService promoService,
     ILogger<BookingsController> logger) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Booking>>> GetAll(string? status = null, string? customer = null)
+    public async Task<ActionResult<IEnumerable<Booking>>> GetAll(string? status = null, string? customer = null, int? page = null, int? pageSize = null)
     {
         IQueryable<Booking> query = db.Bookings.AsNoTracking().OrderByDescending(b => b.CreatedAt);
         if (!string.IsNullOrWhiteSpace(status))
@@ -31,8 +32,13 @@ public class BookingsController(
                 b.CustomerName.ToLower().Contains(c) ||
                 b.CustomerEmail.ToLower().Contains(c));
         }
+        // Page-size cap keeps the admin list from loading the whole table.
+        var ps = Math.Clamp(pageSize ?? 200, 1, 500);
+        if (page is > 0)
+            query = query.Skip((page.Value - 1) * ps);
         return await query
             .Include(b => b.BookingFlights.OrderBy(f => f.SegmentOrder))
+            .Take(ps)
             .ToListAsync();
     }
 
@@ -96,6 +102,29 @@ public class BookingsController(
         booking.CreatedAt = DateTime.UtcNow;
         booking.UpdatedAt = DateTime.UtcNow;
 
+        // Promo codes are applied authoritatively here, never by trusting the
+        // client's DiscountAmount/TotalAmount. The client may compute a preview
+        // for UX, but the server re-validates the code, re-computes the
+        // discount, and bumps the campaign usage count.
+        var promoCode = (booking.PromoCodeUsed ?? string.Empty).Trim();
+        Promotion? appliedPromo = null;
+        if (promoCode.Length > 0)
+        {
+            var promo = await promoService.ValidateAsync(promoCode, booking.Subtotal);
+            if (!promo.IsValid)
+                return BadRequest(new { message = promo.Error ?? "Invalid promo code" });
+            appliedPromo = promo.Promo;
+            booking.PromoCodeUsed = appliedPromo!.Code;
+            booking.DiscountAmount = promo.DiscountAmount;
+            booking.TotalAmount = promo.FinalAmount;
+        }
+        else
+        {
+            // A discount sent without a code is rejected (tamper guard).
+            booking.PromoCodeUsed = string.Empty;
+            booking.DiscountAmount = 0m;
+        }
+
         var segments = req.FlightSegments?
             .OrderBy(f => f.SegmentOrder)
             .Take(6)
@@ -125,6 +154,11 @@ public class BookingsController(
         booking.SeatNumbers = string.Join(",", booking.BookingFlights
             .Where(f => !string.IsNullOrWhiteSpace(f.SeatNumber))
             .Select(f => f.SeatNumber));
+
+        // Consume one redemption of the applied campaign (the entity is already
+        // tracked by ValidateAsync, so this persists with SaveChangesAsync).
+        if (appliedPromo is not null)
+            appliedPromo.UsedCount += 1;
 
         db.Bookings.Add(booking);
         await db.SaveChangesAsync();

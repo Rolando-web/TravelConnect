@@ -1,6 +1,10 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 
+/* Context file: useFavorites() hook is exported alongside the provider
+   (standard context-module pattern). */
+/* eslint-disable react-refresh/only-export-components */
+
 const FavoritesContext = createContext();
 
 const storageKeyFor = (email) => `travelconnect_favorites:${(email || "guest").toLowerCase()}`;

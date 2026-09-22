@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 
+/* Shared date helper is intentionally exported from this component file so
+   deal/hotel/flight pages can reuse it; fast refresh accepts the trade-off. */
+/* eslint-disable react-refresh/only-export-components */
+
 /* ─── Helper: format date ───────────────────────────────────────────── */
 export const formatDateLabel = (dateStr) => {
   if (!dateStr) return "";
@@ -192,8 +196,13 @@ export default function DateRangeCalendar({
 
       {/* Responsive Month Display: 1 month on mobile, dual month on tablet/desktop */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+        {/* MonthGrid is a deliberately local presentation component (closure over
+            the calendar's selected/range predicates); inlining it would remount
+            its buttons each render. eslint-disable-next-line is intentional. */}
+        {/* eslint-disable-next-line react-hooks/static-components */}
         <MonthGrid mInfo={month1} />
         <div className="hidden sm:block">
+          {/* eslint-disable-next-line react-hooks/static-components */}
           <MonthGrid mInfo={month2} />
         </div>
       </div>

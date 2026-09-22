@@ -71,7 +71,8 @@ export function SupportChatWidget() {
 
   // Poll for admin replies while the bubble is closed so the client gets a
   // red ping the moment there's a new message (e.g. a Super Admin replying
-  // to their subscription inquiry).
+  // to their subscription inquiry). Polling pauses while the tab is hidden
+  // so background tabs don't hammer the API, and refreshes on re-focus.
   useEffect(() => {
     if (!isLoggedIn || open) return;
     let cancelled = false;
@@ -87,10 +88,18 @@ export function SupportChatWidget() {
       }
     };
 
+    const onVisibility = () => {
+      if (!document.hidden) checkUnread();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     checkUnread();
-    const timer = setInterval(checkUnread, 15000);
+    const timer = setInterval(() => {
+      if (!document.hidden) checkUnread();
+    }, 15000);
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
       clearInterval(timer);
     };
   }, [isLoggedIn, open]);
@@ -297,7 +306,7 @@ export function SupportChatWidget() {
 }
 
 /** Full-page support experience (route /support): opens the chat bubble. */
-export function SupportPage() {
+export function CustomerSupportExperience() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-14">
       <div className="flex items-center gap-3 mb-4">

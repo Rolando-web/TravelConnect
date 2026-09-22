@@ -6,10 +6,18 @@ import {
   createPayMongoCheckout,
   getPayMongoCheckoutStatus,
   finalizePayMongoPayment,
+  createCardIntent,
+  attachCard,
+  getCardIntentStatus,
   validatePromoCode,
   bookingsApi
 } from "../services/api";
 import { useAuth } from "./AuthContext";
+
+/* Context file: the useBooking() hook is exported alongside the provider —
+   flushing the provider on mix-writes is disabled since the context value is
+   heavily memoized. */
+/* eslint-disable react-refresh/only-export-components */
 
 const BookingContext = createContext();
 
@@ -129,6 +137,9 @@ export function BookingProvider({ children }) {
     })();
 
     return () => { active = false; };
+    // Reset-on-user-change should NOT re-run when the user merely opens/sees a
+    // booking; excluded deliberately (would wipe bookings on every selection).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerKey, storageKey]);
 
   // Persist to this customer's own storage key.
@@ -172,13 +183,16 @@ export function BookingProvider({ children }) {
     setSelectedBookingDetails(null);
   };
 
-  const processAndCreateBooking = async (bookingData, paymentData) => {
+  const processAndCreateBooking = async (bookingData, paymentData, card = null) => {
     const isWalletPayment = paymentData.paymentMethod === "wallet";
+    const isCardPayment = !!card;
     const methodKey = isWalletPayment
       ? "wallet"
-      : ["gcash", "paymaya", "card"].includes(paymentData.paymentMethod)
-        ? paymentData.paymentMethod
-        : "gcash";
+      : isCardPayment
+        ? "card"
+        : ["gcash", "paymaya", "card"].includes(paymentData.paymentMethod)
+          ? paymentData.paymentMethod
+          : "gcash";
 
     // Ensure the booking is tied to the signed-in customer
     const customerEmail = bookingData.customerEmail || customerKey || "";
@@ -198,7 +212,7 @@ export function BookingProvider({ children }) {
       // Deduct from wallet (synchronous read → deduct → persist, no race window)
       writeWallet(liveBalance - bookingData.totalAmount);
       transactionId = `TCM-${Math.floor(100000 + Math.random() * 900000)}`;
-    } else if (["gcash", "paymaya", "card"].includes(methodKey)) {
+    } else if (["gcash", "paymaya"].includes(methodKey)) {
       // PayMongo hosted Checkout Session (checkout.paymongo.com).
       // Open the (blank) auth window SYNCHRONOUSLY inside the user's click
       // gesture — window.open() after an await is treated as a popup and gets
@@ -306,6 +320,97 @@ export function BookingProvider({ children }) {
           );
         }
       }
+    } else if (isCardPayment) {
+      // In-app card form + 3-D Secure via PayMongo Payment Intents.
+      // Same synchronous popup-open trick as the hosted checkout above —
+      // window.open() must happen inside the click gesture, before any await.
+      const authWindow = window.open("", "paymongo_card_3ds", "width=560,height=720");
+      if (!authWindow) {
+        throw new Error(
+          "Your browser blocked the 3-D Secure window. Please allow pop-ups for this site, then try again."
+        );
+      }
+      try {
+        const bookingReference = bookingData.promoCodeUsed || bookingData.name || customerName;
+
+        // 1. Create the Payment Intent so the pending amount is recorded.
+        const intent = await createCardIntent({
+          amount: bookingData.totalAmount,
+          bookingReference,
+          returnUrl: `${window.location.origin}/payment-result?status=success`
+        });
+        if (!intent?.intentId) {
+          authWindow.close();
+          throw Object.assign(
+            new Error("PayMongo could not start a card payment. Please try again."),
+            { paymentRejected: false }
+          );
+        }
+
+        // 2. Attach the card. The browser form is tokenized server-side by
+        //    PayMongo; this returns the 3-D Secure redirect URL when the card
+        //    requires a bank challenge.
+        const [mm, yy] = card.expiry.split("/").map((p) => p.trim());
+        const attach = await attachCard({
+          intentId: intent.intentId,
+          cardNumber: card.cardNumber.replace(/\s/g, ""),
+          expMonth: Number(mm),
+          expYear: 2000 + Number(yy),
+          cvc: card.cvc,
+          holderName: card.holderName,
+          customerEmail,
+          bookingReference
+        });
+
+        // 3. Surface declines immediately (card was declined by the bank).
+        if (attach?.status === "failed") {
+          authWindow.close();
+          throw Object.assign(
+            new Error(attach.failureReason || "Your card was declined. Your booking was NOT created."),
+            { paymentRejected: true }
+          );
+        }
+
+        // 4. 3-D Secure challenge — the bank verifies the card-holder inside
+        //    the popup, then PayMongo redirects back to /payment-result.
+        let status = attach?.status ?? "awaiting_payment_method";
+        if (status === "awaiting_next_action" && attach?.nextAction?.redirectUrl) {
+          authWindow.location.href = attach.nextAction.redirectUrl;
+          status = await pollCardIntent(intent.intentId, authWindow);
+        } else {
+          status = attach?.status ?? status;
+        }
+
+        if (status !== "succeeded") {
+          authWindow.close();
+          throw Object.assign(
+            new Error(
+              status === "failed"
+                ? attach?.failureReason || "Your card was declined. Your booking was NOT created."
+                : "We didn't receive confirmation that your card payment completed. Your booking was NOT created; nothing was charged. Please try again."
+            ),
+            { paymentRejected: true }
+          );
+        }
+
+        authWindow.close();
+        transactionId = intent.intentId;
+      } catch (err) {
+        const msg = String(err?.message || err).toLowerCase();
+        const isOffline = /failed to fetch|networkerror|network request failed|fetch failed|offline/i.test(msg);
+        if (isOffline) {
+          if (authWindow) authWindow.close();
+          console.warn("PayMongo backend offline — card payment unavailable:", err.message);
+        } else if (err?.paymentRejected) {
+          throw err;
+        } else {
+          throw new Error(
+            (err?.message || "Card payment could not be started.") +
+            " Your booking was NOT created. Please try again or contact support.",
+            { cause: err }
+          );
+        }
+      }
     }
 
     // 2. Submit booking to backend/store
@@ -328,6 +433,22 @@ export function BookingProvider({ children }) {
 
     setBookings((prev) => [finalBooking, ...prev]);
     return finalBooking;
+  };
+
+  // Polls a Payment Intent after the 3-D Secure redirect until it reaches a
+  // terminal state. "paid" is what the server returns for a succeeded intent,
+  // and is mapped back to "succeeded" to keep the caller's checks consistent.
+  const pollCardIntent = async (intentId, authWindow) => {
+    const deadline = Date.now() + Number(import.meta.env.VITE_PAYMONGO_POLL_TIMEOUT_MS || 120000);
+    let status = "awaiting_next_action";
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 2500));
+      const check = await getCardIntentStatus(intentId);
+      status = check?.status ?? status;
+      if (["paid", "failed", "cancelled", "expired"].includes(status)) break;
+      if (authWindow?.closed) break;
+    }
+    return status === "paid" ? "succeeded" : status;
   };
 
   // ── Instant Cancellation & Automatic Refund ─────────────────────────────

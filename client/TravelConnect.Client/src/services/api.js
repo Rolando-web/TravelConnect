@@ -143,21 +143,21 @@ export async function testApi() {
 }
 
 export async function validatePromoCode(code, totalAmount) {
+  let promo;
   try {
-    const promo = await request(`/api/promotions/code/${encodeURIComponent(code.trim())}`);
-    const isPercent = (promo.discountType || "").toLowerCase() === "percent";
-    const discountAmount = isPercent
-      ? Math.round(totalAmount * (Number(promo.discount) / 100))
-      : Math.min(totalAmount, Number(promo.discount));
-    return {
-      valid: true,
-      code: promo.code?.toUpperCase(),
-      description: promo.campaignName,
-      discountAmount,
-      finalAmount: Math.max(0, totalAmount - discountAmount)
-    };
-  } catch {
-    // Offline local validation rules fallback
+    promo = await request(`/api/promotions/code/${encodeURIComponent(code.trim())}`);
+  } catch (err) {
+    const msg = String(err?.message || "").toLowerCase();
+    const isNetwork =
+      /failed to fetch|networkerror|fetch failed|abort|network/i.test(msg);
+    if (!isNetwork) {
+      // The server authoritative rejected the code (not found / expired /
+      // inactive / exhausted). Never re-accept it via offline rules.
+      return { valid: false, message: err?.message || "Invalid promo code" };
+    }
+
+    // Backend unreachable — apply the same rules the server would enforce so
+    // the demo checkout still works without a backend.
     const upper = code.trim().toUpperCase();
     const promos = {
       SUMMER26: { percentage: 25, label: "25% Summer Discount" },
@@ -181,6 +181,18 @@ export async function validatePromoCode(code, totalAmount) {
     }
     return { valid: false, message: "Invalid promo code" };
   }
+
+  const isPercent = (promo.discountType || "").toLowerCase() === "percent";
+  const discountAmount = isPercent
+    ? Math.round(totalAmount * (Number(promo.discount) / 100))
+    : Math.min(totalAmount, Number(promo.discount));
+  return {
+    valid: true,
+    code: promo.code?.toUpperCase(),
+    description: promo.campaignName,
+    discountAmount,
+    finalAmount: Math.max(0, totalAmount - discountAmount)
+  };
 }
 
 // ── PayMongo (GCash / PayMaya hosted checkout) ──────────────────
@@ -217,6 +229,47 @@ export async function finalizePayMongoPayment(payload) {
     const errBody = await response.json().catch(() => null);
     throw new Error(errBody?.message || "Payment finalization failed");
   }
+  return await response.json();
+}
+
+// ── Credit / Debit card (in-app form + 3-D Secure via Payment Intents) ──
+
+// Step 1 — create a Payment Intent so we have an idempotent record to attach
+// the tokenized card to and a client key for 3-D Secure.
+export async function createCardIntent(payload) {
+  const response = await fetch(`${API_URL}/api/payments/paymongo/card/intent`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    const errBody = await response.json().catch(() => null);
+    throw new Error(errBody?.message || "Failed to start card payment");
+  }
+  return await response.json();
+}
+
+// Step 2 — attach the card. The card stays in the browser form, tokenized
+// server-side by PayMongo; this returns the 3-D Secure redirect URL when the
+// card requires it.
+export async function attachCard(payload) {
+  const response = await fetch(`${API_URL}/api/payments/paymongo/card/attach`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    const errBody = await response.json().catch(() => null);
+    throw new Error(errBody?.message || "Card could not be processed");
+  }
+  return await response.json();
+}
+
+// Step 3 — poll the intent. The server records the payment + marks the
+// booking paid only once PayMongo reports the intent succeeded.
+export async function getCardIntentStatus(intentId) {
+  const response = await fetch(`${API_URL}/api/payments/paymongo/card/${intentId}`);
+  if (!response.ok) throw new Error("Failed to fetch payment status");
   return await response.json();
 }
 

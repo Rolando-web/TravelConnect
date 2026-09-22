@@ -3,13 +3,16 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TravelConnect.Server.Data;
 using TravelConnect.Server.Models;
+using TravelConnect.Server.Services;
 
 namespace TravelConnect.Server.Controllers;
 
 [ApiController]
 [Authorize]
 [Route("api/[controller]")]
-public class PromotionsController(TravelConnectDbContext db) : ControllerBase
+public class PromotionsController(
+    TravelConnectDbContext db,
+    PromoService promoService) : ControllerBase
 {
     [HttpGet]
     [AllowAnonymous]
@@ -34,11 +37,10 @@ public class PromotionsController(TravelConnectDbContext db) : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<Promotion>> GetByCode(string code)
     {
-        var promo = await db.Promotions
-            .Where(p => p.Code.ToLower() == code.ToLower())
-            .FirstOrDefaultAsync();
-        if (promo is null) return NotFound(new { message = "Promo code not found" });
-        return Ok(promo);
+        var promo = await promoService.ValidateAsync(code, 0m);
+        if (!promo.IsValid)
+            return BadRequest(new { message = promo.Error ?? "Invalid promo code" });
+        return Ok(promo.Promo);
     }
 
     [HttpPost]

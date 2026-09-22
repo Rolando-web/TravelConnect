@@ -17,6 +17,8 @@ public class EmailOptions
     public string FromName { get; set; } = "TravelConnect";
 }
 
+public record EmailSendResult(bool Sent, string? Error = null);
+
 public class EmailService
 {
     private readonly EmailOptions _options;
@@ -88,6 +90,81 @@ public class EmailService
             await LogEmailAsync(null, to, subject, "subscription_inquiry_reply", "Failed", ex.Message);
             return false;
         }
+    }
+
+    /// <summary>
+    /// Fallback notification for a new tier/subscription inquiry when EmailJS
+    /// refuses the call (by default EmailJS blocks non-browser callers with
+    /// 403 until "Allow EmailJS API for non-browser applications" is enabled
+    /// in Account → Security). Emails the system owner so no inquiry slips by
+    /// unnoticed. Does not write an EmailLog — the caller owns that so the
+    /// record reflects whichever provider actually delivered it.
+    /// </summary>
+    public async Task<EmailSendResult> SendSubscriptionInquiryNoticeAsync(
+        string name, string email, string time, string message,
+        string tier, string planName)
+    {
+        if (string.IsNullOrWhiteSpace(_options.Username) || string.IsNullOrWhiteSpace(_options.Password))
+            return new EmailSendResult(false, "SMTP is not configured");
+
+        var recipient = string.IsNullOrWhiteSpace(_options.FromAddress)
+            ? _options.Username
+            : _options.FromAddress;
+
+        try
+        {
+            var subject = $"{Clean(tier)} — {Clean(planName)} subscription inquiry";
+            var htmlBody = BuildSubscriptionInquiryNoticeHtml(name, email, time, message, tier, planName);
+            await SendEmailAsync(recipient, subject, htmlBody);
+            return new EmailSendResult(true);
+        }
+        catch (Exception ex)
+        {
+            return new EmailSendResult(false, ex.Message);
+        }
+    }
+
+    // Keeps tier/plan labels safe inside email subjects.
+    private static string Clean(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "TravelConnect" : value.Trim();
+
+    private static string BuildSubscriptionInquiryNoticeHtml(
+        string name, string email, string time, string message,
+        string tier, string planName)
+    {
+        var detailRow = (string label, string value) =>
+            $"<tr><td style='padding:8px 0;color:#6b7280;font-weight:600;'>{E(label)}</td>" +
+            $"<td style='padding:8px 0;text-align:right;'>{E(value)}</td></tr>";
+
+        return $@"
+        <!DOCTYPE html>
+        <html><head><meta charset='utf-8'/></head>
+        <body style='font-family:Segoe UI,Arial,sans-serif;background:#f9fafb;margin:0;padding:24px;'>
+        <div style='max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);'>
+            <div style='background:linear-gradient(135deg,#008fe5,#06D6A0);padding:28px;text-align:center;'>
+                <h1 style='color:#fff;margin:0;font-size:22px;'>New Subscription Inquiry</h1>
+                <p style='color:rgba(255,255,255,0.9);margin:6px 0 0;'>Agencies reaching out to TravelConnect</p>
+            </div>
+            <div style='padding:32px;'>
+                <p style='margin:0 0 16px;color:#374151;'><strong>{E(name)}</strong> ({E(email)}) wants to avail a plan.</p>
+                <table style='width:100%;margin-bottom:24px;'>
+                    {detailRow("Time", time)}
+                    {detailRow("Tier", tier)}
+                    {detailRow("Plan", planName)}
+                </table>
+                <p style='margin:0 0 8px;color:#374151;font-weight:600;'>Message</p>
+                <div style='background:#f8fafc;border-radius:8px;padding:16px;color:#374151;line-height:1.6;'>
+                    {E(message)}
+                </div>
+                <p style='margin:20px 0 0;color:#9ca3af;font-size:13px;'>
+                    Reply through the admin Subscription inbox or the Support Hub.
+                </p>
+            </div>
+            <div style='background:#f9fafb;padding:16px;text-align:center;color:#9ca3af;font-size:12px;'>
+                TravelConnect — Your Journey Starts Here
+            </div>
+        </div>
+        </body></html>";
     }
 
     private static string BuildInquiryReplyHtml(string toName, string body)

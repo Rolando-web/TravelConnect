@@ -61,6 +61,7 @@ public class DashboardController(TravelConnectDbContext db) : ControllerBase
 
     [HttpGet("public")]
     [AllowAnonymous]
+    [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any, NoStore = false)]
     public async Task<IActionResult> PublicStats()
     {
         // 1. Calculate happy travelers dynamically:

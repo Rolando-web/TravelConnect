@@ -238,6 +238,8 @@ export default function Deals() {
                     <img
                       src={combo.imageUrl}
                       alt={combo.name}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                     <span className="absolute top-3 left-3 text-[10px] font-black text-white px-3 py-1 rounded-full uppercase tracking-wider bg-gradient-to-r from-amber-500 to-orange-500">
@@ -364,6 +366,8 @@ export default function Deals() {
                   <img
                     src={deal.imageUrl || "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80"}
                     alt={deal.name}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   <span className="absolute top-3 left-3 text-[10px] font-extrabold text-white px-3 py-1 rounded-full uppercase tracking-wider bg-blue-600">

@@ -65,5 +65,22 @@ public class TravelConnectDbContext : DbContext
         modelBuilder.Entity<Payment>().HasOne(p => p.Booking).WithMany().HasForeignKey(p => p.BookingId).OnDelete(DeleteBehavior.SetNull);
         modelBuilder.Entity<BookingFlight>().HasOne(f => f.Booking).WithMany(b => b.BookingFlights).HasForeignKey(f => f.BookingId).OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<EmailLog>().HasOne(e => e.Booking).WithMany().HasForeignKey(e => e.BookingId).OnDelete(DeleteBehavior.SetNull);
+
+        // Indexes for the hot lookup/filter/order paths (Phase 4). EF Core
+        // already indexes FK columns via convention, so only non-FK filters
+        // and joins/lookups are declared here. In-memory providers ignore
+        // these — they only apply to SQL Server via EnsureCreated/Migrations.
+        modelBuilder.Entity<Lead>().HasIndex(l => l.Email);
+        modelBuilder.Entity<Inquiry>().HasIndex(i => i.CustomerEmail);
+        modelBuilder.Entity<Inquiry>().HasIndex(i => new { i.Category, i.Status });
+        modelBuilder.Entity<SupportConversation>().HasIndex(c => c.CustomerEmail);
+        modelBuilder.Entity<SupportConversation>().HasIndex(c => new { c.Status, c.Category });
+        modelBuilder.Entity<SupportConversation>().HasIndex(c => new { c.AssigneeEmail, c.Status });
+        modelBuilder.Entity<Booking>().HasIndex(b => b.ReferenceNumber);
+        modelBuilder.Entity<Booking>().HasIndex(b => new { b.CustomerEmail, b.Status });
+        modelBuilder.Entity<Payment>().HasIndex(p => p.ReferenceId);
+        modelBuilder.Entity<Payment>().HasIndex(p => new { p.Status, p.Method });
+        modelBuilder.Entity<EmailLog>().HasIndex(e => new { e.Type, e.SentAt });
+        modelBuilder.Entity<SupportMessage>().HasIndex(m => new { m.SupportConversationId, m.CreatedAt });
     }
 }

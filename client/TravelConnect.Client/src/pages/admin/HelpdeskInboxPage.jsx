@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshCw, Inbox, Headset, UserPlus, Tag, CheckCircle2, Clock, Send, UserCheck } from "lucide-react";
+import { RefreshCw, Inbox, Headset, Clock, Send, UserCheck } from "lucide-react";
 import { supportAdminApi } from "../../services/api";
 import StatCard from "../../components/admin/StatCard";
 
 const STATUS_TONE = {
   Open: "badge-green",
-  Awaiting: "badge-orange",
-  Resolved: "badge-cyan",
+  Replied: "badge-cyan",
+  Resolved: "badge-green",
   Closed: "badge-red",
 };
 
-const STATUSES = ["Open", "Awaiting", "Resolved", "Closed"];
+const STATUSES = ["Open", "Replied", "Resolved", "Closed"];
 
 /**
  * Multi-agent helpdesk inbox.
@@ -58,7 +58,12 @@ export default function HelpdeskInboxPage() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    // Debounce search (each keystroke changes `load`'s identity). The inbox
+    // shows a spinner anyway, so a 300ms delay avoids hammering the API.
+    const t = window.setTimeout(() => { load(); }, 300);
+    return () => window.clearTimeout(t);
+  }, [load]);
   useEffect(() => { loadAgents(); }, [loadAgents]);
 
   const openThread = async (id) => {
@@ -121,7 +126,7 @@ export default function HelpdeskInboxPage() {
   };
 
   const stats = useMemo(() => {
-    const open = tickets.filter((t) => t.status === "Open" || t.status === "Awaiting").length;
+    const open = tickets.filter((t) => t.status === "Open" || t.status === "Replied").length;
     const mine = tickets.filter((t) => t.assigneeEmail && t.assigneeEmail !== "Unassigned").length;
     return { total: tickets.length, open, mine };
   }, [tickets]);
@@ -145,7 +150,7 @@ export default function HelpdeskInboxPage() {
       {/* Stats */}
       <div className="grid sm:grid-cols-3 gap-4 mb-6">
         <StatCard label="Inbox" value={stats.total} note="All support threads" icon={Inbox} accent="text-[#008fe5]" />
-        <StatCard label="Open / Awaiting" value={stats.open} note="Needs a reply" icon={Clock} accent="text-amber-500" />
+        <StatCard label="Open / Replied" value={stats.open} note="Needs a reply" icon={Clock} accent="text-amber-500" />
         <StatCard label="Assigned" value={stats.mine} note="Owned by an agent" icon={UserCheck} accent="text-emerald-500" />
       </div>
 

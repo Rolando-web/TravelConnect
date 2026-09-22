@@ -10,6 +10,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { useCurrency } from "../../../context/CurrencyContext";
 import { sendCustomerInquiry, flightsApi } from "../../../services/api";
 import SeatMapModal from "./SeatMapModal";
+import CardPaymentForm from "../../booking/CardPaymentForm";
 
 const MAX_FLIGHT_SEGMENTS = 6;
 const MAX_REGULAR_PASSENGERS = 9;
@@ -101,6 +102,8 @@ export default function BookingCheckoutModal() {
   const [paymentMethod, setPaymentMethod] = useState("gcash");
   const [isProcessing, setIsProcessing] = useState(false);
   const [completedBooking, setCompletedBooking] = useState(null);
+  const [card, setCard] = useState({ cardNumber: "", expiry: "", cvc: "", holderName: "" });
+  const [cardValid, setCardValid] = useState({ valid: false, brand: "" });
 
   const [validationMsg, setValidationMsg] = useState("");
 
@@ -133,7 +136,7 @@ export default function BookingCheckoutModal() {
       .list()
       .then((data) => { setAvailableFlights(Array.isArray(data) ? data : []); })
       .catch(() => setAvailableFlights([]));
-  }, [checkoutModalOpen, isFlight]);
+  }, [checkoutModalOpen, isFlight, checkoutPackage?.flight]);
 
   // Pre-fill the guest details from the signed-in account every time the
   // checkout opens, so the booking/email/cancellation always use the real
@@ -199,12 +202,19 @@ export default function BookingCheckoutModal() {
 
       if (appliedPromo) {
         setPromoInput(appliedPromo);
+        // handleApplyPromo is defined later in the component but only INVOKED
+        // after render (here), so the reference is initialized by then.
+        // eslint-disable-next-line react-hooks/immutability
         handleApplyPromo(appliedPromo);
       } else {
         setPromoResult(null);
         setPromoError("");
       }
     }
+    // handleApplyPromo is a per-render closure (intentionally not in deps —
+    // the selector-style deps replicate the original skip-if-unchanged logic
+    // and avoid re-running this prefill effect on every render).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkoutModalOpen, appliedPromo, user]);
 
   if (!checkoutModalOpen || !checkoutPackage) return null;
@@ -283,6 +293,11 @@ export default function BookingCheckoutModal() {
       return;
     }
 
+    if (paymentMethod === "card" && !cardValid.valid) {
+      setValidationMsg("Please complete the card details correctly (number, expiry, CVV and name on card).");
+      return;
+    }
+
     setIsProcessing(true);
     setValidationMsg("");
 
@@ -336,7 +351,11 @@ export default function BookingCheckoutModal() {
     };
 
     try {
-      const created = await processAndCreateBooking(bookingPayload, paymentPayload);
+      const created = await processAndCreateBooking(
+        bookingPayload,
+        paymentPayload,
+        paymentMethod === "card" ? card : null
+      );
 
       if (specialRequests.trim()) {
         await sendCustomerInquiry({
@@ -565,9 +584,15 @@ export default function BookingCheckoutModal() {
                     <span>Processing Fees</span>
                     <span className="text-emerald-600 font-bold">{displayPrice(0)} (Free)</span>
                   </div>
+                  {discountAmount > 0 && (
+                    <div className="flex items-center justify-between text-emerald-600 font-bold">
+                      <span>Promo Discount ({promoResult?.code})</span>
+                      <span>-{displayPrice(discountAmount)}</span>
+                    </div>
+                  )}
                   <div className="pt-2 border-t border-blue-200 flex items-baseline justify-between">
                     <span className="text-sm font-black text-slate-900">Estimated Total</span>
-                    <span className="text-2xl font-black text-[#008fe5]">{displayPrice(rawSubtotal)}</span>
+                    <span className="text-2xl font-black text-[#008fe5]">{displayPrice(totalAmount)}</span>
                   </div>
                 </div>
               </div>
@@ -1251,6 +1276,15 @@ export default function BookingCheckoutModal() {
                       );
                     })}
                   </div>
+
+                  {paymentMethod === "card" && (
+                    <CardPaymentForm
+                      value={card}
+                      onChange={(key, val) => setCard((c) => ({ ...c, [key]: val }))}
+                      onValidation={setCardValid}
+                      disabled={isProcessing}
+                    />
+                  )}
                 </div>
 
 {validationMsg && (
@@ -1260,7 +1294,8 @@ export default function BookingCheckoutModal() {
                 <button
                   type="button"
                   onClick={handleCompleteTransaction}
-                  disabled={isProcessing || (paymentMethod === "wallet" && walletBalance < totalAmount)}
+                  disabled={isProcessing || (paymentMethod === "wallet" && walletBalance < totalAmount) ||
+            (paymentMethod === "card" && !cardValid.valid)}
                   className="w-full bg-[#008fe5] hover:bg-blue-600 active:scale-[0.98] text-white font-black py-4 px-6 rounded-2xl shadow-xl shadow-blue-500/25 transition flex items-center justify-center gap-2 text-sm disabled:opacity-50 cursor-pointer"
                 >
                   {isProcessing ? (

@@ -98,6 +98,7 @@ public class SubscriptionsController(TravelConnectDbContext db) : ControllerBase
         return await db.Subscriptions
             .AsNoTracking()
             .OrderByDescending(s => s.CreatedAt)
+            .Take(200)
             .ToListAsync();
     }
 
@@ -173,7 +174,7 @@ public class SubscriptionsController(TravelConnectDbContext db) : ControllerBase
         if (!await IsSuperAdmin())
             return Forbid();
 
-        var all = await db.Subscriptions.AsNoTracking().ToListAsync();
+        var all = await db.Subscriptions.AsNoTracking().Take(200).ToListAsync();
         var now = DateTime.UtcNow;
 
         return Ok(new

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Download, Plus, Search, SlidersHorizontal, Star, Inbox, Pencil, Eye, X, Tag, MapPin, Clock, Users } from "lucide-react";
+import { Download, Plus, Search, SlidersHorizontal, Inbox, Pencil, Eye, X, Tag, MapPin, Clock, Users } from "lucide-react";
 import { packagesApi, assetUrl } from "../../services/api";
 import CrudModal from "../../components/admin/CrudModal";
 import StatCard from "../../components/admin/StatCard";
@@ -109,7 +109,7 @@ export default function PackagesPage() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  useMemo(() => setPage(1), [query, activeTag, activeCountry]);
+  useEffect(() => setPage(1), [query, activeTag, activeCountry]);
 
   const avgPrice = packages.length
     ? packages.reduce((s, p) => s + (p.price || 0), 0) / packages.length

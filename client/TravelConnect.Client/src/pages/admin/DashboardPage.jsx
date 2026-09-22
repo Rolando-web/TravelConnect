@@ -5,8 +5,6 @@ import {
   CircleDollarSign,
   UsersRound,
   TicketPercent,
-  TrendingUp,
-  TrendingDown,
   ArrowRight,
   Inbox,
   Plane,

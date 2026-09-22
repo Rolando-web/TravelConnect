@@ -16,9 +16,10 @@ const STATUS_BADGE = {
   Open: "badge-orange",
   Replied: "badge-cyan",
   Resolved: "badge-green",
+  Closed: "badge-red",
 };
 
-const STATUSES = ["Open", "Replied", "Resolved"];
+const STATUSES = ["Open", "Replied", "Resolved", "Closed"];
 
 function initials(name = "") {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "—";
@@ -75,7 +76,6 @@ export default function SupportHubPage() {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);

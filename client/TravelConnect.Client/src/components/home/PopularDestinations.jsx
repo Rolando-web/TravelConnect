@@ -69,6 +69,8 @@ export default function PopularDestinations() {
                 <img 
                   src={dest.imageUrl || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80"} 
                   alt={`${city}, ${country}`} 
+                  loading="lazy" 
+                  decoding="async" 
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
                 />
                 

@@ -180,7 +180,7 @@ export default function BookingsPage() {
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   // Reset to page 1 whenever filters change
-  useMemo(() => setPage(1), [query, activeStatus, activePayment]);
+  useEffect(() => setPage(1), [query, activeStatus, activePayment]);
 
   const total = bookings.reduce((s, b) => s + (b.totalAmount ?? b.subtotal ?? 0), 0);
   const stats = [

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Download, Plus, Search, SlidersHorizontal, Inbox, RefreshCcw, Check, X, ShieldCheck } from "lucide-react";
+import { Download, Plus, Search, SlidersHorizontal, Inbox, RefreshCcw, Check, ShieldCheck } from "lucide-react";
 import { paymentsApi, getPaymentReconciliation, refundPaymentToWallet } from "../../services/api";
 import CrudModal from "../../components/admin/CrudModal";
 import StatCard from "../../components/admin/StatCard";
@@ -154,7 +154,7 @@ export default function PaymentsPage() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  useMemo(() => setPage(1), [query, activeStatus, activeMethod]);
+  useEffect(() => setPage(1), [query, activeStatus, activeMethod]);
 
   const totalCollected = payments.filter((p) => p.status === "Paid").reduce((s, p) => s + (p.amount || 0), 0);
   const stats = [

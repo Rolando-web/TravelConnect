@@ -102,12 +102,15 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
     /* ── customer side: my conversations + thread + send ─────────── */
 
     [HttpGet("conversations")]
-    public async Task<ActionResult<IEnumerable<SupportConversation>>> MyConversations(string? email)
+    public async Task<ActionResult<IEnumerable<SupportConversation>>> MyConversations(string? email, DateTime? since = null)
     {
         var customerEmail = ResolveCustomerEmail(email);
-        return await db.SupportConversations
+        var query = db.SupportConversations
             .AsNoTracking()
-            .Where(c => c.CustomerEmail.ToLower() == customerEmail.ToLower())
+            .Where(c => c.CustomerEmail.ToLower() == customerEmail.ToLower());
+        if (since.HasValue)
+            query = query.Where(c => c.LastMessageAt > since.Value.ToUniversalTime());
+        return await query
             .OrderByDescending(c => c.LastMessageAt)
             .ToListAsync();
     }
@@ -221,7 +224,7 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
     }
 
     [HttpGet("inbox")]
-    public async Task<ActionResult<IEnumerable<SupportConversation>>> Inbox(string? status, string? assignee, string? category)
+    public async Task<ActionResult<IEnumerable<SupportConversation>>> Inbox(string? status = null, string? assignee = null, string? category = null, int? page = null, int? pageSize = null)
     {
         var super = await IsSuperAdminAsync();
         var staff = await IsAgencyStaffAsync();
@@ -232,10 +235,23 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
             query = query.Where(c => c.Status == status);
         if (!string.IsNullOrWhiteSpace(assignee) && assignee != "All")
             query = query.Where(c => c.AssigneeEmail.ToLower() == assignee.ToLower());
-        if (!string.IsNullOrWhiteSpace(category) && category != "All")
+        if (string.IsNullOrWhiteSpace(category) || category == "All")
+        {
+            // No explicit category = the role's own scoped view. Agency Staff
+            // must not see tier (Subscription) conversations they cannot
+            // moderate — those belong to the Super Admin's inbox only.
+            query = query.Where(c => !IsTierConversation(c.Category));
+        }
+        else
+        {
             query = query.Where(c =>
                 (c.Category ?? string.Empty).ToLower() == category.ToLower());
-        return await query.OrderByDescending(c => c.LastMessageAt).ToListAsync();
+        }
+        var ps = Math.Clamp(pageSize ?? 200, 1, 500);
+        query = query.OrderByDescending(c => c.LastMessageAt);
+        if (page is > 0)
+            query = query.Skip((page.Value - 1) * ps);
+        return await query.Take(ps).ToListAsync();
     }
 
     [HttpGet("inbox/{id:int}")]
@@ -280,6 +296,27 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
             .Where(e => e.Type == "subscription_inquiry_notice" ||
                         e.Type == "subscription_inquiry_reply")
             .OrderByDescending(e => e.SentAt)
+            .Take(200)
+            .ToListAsync();
+    }
+
+    // Assignable support agents for the helpdesk "assign to" dropdown.
+    // Both Super Admin and Agency Staff can load the roster; only active
+    // users in either role appear so tickets are never handed to someone
+    // who is disabled or not on the support team.
+    [HttpGet("agents")]
+    public async Task<ActionResult<IEnumerable<object>>> Agents()
+    {
+        var super = await IsSuperAdminAsync();
+        var staff = await IsAgencyStaffAsync();
+        if (!super && !staff) return Forbid();
+
+        return await db.SystemUsers
+            .AsNoTracking()
+            .Where(u => u.Status.ToLower() == "active" &&
+                        (u.Role == "Super Admin" || u.Role == "Agency Staff"))
+            .OrderBy(u => u.DisplayName)
+            .Select(u => new { u.Id, name = u.DisplayName, email = u.Email, role = u.Role })
             .ToListAsync();
     }
 

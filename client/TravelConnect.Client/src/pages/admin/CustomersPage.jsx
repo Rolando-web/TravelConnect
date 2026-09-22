@@ -91,7 +91,7 @@ export default function CustomersPage() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  useMemo(() => setPage(1), [query, activeStatus, activeCountry]);
+  useEffect(() => setPage(1), [query, activeStatus, activeCountry]);
 
   const totalSpent = customers.reduce((s, c) => s + (c.totalSpent || 0), 0);
   const topSpender = customers.reduce((a, b) => (a && (a.totalSpent || 0) >= (b.totalSpent || 0) ? a : b), null);

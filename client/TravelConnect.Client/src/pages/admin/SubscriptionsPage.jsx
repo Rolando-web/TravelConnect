@@ -97,7 +97,7 @@ function initials(name = "") {
 export default function SubscriptionsPage() {
   const { role } = useOutletContext();
   const [subs, setSubs] = useState([]);
-  const [plans, setPlans] = useState([]);
+  const [, setPlans] = useState([]);
   const [stats, setStats] = useState(null);
   const [query, setQuery] = useState("");
   const [tierFilter, setTierFilter] = useState("all");
@@ -196,7 +196,7 @@ export default function SubscriptionsPage() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  useMemo(() => setPage(1), [query, tierFilter, statusFilter]);
+  useEffect(() => setPage(1), [query, tierFilter, statusFilter]);
 
   const daysLeft = (sub) => {
     const end = new Date(sub.endDate);

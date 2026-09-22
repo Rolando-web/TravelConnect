@@ -17,6 +17,7 @@ public class UsersController(TravelConnectDbContext db) : ControllerBase
         return await db.SystemUsers
             .AsNoTracking()
             .OrderByDescending(e => e.UpdatedAt)
+            .Take(500)
             .ToListAsync();
     }
 

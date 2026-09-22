@@ -1,5 +1,9 @@
 import { createContext, useContext, useState, useEffect } from "react";
 
+/* Context file: useTheme() hook is exported alongside the provider
+   (standard context-module pattern). */
+/* eslint-disable react-refresh/only-export-components */
+
 const ThemeContext = createContext();
 
 export function ThemeProvider({ children }) {

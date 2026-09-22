@@ -18,12 +18,16 @@ public class PaymentsController(
     PayMongoOptions payMongoOptions) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Payment>>> GetAll()
+    public async Task<ActionResult<IEnumerable<Payment>>> GetAll(int? page = null, int? pageSize = null)
     {
-        return await db.Payments
+        // Server-side page-size cap (generous default, hard 500 max).
+        var ps = Math.Clamp(pageSize ?? 200, 1, 500);
+        IQueryable<Payment> query = db.Payments
             .AsNoTracking()
-            .OrderByDescending(e => e.UpdatedAt)
-            .ToListAsync();
+            .OrderByDescending(e => e.UpdatedAt);
+        if (page is > 0)
+            query = query.Skip((page.Value - 1) * ps);
+        return await query.Take(ps).ToListAsync();
     }
 
     [HttpGet("{id:int}")]
@@ -238,6 +242,204 @@ public class PaymentsController(
         {
             return BadRequest(new { success = false, message = ex.Message });
         }
+    }
+
+    // ── Credit / Debit Card (in-app Payment Intents + 3-D Secure) ──────
+
+    public record CardIntentRequest(
+        decimal Amount,
+        string? BookingReference = null,
+        string? ReturnUrl = null);
+
+    public record CardAttachRequest(
+        string IntentId,
+        string CardNumber,
+        int ExpMonth,
+        int ExpYear,
+        string Cvc,
+        string? HolderName = null,
+        string? BookingReference = null,
+        string? CustomerEmail = null);
+
+    // POST api/payments/paymongo/card/intent
+    // Creates a card-only Payment Intent. The return_url is where PayMongo
+    // sends the 3-D Secure redirect when it completes (a dedicated popup page).
+    [HttpPost("paymongo/card/intent")]
+    [AllowAnonymous]
+    [EnableRateLimiting("anonymous-write")]
+    public async Task<IActionResult> CreateCardIntent([FromBody] CardIntentRequest req)
+    {
+        if (req.Amount <= 0)
+            return BadRequest(new { message = "Amount must be greater than zero." });
+        if (req.Amount < 20)
+            return BadRequest(new { message = "Minimum payment amount is PHP 20.00." });
+
+        var description = $"TravelConnect booking {req.BookingReference ?? "transactions"}";
+        var origin = $"{Request?.Scheme ?? "http"}://{Request?.Host ?? new Microsoft.AspNetCore.Http.HostString("localhost")}";
+        var returnUrl = string.IsNullOrWhiteSpace(req.ReturnUrl)
+            ? $"{origin}/payment-result?status=success"
+            : req.ReturnUrl;
+
+        try
+        {
+            var result = await payMongo.CreateCardPaymentIntentAsync(
+                (long)Math.Round(req.Amount * 100),
+                description,
+                returnUrl,
+                req.BookingReference);
+
+            if (string.IsNullOrWhiteSpace(result.IntentId))
+                return BadRequest(new { success = false, message = "PayMongo did not create a payment intent." });
+
+            return Ok(new
+            {
+                success = true,
+                intentId = result.IntentId,
+                clientKey = result.ClientKey,
+                status = result.Status
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    // POST api/payments/paymongo/card/attach
+    // Tokenizes the entered card and attaches it to the intent. PayMongo then
+    // either succeeds immediately or escalates to 3-D Secure (next_action.redirect).
+    [HttpPost("paymongo/card/attach")]
+    [AllowAnonymous]
+    [EnableRateLimiting("anonymous-write")]
+    public async Task<IActionResult> AttachCard([FromBody] CardAttachRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.IntentId))
+            return BadRequest(new { message = "Payment intent id is required." });
+
+        var number = req.CardNumber?.Replace(" ", string.Empty) ?? string.Empty;
+        var brand = CardUtils.CardBrand(number);
+        if (!CardUtils.IsValidLuhn(number) && !CardUtils.IsSandboxTestCard(number))
+            return BadRequest(new { message = "Please double-check the card number (invalid digits)." });
+        if (!CardUtils.IsValidExpiry(req.ExpMonth, req.ExpYear))
+            return BadRequest(new { message = "The card expiry date is in the past or invalid." });
+        if (!CardUtils.IsValidCvc(req.Cvc ?? string.Empty, brand))
+            return BadRequest(new { message = "The CVV/CVC must be 3 digits (4 for American Express)." });
+        var emailInvalid = false;
+        if (!string.IsNullOrWhiteSpace(req.CustomerEmail))
+        {
+            try
+            {
+                var addr = new System.Net.Mail.MailAddress(req.CustomerEmail.Trim());
+                emailInvalid = !addr.Address.Equals(req.CustomerEmail.Trim(), StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                emailInvalid = true;
+            }
+        }
+        if (emailInvalid)
+            return BadRequest(new { message = "A valid email address is required to process the card." });
+
+        try
+        {
+            var result = await payMongo.AttachCardToPaymentIntentAsync(req.IntentId, new CardDetails(
+                number, req.ExpMonth, req.ExpYear, req.Cvc?.Trim() ?? string.Empty,
+                req.HolderName, req.CustomerEmail?.Trim()));
+
+            return Ok(new
+            {
+                success = true,
+                intentId = result.IntentId,
+                status = result.Status,
+                nextAction = string.IsNullOrWhiteSpace(result.RedirectUrl)
+                    ? null
+                    : new { type = "redirect", redirectUrl = result.RedirectUrl },
+                failureReason = result.FailureReason,
+                cardBrand = brand
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    // GET api/payments/paymongo/card/{intentId}
+    // Polls a Payment Intent after 3-D Secure. Once "succeeded" the payment is
+    // recorded server-side (idempotent by ReferenceId = intentId) and the
+    // linked booking is marked paid.
+    [HttpGet("paymongo/card/{intentId}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetCardIntentStatus(string intentId)
+    {
+        if (string.IsNullOrWhiteSpace(intentId))
+            return BadRequest(new { message = "Payment intent id is required." });
+
+        try
+        {
+            var result = await payMongo.GetCardPaymentIntentAsync(intentId);
+
+            string? paymentId = null;
+            if (result.Status == "succeeded")
+            {
+                paymentId = await RecordCompletedCardPaymentAsync(result);
+            }
+
+            return Ok(new
+            {
+                success = true,
+                intentId = result.IntentId,
+                status = result.Status == "succeeded" ? "paid" : result.Status,
+                failureReason = result.FailureReason,
+                paymentId
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    // Upserts the payment row keyed by the intent id (idempotent — a poll
+    // retry can never double-insert) and marks the linked booking as paid.
+    private async Task<string> RecordCompletedCardPaymentAsync(CardPaymentIntentResult result)
+    {
+        var bookingRef = result.BookingReference;
+        var payment = await db.Payments.FirstOrDefaultAsync(p => p.ReferenceId == result.IntentId);
+        if (payment is null)
+        {
+            payment = new Payment { ReferenceId = result.IntentId, CreatedAt = DateTime.UtcNow };
+            db.Payments.Add(payment);
+        }
+
+        Booking? booking = null;
+        if (!string.IsNullOrWhiteSpace(bookingRef))
+        {
+            booking = await db.Bookings
+                .OrderByDescending(b => b.Id)
+                .FirstOrDefaultAsync(b =>
+                    b.ReferenceNumber == bookingRef || b.PackageName == bookingRef);
+        }
+
+        payment.BookingId = booking?.Id;
+        payment.CustomerName = booking?.CustomerName ?? string.Empty;
+        payment.PackageName = booking?.PackageName ?? "Travel Package";
+        payment.Amount = result.AmountPesos;
+        payment.Method = "card";
+        payment.Status = "Paid";
+        payment.PaymentDate = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        payment.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        if (booking is not null && !booking.Paid)
+        {
+            booking.Paid = true;
+            booking.TransactionId = result.IntentId;
+            booking.UpdatedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+        }
+
+        return result.IntentId;
     }
 
     // ── PayMongo Webhooks ──────────────────────────────────────────────

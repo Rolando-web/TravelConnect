@@ -42,6 +42,10 @@ builder.Services.AddOptions<PayMongoOptions>()
 // PayMongo checkout never opens.
 var payMongoOptions = new PayMongoOptions();
 payMongoConfig.Bind(payMongoOptions);
+
+// TEST-MODE ONLY: fail fast rather than charge real cards if a live key shows up.
+PayMongoService.GuardTestMode(payMongoOptions);
+
 builder.Services.AddSingleton(payMongoOptions);
 
 builder.Services.AddHttpClient<PayMongoService>();
@@ -51,6 +55,10 @@ builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email
 builder.Services.AddSingleton<EmailService>();
 builder.Services.AddSingleton<PdfService>();
 builder.Services.AddSingleton<CancellationService>();
+
+// Promo validation is shared by the public validation endpoint and the booking
+// pipeline. It consumes the scoped DbContext, so it must be scoped too.
+builder.Services.AddScoped<PromoService>();
 
 // EmailJS admin notifications (sent server-side so the email path is
 // rate-limited like the inquiry endpoint it rides on).
@@ -109,6 +117,18 @@ builder.Services.AddRateLimiter(options =>
             Window = TimeSpan.FromMinutes(1)
         }));
 
+    // Generous read budget for anonymous browsing/search endpoints so scrape
+    // bots can't hammer search while real customers never notice the limit.
+    options.AddPolicy("public-read", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        clientIp(ctx),
+        _ => new FixedWindowRateLimiterOptions
+        {
+            AutoReplenishment = true,
+            PermitLimit = 120,
+            QueueLimit = 0,
+            Window = TimeSpan.FromMinutes(1)
+        }));
+
     options.OnRejected = async (context, token) =>
     {
         context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
@@ -119,6 +139,11 @@ builder.Services.AddRateLimiter(options =>
             token);
     };
 });
+
+// Response cache for hot read-only endpoints (dashboard public stats,
+// featured packages, destinations). Short TTL keeps the catalog fresh while
+// sparing SQL Server from repeated full-table scans on every page load.
+builder.Services.AddResponseCaching();
 
 var app = builder.Build();
 
@@ -164,6 +189,8 @@ app.Use(async (ctx, next) =>
 });
 
 app.UseCors("ReactPolicy");
+
+app.UseResponseCaching();
 
 app.UseRateLimiter();
 

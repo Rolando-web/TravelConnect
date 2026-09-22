@@ -5,7 +5,6 @@ import {
   Plus,
   Search,
   SlidersHorizontal,
-  Star,
   Inbox,
   Mail,
   Phone,
@@ -144,7 +143,7 @@ export default function SuppliersPage() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  useMemo(() => setPage(1), [query, activeStatus, activeType]);
+  useEffect(() => setPage(1), [query, activeStatus, activeType]);
 
   const avgRating = suppliers.length
     ? suppliers.reduce((s, v) => s + (v.rating || 0), 0) / suppliers.length
