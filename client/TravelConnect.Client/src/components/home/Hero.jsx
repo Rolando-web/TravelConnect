@@ -5,34 +5,40 @@ import SearchCard from "./SearchCard";
 /* ─── Carousel slide data ───────────────────────────────────────────── */
 const SLIDES = [
   {
-    image: "https://images.unsplash.com/photo-1506929562872-bb421503ef21?auto=format&fit=crop&w=1920&q=80",
+    image: "https://images.unsplash.com/photo-1506929562872-bb421503ef21",
     tag: "Lose yourself in paradise",
     title: "Lose yourself in ",
     titleHighlight: "paradise",
     desc: "Book unique staycation packages curated by travel experts. Discover hidden gems, pristine beaches, and unforgettable adventures around the globe.",
   },
   {
-    image: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=1920&q=80",
+    image: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf",
     tag: "Discover neon nights",
     title: "Experience Tokyo's ",
     titleHighlight: "neon lights",
     desc: "Discover the perfect fusion of ancient tradition and ultra-modern style. Walk the streets of Shibuya and taste world-class cuisine.",
   },
   {
-    image: "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?auto=format&fit=crop&w=1920&q=80",
+    image: "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff",
     tag: "Iconic scenic retreats",
     title: "Sunsets over ",
     titleHighlight: "Santorini cliffs",
     desc: "Relax by the infinity pools of Greece's white-washed caldera. Sail across the Aegean sea and witness world-famous golden hours.",
   },
   {
-    image: "https://images.unsplash.com/photo-1531366936337-7c912a4589a7?auto=format&fit=crop&w=1920&q=80",
+    image: "https://images.unsplash.com/photo-1531366936337-7c912a4589a7",
     tag: "Ultimate winter getaways",
     title: "Adventure in the ",
     titleHighlight: "Swiss Alps",
     desc: "Breathtaking landscapes, snowy peaks, and cozy alpine chalets. Your dream winter getaway is just a booking away.",
   },
 ];
+
+// Build a responsive srcSet so mobile downloads a ~640px image instead of a
+// full-width desktop hero (~4x smaller bytes).
+const heroSrc = (base, w, q = 75) => `${base}?auto=format&fit=crop&w=${w}&q=${q}`;
+const heroSrcSet = (base) =>
+  `${heroSrc(base, 640)} 640w, ${heroSrc(base, 1024)} 1024w, ${heroSrc(base, 1920, 80)} 1920w`;
 
 /* ═══════════════════════════════════════════════════════════════════════
    HERO SECTION — carousel background + headline text + SearchCard
@@ -54,20 +60,26 @@ export default function Hero() {
     <section className="relative z-20 min-h-[92vh] flex flex-col justify-between pt-16 pb-16 md:pb-24 bg-slate-900">
       {/* ─── Background Image Carousel ─────────────────────────────── */}
       <div className="absolute inset-0 z-0 overflow-hidden">
-        {SLIDES.map((slide, index) => (
-          <div
-            key={index}
-            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${currentSlide === index ? "opacity-70 z-10" : "opacity-0 z-0"
-              }`}
-          >
-            <img
-              src={slide.image}
-              alt={slide.tag}
-              className={`w-full h-full object-cover object-center transition-transform duration-[6000ms] ease-out ${currentSlide === index ? "scale-105" : "scale-100"
-                }`}
-            />
-          </div>
-        ))}
+        {/* Only the active slide is mounted: one image in flight instead of the
+            full 4-slide set, cutting mobile image bytes ~4x for the hero. */}
+        {SLIDES.map((slide, index) =>
+          currentSlide === index ? (
+            <div
+              key={index}
+              className="absolute inset-0 animate-fadeIn overflow-hidden"
+            >
+              <img
+                src={heroSrc(slide.image, 1920, 80)}
+                srcSet={heroSrcSet(slide.image)}
+                sizes="100vw"
+                alt={slide.tag}
+                fetchPriority="high"
+                decoding="async"
+                className="w-full h-full object-cover object-center scale-105"
+              />
+            </div>
+          ) : null
+        )}
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900/60 via-slate-900/40 to-slate-900/80 z-20" />
       </div>
 

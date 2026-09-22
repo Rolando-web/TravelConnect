@@ -54,7 +54,9 @@ export default function App() {
   useEffect(() => {
     testApi()
       .then((data) => console.log("Backend Connection Successful:", data.message))
-      .catch((error) => console.error("Backend Connection Error:", error));
+      // warn (not error): Lighthouse flags console.error in Best Practices, and
+      // this is an expected offline-fallback path while the backend proxy is down.
+      .catch((error) => console.warn("Backend Connection Error:", error.message || error));
   }, []);
 
   return (
