@@ -132,20 +132,6 @@
     transform: none;
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .reveal,
-    .reveal-up,
-    .reveal-down,
-    .reveal-left,
-    .reveal-right,
-    .reveal-zoom,
-    .reveal-fade {
-      opacity: 1;
-      transform: none;
-      transition: none;
-    }
-  }
-
   /* Hide scrollbar while preserving scroll functionality */
   .no-scrollbar::-webkit-scrollbar {
     display: none;

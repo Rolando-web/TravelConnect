@@ -19,11 +19,8 @@ export default function Reveal({
     const el = ref.current;
     if (!el) return;
 
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      el.classList.add("reveal-visible");
-      return;
-    }
-
+    // Intentionally NOT gated on prefers-reduced-motion: the site owner wants
+    // the scroll-in effect everywhere. (Purely fade/transform, no flash.)
     const io = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
