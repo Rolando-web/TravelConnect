@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
-  Menu, X, User, LogOut, Calendar, Tag, Heart, Headset, ChevronDown, Coins, LayoutDashboard,
+  Menu, X, User, LogOut, Calendar, Tag, Heart, ChevronDown, Coins, LayoutDashboard,
   Sun, Moon
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -15,7 +15,6 @@ export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
-  const [supportModalOpen, setSupportModalOpen] = useState(false);
 
   const { isLoggedIn, user, logout, openLoginModal } = useAuth();
   const { walletBalance = 0 } = useBooking();
@@ -99,15 +98,6 @@ export default function Header() {
               <span className="text-[11px] text-slate-300 font-medium hidden md:inline">TravelConnect Money:</span>
               <span className="font-black text-xs text-emerald-400">{displayPrice(walletBalance)}</span>
             </div>
-
-            {/* Customer Support Link */}
-            <button
-              onClick={() => setSupportModalOpen(true)}
-              className="flex items-center gap-1.5 text-slate-200 hover:text-[#008fe5] transition font-medium text-xs"
-            >
-              <Headset size={14} className="text-[#008fe5]" />
-              <span className="hidden sm:inline">Customer support</span>
-            </button>
 
             {/* Light / Dark Mode Switcher */}
             <button
@@ -416,57 +406,6 @@ export default function Header() {
           </div>
         )}
       </nav>
-
-      {/* ── Customer Support Modal ──────────────────────────────────────────────── */}
-      {supportModalOpen && (
-        <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
-        >
-          <div
-            className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative border border-slate-100"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setSupportModalOpen(false)}
-              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100"
-            >
-              <X size={18} />
-            </button>
-
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#008fe5] flex items-center justify-center mb-4">
-              <Headset size={24} />
-            </div>
-
-            <h3 className="text-xl font-extrabold text-slate-900 mb-1">TravelConnect Support</h3>
-            <p className="text-xs text-slate-500 mb-6">Our 24/7 Philippines &amp; International support hotline is ready to help you with booking inquiries, cancellations, or special requests.</p>
-
-            <div className="space-y-3 mb-6">
-              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/60 flex items-center justify-between">
-                <div>
-                  <p className="text-[11px] text-slate-400 font-bold uppercase">Hotline (Philippines)</p>
-                  <p className="text-sm font-extrabold text-slate-800">+63 (02) 8888-8747</p>
-                </div>
-                <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded">24/7 Toll-Free</span>
-              </div>
-
-              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/60 flex items-center justify-between">
-                <div>
-                  <p className="text-[11px] text-slate-400 font-bold uppercase">Customer Support Email</p>
-                  <p className="text-sm font-extrabold text-slate-800">support@travelconnect.ph</p>
-                </div>
-                <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded">Fast Response</span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setSupportModalOpen(false)}
-              className="w-full bg-[#008fe5] hover:bg-blue-600 text-white font-bold py-3 rounded-xl text-xs transition"
-            >
-              Close Support Dialog
-            </button>
-          </div>
-        </div>
-      )}
     </header>
   );
 }
