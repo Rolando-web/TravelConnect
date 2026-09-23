@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { ArrowRight, MapPin, Compass, Flame } from "lucide-react";
 import { Link } from "react-router-dom";
-import { destinationsApi } from "../../services/api";
+import { destinationsApi, imgSrc, handleImgError } from "../../services/api";
 import { useCurrency } from "../../context/CurrencyContext";
 
 function parseName(name) {
@@ -67,10 +67,11 @@ export default function PopularDestinations() {
               >
                 {/* Image */}
                 <img 
-                  src={dest.imageUrl || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80"} 
+                  src={imgSrc(dest.imageUrl)} 
                   alt={`${city}, ${country}`} 
                   loading="lazy" 
                   decoding="async" 
+                  onError={handleImgError}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
                 />
                 

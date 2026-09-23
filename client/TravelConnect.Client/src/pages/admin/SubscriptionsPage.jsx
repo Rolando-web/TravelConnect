@@ -116,15 +116,24 @@ export default function SubscriptionsPage() {
 
   const [emailHistory, setEmailHistory] = useState([]);
   const [emailHistoryLoading, setEmailHistoryLoading] = useState(true);
+  const [emailHistoryError, setEmailHistoryError] = useState(null);
 
   const loadEmailHistory = async (asLoading = true) => {
     if (asLoading) setEmailHistoryLoading(true);
     try {
       const data = await supportAdminApi.emails();
       setEmailHistory(Array.isArray(data) ? data : []);
+      setEmailHistoryError(null);
     } catch (err) {
-      console.warn("Failed to load email history:", err.message);
+      const msg = err.message || "Failed to load email history";
+      const offline = /failed to fetch|network error|abort|404|502|503|504/i.test(msg);
+      console.warn("Failed to load email history:", msg);
       setEmailHistory([]);
+      setEmailHistoryError(
+        offline
+          ? "The API server isn't reachable from this preview, so email history can't load right now."
+          : msg
+      );
     } finally {
       setEmailHistoryLoading(false);
     }
@@ -376,6 +385,11 @@ export default function SubscriptionsPage() {
           ) : emailHistory.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-text-secondary">
               <Mail size={34} className="mb-3 opacity-50" />
+              {emailHistoryError && (
+                <p className="text-sm font-semibold text-amber-400 mb-2 px-6 text-center">
+                  {emailHistoryError}
+                </p>
+              )}
               <p className="font-medium">No subscription inquiry emails yet</p>
               <p className="text-sm mt-1">Tier inquiries from the website and email replies will appear here.</p>
             </div>

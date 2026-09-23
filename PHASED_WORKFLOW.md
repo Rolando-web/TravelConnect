@@ -45,6 +45,11 @@ PHASE 5 ── OPTIMIZATION UNIT TESTS + PERFORMANCE TESTS     ◄── GATE (r
 PHASE 6 ── CARD PAYMENTS (In-App Form + 3-D Secure)         ◄── GATE (Phase 5 signed off)
   │
   ▼
+PHASE 7 ── PRODUCTION HOTFIX (preview 404s / blank inquiry rows / client images)
+  ├── 7.1 Fix scope (client)
+  └── 7.2 Phase 7 Gate Checklist (F1–F5)                    ◄── GATE (F1–F3 done, F4–F5 QA)
+  │
+  ▼
 RELEASE GATE R1–R6 (benchmarks → deploy → FINAL SIGN-OFF)
   │
   ▼
@@ -472,6 +477,38 @@ Backend units: `Services/PayMongoService.cs` (intent methods), `Services/CardUti
 
 ---
 
+# PHASE 7 — PRODUCTION HOTFIX (Preview 404s, Blank Inquiry Rows, Client Images)
+
+**Requested after Phase 6 / release.** In the live Vercel preview the Super Admin
+"Tier Inquiries" tab threw a hard 404 because `vercel.json` proxies `/api/*` →
+`http://travelconnect.runasp.net/api/*` but the backend has not been deployed to
+MonsterASP yet (R5* still pending). Fix policy: **keep every Inquiry feature**
+(no removals), degrade gracefully while the API host is unreachable, never paint
+a raw red 404 or a wall of blank rows, and make client images resilient so no
+card ever shows a broken image.
+
+### 7.1 Fix scope
+
+| Area | Change |
+|------|--------|
+| `SupportHubPage.jsx` | `inbox()` 404/network failures show a friendly amber "API host unreachable" panel (`CloudOff`) instead of the raw red error; genuine backend errors still show red |
+| `AdminManagementPage.jsx` | Table load failures show friendly offline copy; the Inquiries table drops fully-blank rows (no name/email/subject/message) so it can't render empty cells |
+| `SubscriptionsPage.jsx` | Email History shows an amber note (not a silent blank) when `/api/support/emails` is unreachable |
+| `services/api.js` | New `imgSrc()` + `IMAGE_FALLBACK` + `handleImgError()`: relative paths resolve via `assetUrl`, empty/broken images swap to an Unsplash placeholder exactly once |
+| `FeaturedPackages.jsx` / `PopularDestinations.jsx` | Home card images use `imgSrc()` + `onError` fallback so uploaded images that 404 (backend down) fall back instead of breaking |
+
+### 7.2 Phase 7 Gate Checklist
+
+| # | Item | Dev | QA |
+|---|------|-----|-----|
+| F1 | SupportHub offline state — new `SupportHubPage.test.jsx` covers 404, network failure, list, and empty state | ☑ | |
+| F2 | `api.js` `imgSrc` / `handleImgError` unit tests — empty + relative + absolute + one-shot fallback | ☑ | |
+| F3 | Regression: backend **111/111** green, frontend **44/44** green, lint **0 problems**, `npm run build` + `check:bundle` pass | ☑ | |
+| F4 | Client-side QA in preview: Support Hub tier tab no longer raw-404s, Inquiries table has no blank rows, home cards show the placeholder (not a broken icon) while backend is undeployed | | ☐ |
+| F5 | Final QA once `travelconnect.runasp.net` is deployed (R5*): inbox loads real tier inquiries, Email History populates, uploaded images resolve | | ☐ |
+
+---
+
 # 4. Progress Log
 
 | Phase | Started | Completed | Sign-off (Dev/QA) | Result |
@@ -483,6 +520,7 @@ Backend units: `Services/PayMongoService.cs` (intent methods), `Services/CardUti
 | 4 Optimization | 2026-09-22 | 2026-09-22 | ✓ ✓ | Done — indexes, AsNoTracking sweep, page-size caps (500), response caching, `public-read` limiter, React.lazy split (41 chunks, entry 59 kB gzip), lazy images, debounced Helpdesk search, bundle gate; 73 backend / 27 frontend green |
 | 5 Optimization Unit Tests + Perf | 2026-09-22 | 2026-09-22 | ✓ / | Done — 8 perf-guard tests (caps/cache/limiter/indexes), `check:bundle`, k6 script; full regression green (73/73 + 27/27), lint 0 new. Manual: Lighthouse + `k6` live run + deploy (R5/R6 = user) |
 | 6 Card Payments (in-app + 3DS) | 2026-09-22 | 2026-09-23 | ✓ / | Done — Payment Intents backend + CardUtils + card endpoints, in-app CardPaymentForm + 3-D Secure poll + `/payment-result`, **TEST-MODE-ONLY** guard + `00 / 00` expiry mask; backend 111 + frontend 38 green, lint 0, build + bundle-gate pass. Live smoke vs real PayMongo sandbox passed (Visa success + 3-D Secure redirect + graceful decline). Remaining: human 3-D Secure popup click + admin Payments row = QA (user) |
+| 7 Production hotfix (preview 404s / blank inquiry rows / client images) | 2026-09-23 | 2026-09-23 | ✓ / | Done — Support Hub tier tab shows a friendly "API host unreachable" amber panel instead of the raw red 404; Inquiries table drops fully-blank rows; Email History shows an offline note; home package/destination cards use `imgSrc()` + `handleImgError()` so uploaded images fall back to a placeholder instead of breaking. Frontend **44/44** green, backend **111/111**, lint 0, build + bundle gate pass. Nothing removed. Deploy blockers unchanged: MonsterASP backend upload (R5*) + F4/F5 QA boxes |
 | Release Gate R1–R6 | 2026-09-23 | 2026-09-23 | ✓ / | R1–R5 Dev done: publish + build + vault/secrets clean + bundle gate OK + lint **0 problems** (62→0 cleanup: unused imports removed, `useMemo(setPage)` anti-pattern → `useEffect`, context-hook/static-component suppressions documented). Added **TEST-MODE-ONLY** PayMongo guard + `00 / 00` expiry mask. Pending (user): deploy to Vercel/host (R5*), human popup 3-D Secure QA, then R6 QA sign-off |
 | **Release** | | | / | **R6 pending — deploy on Vercel/host, then check QA boxes** |
 

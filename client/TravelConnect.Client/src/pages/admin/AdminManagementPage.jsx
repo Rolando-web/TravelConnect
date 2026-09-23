@@ -110,6 +110,21 @@ function dateStr(v) {
   return isNaN(d) ? String(v) : d.toISOString().slice(0, 10);
 }
 
+// Friendly copy for preview builds where the API host 404s / is unreachable.
+function friendlyLoadError(err) {
+  const msg = err?.message || "Failed to load data";
+  if (/failed to fetch|network error|abort|404|502|503|504/i.test(msg)) {
+    return "The API server isn't reachable from this preview, so data can't load right now. It appears once the backend is deployed to the API host.";
+  }
+  return msg;
+}
+
+// Skip fully-blank inquiry rows (no name/email/subject/message) so the table
+// never shows a wall of empty cells.
+function hasInquiryContent(r) {
+  return Boolean(r && (r.customerName || r.customerEmail || r.subject || r.message));
+}
+
 // Per-page configuration mapping to the backend resources.
 const PAGES = {
   users: {
@@ -413,13 +428,16 @@ export default function AdminManagementPage() {
     if (!config) return;
     config.api
       .list()
-      .then((data) => setRows(Array.isArray(data) ? data : []))
+      .then((data) => {
+        const rows = Array.isArray(data) ? data : [];
+        setRows(page === "inquiries" ? rows.filter(hasInquiryContent) : rows);
+      })
       .catch((err) => {
         setRows([]);
-        setError(err.message || "Failed to load data");
+        setError(friendlyLoadError(err));
       })
       .finally(() => setLoading(false));
-  }, [config]);
+  }, [config, page]);
 
   useEffect(() => {
     load();

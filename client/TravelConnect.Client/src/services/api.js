@@ -26,6 +26,27 @@ export function assetUrl(path) {
   return `${API_URL}${path}`;
 }
 
+// Stable placeholder for card/hero images whose stored value is empty, points
+// at the API host while it's unreachable (preview builds), or breaks on load.
+export const IMAGE_FALLBACK =
+  "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80";
+
+// Resolve any card/hero image to a working absolute URL:
+// stored relative path -> API-served, absolute URL -> as-is, empty -> placeholder.
+export function imgSrc(src) {
+  const path = String(src || "").trim();
+  return path ? assetUrl(path) : IMAGE_FALLBACK;
+}
+
+// <img onError> handler: swap a failed image for the placeholder exactly once
+// (onerror is nulled so a broken placeholder can never loop).
+export function handleImgError(event) {
+  const img = event?.currentTarget;
+  if (!img || img.onerror == null) return;
+  img.onerror = null;
+  img.src = IMAGE_FALLBACK;
+}
+
 async function authHeaders() {
   // Attach the Firebase ID token so [Authorize] endpoints accept the request.
   // Endpoints without [Authorize] (guest checkout, catalog, PayMongo) ignore it.

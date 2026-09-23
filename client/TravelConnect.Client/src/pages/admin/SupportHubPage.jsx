@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Inbox, RefreshCw, Send, Mail, Headset, Crown, LifeBuoy, CheckCircle } from "lucide-react";
+import { Inbox, RefreshCw, Send, Mail, Headset, Crown, LifeBuoy, CheckCircle, CloudOff } from "lucide-react";
 import { supportAdminApi } from "../../services/api";
 import StatCard from "../../components/admin/StatCard";
 
@@ -35,6 +35,7 @@ export default function SupportHubPage() {
   const [convos, setConvos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
+  const [loadErrorKind, setLoadErrorKind] = useState(null);
   const [selected, setSelected] = useState(null);
   const [thread, setThread] = useState(null);
   const [threadLoading, setThreadLoading] = useState(false);
@@ -54,10 +55,14 @@ export default function SupportHubPage() {
       const data = await supportAdminApi.inbox(`?category=${encodeURIComponent(category)}`);
       setConvos(Array.isArray(data) ? data : []);
       setLoadError(null);
+      setLoadErrorKind(null);
     } catch (err) {
-      console.warn("Failed to load support inbox:", err.message);
+      const msg = err.message || "Failed to load the support inbox";
+      const offline = /failed to fetch|network error|abort|404|502|503|504/i.test(msg);
+      console.warn("Failed to load support inbox:", msg);
       setConvos([]);
-      setLoadError(err.message || "Failed to load the support inbox");
+      setLoadError(msg);
+      setLoadErrorKind(offline ? "offline" : "error");
     } finally {
       setLoading(false);
     }
@@ -244,9 +249,18 @@ export default function SupportHubPage() {
           {loading ? (
             <div className="text-xs text-text-secondary py-8 text-center">Loading conversations…</div>
           ) : loadError ? (
-            <div className="text-center py-8 text-badge-red">
-              <p className="text-sm font-bold">{loadError}</p>
-              <p className="text-xs mt-1 text-text-secondary">Refresh to try again.</p>
+            <div className={`text-center py-8 ${loadErrorKind === "offline" ? "text-amber-400" : "text-badge-red"}`}>
+              <CloudOff size={28} className={`mx-auto mb-2 ${loadErrorKind === "offline" ? "text-amber-400/70" : "text-badge-red/70"}`} />
+              <p className="text-sm font-semibold leading-snug px-2">
+                {loadErrorKind === "offline"
+                  ? "The API server isn't reachable from this preview, so the inbox can't load right now."
+                  : loadError}
+              </p>
+              <p className="text-xs mt-1.5 text-text-secondary">
+                {loadErrorKind === "offline"
+                  ? "This works once the backend is deployed to the API host — Refresh to retry."
+                  : "Refresh to try again."}
+              </p>
             </div>
           ) : convos.length === 0 ? (
             <div className="text-center py-10 text-text-secondary">

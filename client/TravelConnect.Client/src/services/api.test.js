@@ -4,6 +4,9 @@ import {
   supportAdminApi,
   inquiriesApi,
   assetUrl,
+  imgSrc,
+  handleImgError,
+  IMAGE_FALLBACK,
   validatePromoCode,
 } from "./api";
 
@@ -127,6 +130,26 @@ describe("API client", () => {
     expect(assetUrl("/api/images/5")).toBe(`${API_URL}/api/images/5`);
     expect(assetUrl("https://cdn.example.com/x.png")).toBe("https://cdn.example.com/x.png");
     expect(assetUrl("")).toBe("");
+  });
+
+  it("imgSrc resolves paths and falls back to the placeholder when empty", () => {
+    expect(imgSrc("/api/images/5")).toBe(`${API_URL}/api/images/5`);
+    expect(imgSrc("https://cdn.example.com/x.png")).toBe("https://cdn.example.com/x.png");
+    expect(imgSrc("")).toBe(IMAGE_FALLBACK);
+    expect(imgSrc(null)).toBe(IMAGE_FALLBACK);
+    expect(imgSrc("   ")).toBe(IMAGE_FALLBACK);
+  });
+
+  it("handleImgError swaps a failed image for the placeholder exactly once", () => {
+    const img = { src: "/broken.jpg", onerror: () => {} };
+    handleImgError({ currentTarget: img });
+
+    expect(img.src).toBe(IMAGE_FALLBACK);
+    expect(img.onerror).toBeNull();
+
+    const before = img.src;
+    handleImgError({ currentTarget: img });
+    expect(img.src).toBe(before);
   });
 
   it("validatePromoCode falls back to client-side rules offline", async () => {

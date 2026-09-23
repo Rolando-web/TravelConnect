@@ -6,7 +6,7 @@ import {
 import { Link } from "react-router-dom";
 import { useBooking } from "../../context/BookingContext";
 import { useCurrency } from "../../context/CurrencyContext";
-import { packagesApi } from "../../services/api";
+import { packagesApi, imgSrc, handleImgError } from "../../services/api";
 
 const badge = (pkg) => {
   const map = {
@@ -110,10 +110,11 @@ export default function FeaturedPackages() {
                 {/* Top Image Banner */}
                 <div className="relative h-64 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
                   <img 
-                    src={pkg.imageUrl || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=85"} 
+                    src={imgSrc(pkg.imageUrl)} 
                     alt={pkg.name} 
                     loading="lazy" 
                     decoding="async" 
+                    onError={handleImgError}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
                   />
                   
