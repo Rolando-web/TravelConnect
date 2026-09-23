@@ -135,4 +135,47 @@ describe("SupportChatWidget", () => {
     );
     expect(await screen.findByText("hello agent")).toBeInTheDocument();
   });
+
+  it("sends a pre-made tier question in a Subscription conversation", async () => {
+    mocks.api.list.mockResolvedValue([]);
+    mocks.api.create.mockResolvedValue({ id: 7 });
+    mocks.api.thread.mockResolvedValue({ messages: [] });
+    mocks.api.markRead.mockResolvedValue(undefined);
+    mocks.api.send.mockResolvedValue({
+      id: 3,
+      body: "What is included in the Tier 2 Professional plan and how much does it cost per month?",
+      senderType: "customer",
+      createdAt: new Date().toISOString(),
+    });
+
+    render(<SupportChatWidget />);
+    fireEvent.click(screen.getByLabelText("Chat with customer support"));
+    await screen.findByText("What do you need help with?");
+    fireEvent.click(screen.getByText("Agency & Tier Plan"));
+
+    expect(await screen.findByText("Common tier questions")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Tier 2 Professional details"));
+
+    await waitFor(() =>
+      expect(mocks.api.send).toHaveBeenCalledWith(7, {
+        senderEmail: "c@tc.com",
+        body: "What is included in the Tier 2 Professional plan and how much does it cost per month?",
+      })
+    );
+  });
+
+  it("does not offer tier questions for a non-Subscription conversation", async () => {
+    mocks.api.list.mockResolvedValue([]);
+    mocks.api.create.mockResolvedValue({ id: 7 });
+    mocks.api.thread.mockResolvedValue({ messages: [] });
+    mocks.api.markRead.mockResolvedValue(undefined);
+
+    render(<SupportChatWidget />);
+    fireEvent.click(screen.getByLabelText("Chat with customer support"));
+    await screen.findByText("What do you need help with?");
+    fireEvent.click(screen.getByText("Refund / Problem"));
+
+    await screen.findByPlaceholderText("Type your message…");
+    expect(screen.queryByText("Common tier questions")).not.toBeInTheDocument();
+  });
 });

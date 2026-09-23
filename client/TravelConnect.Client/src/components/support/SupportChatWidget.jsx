@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { Headset, X, Send, Paperclip, MessageSquare, RefreshCw, Crown, LifeBuoy, ShoppingBag } from "lucide-react";
+import { Headset, X, Send, Paperclip, MessageSquare, RefreshCw, Crown, LifeBuoy, ShoppingBag, Sparkles } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { supportApi } from "../../services/api";
+import { TIER_QUICK_QUESTIONS } from "../../data/tierQuickReplies";
 
 const WELCOME = {
   role: "agent",
@@ -179,6 +180,23 @@ export function SupportChatWidget() {
     }
   }
 
+  /** Send a pre-made tier question straight into the active Subscription thread. */
+  async function sendQuickQuestion(question) {
+    if (!conv?.id || !isLoggedIn) return;
+    setSending(true);
+    try {
+      const msg = await supportApi.send(conv.id, {
+        senderEmail: user?.email,
+        body: question.message,
+      });
+      setMessages((m) => [...m, msg]);
+    } catch (err) {
+      console.warn("Quick question send failed:", err.message);
+    } finally {
+      setSending(false);
+    }
+  }
+
   return (
     <>
       {/* Bubble toggle */}
@@ -279,25 +297,46 @@ export function SupportChatWidget() {
 
           {/* Composer */}
           {conv && (
-            <div className="flex items-center gap-2 px-3 py-2.5 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-              <Paperclip size={18} className="text-slate-400" />
-              <input
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                placeholder={isLoggedIn ? "Type your message…" : "Sign in to start chatting…"}
-                disabled={!isLoggedIn}
-                className="flex-1 text-[13px] px-3 py-2 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-[#008fe5]/40"
-              />
-              <button
-                onClick={handleSend}
-                disabled={!isLoggedIn || sending || !draft.trim()}
-                className="w-9 h-9 rounded-full bg-[#008fe5] hover:bg-[#0079c4] text-white flex items-center justify-center disabled:opacity-40 transition"
-                aria-label="Send message"
-              >
-                <Send size={16} />
-              </button>
-            </div>
+            <>
+              {conv.category === "Subscription" && (
+                <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+                  <p className="text-[10px] font-bold text-cyan-600 dark:text-cyan-400 uppercase tracking-wide flex items-center gap-1 mb-1.5">
+                    <Sparkles size={11} /> Common tier questions
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {TIER_QUICK_QUESTIONS.map((q) => (
+                      <button
+                        key={q.id}
+                        onClick={() => sendQuickQuestion(q)}
+                        disabled={sending || !isLoggedIn}
+                        className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-[#008fe5] hover:text-[#008fe5] rounded-full px-3 py-1.5 transition disabled:opacity-40"
+                      >
+                        {q.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-2 px-3 py-2.5 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+                <Paperclip size={18} className="text-slate-400" />
+                <input
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                  placeholder={isLoggedIn ? "Type your message…" : "Sign in to start chatting…"}
+                  disabled={!isLoggedIn}
+                  className="flex-1 text-[13px] px-3 py-2 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-[#008fe5]/40"
+                />
+                <button
+                  onClick={handleSend}
+                  disabled={!isLoggedIn || sending || !draft.trim()}
+                  className="w-9 h-9 rounded-full bg-[#008fe5] hover:bg-[#0079c4] text-white flex items-center justify-center disabled:opacity-40 transition"
+                  aria-label="Send message"
+                >
+                  <Send size={16} />
+                </button>
+              </div>
+            </>
           )}
         </div>
       )}

@@ -50,6 +50,12 @@ PHASE 7 ── PRODUCTION HOTFIX (preview 404s / blank inquiry rows / client ima
   └── 7.2 Phase 7 Gate Checklist (F1–F5)                    ◄── GATE (F1–F3 done, F4–F5 QA)
   │
   ▼
+PHASE 8 ── TIER INQUIRY QUICK REPLIES + QUICK QUESTIONS
+  ├── 8A. Implementation (shared templates + chat chips + admin quick replies)
+  │                                                  ◄── GATE (8A builds, lints, runs clean)
+  └── 8B. Unit Tests (data invariants + widget + hub)  ◄── GATE (8B green → Phase 8 signed off)
+  │
+  ▼
 RELEASE GATE R1–R6 (benchmarks → deploy → FINAL SIGN-OFF)
   │
   ▼
@@ -509,6 +515,42 @@ card ever shows a broken image.
 
 ---
 
+# PHASE 8 — TIER INQUIRY QUICK REPLIES + QUICK QUESTIONS
+
+**Requested after Phase 7.** So the Super Admin never has to compose a tier reply
+from scratch, and customers never have to type: pre-made answers for the tier
+inquiries and pre-made questions for the customer chat, driven by one shared
+data module so prices/descriptions always match the plan (Starter ₱2,999 /
+Professional ₱7,999 / Enterprise ₱14,999).
+
+## Phase 8A — Implementation
+
+| Piece | What it does |
+|-------|--------------|
+| `src/data/tierQuickReplies.js` | Shared templates: `TIER_QUICK_QUESTIONS` (6 client chips: tier 1/2/3 details, upgrade, switch/downgrade, payment) and `TIER_QUICK_REPLIES` (6 canned answers with `matches` keywords + `suggestTierReply()` best-match helper). |
+| `SupportChatWidget.jsx` | When a **Subscription** conversation is open, shows "Common tier questions" chips; tapping one sends the pre-made message. Not shown for General/Problem threads. |
+| `SupportHubPage.jsx` | Tier tab shows a "Quick replies — tier inquiries" panel. One click inserts the canned reply into the reply box (appends to any existing draft). The best-match template for the customer's last message is starred and highlighted. |
+
+**Phase 8A gate:** lint 0, existing frontend suite green, build + bundle gate OK — verified before any tests were written.
+
+## Phase 8B — Unit Tests
+
+| Test | Covers |
+|------|--------|
+| `tierQuickReplies.test.js` | Non-empty, unique ids across questions/replies, correct shapes, `suggestTierReply` keyword matching (tier 1/2/3, upgrade, pay, unknown/null). |
+| `SupportChatWidget.test.jsx` | Sends a pre-made tier question in a Subscription thread; offers no chips on a non-Subscription thread. |
+| `SupportHubPage.test.jsx` | Clicking a quick reply fills the reply box with the canned answer; appends to an existing draft. |
+
+### 8.2 Phase 8 Gate Checklist
+
+| # | Item | Dev | QA |
+|---|------|-----|-----|
+| T1 | 8A implemented: shared data module + chat chips + hub quick-reply panel; lint 0, build + bundle gate OK, existing 44 tests green before writing new tests | ☑ | |
+| T2 | 8B tests green — frontend **53/53** (44 + 5 data + 2 widget + 2 hub), backend **111/111** regression | ☑ | |
+| T3 | Manual QA: pick "Agency & Tier Plan" in the chat → chips send tier questions; Super Admin Support Hub tier tab inserts canned replies (best-match starred) | | ☐ |
+
+---
+
 # 4. Progress Log
 
 | Phase | Started | Completed | Sign-off (Dev/QA) | Result |
@@ -521,6 +563,7 @@ card ever shows a broken image.
 | 5 Optimization Unit Tests + Perf | 2026-09-22 | 2026-09-22 | ✓ / | Done — 8 perf-guard tests (caps/cache/limiter/indexes), `check:bundle`, k6 script; full regression green (73/73 + 27/27), lint 0 new. Manual: Lighthouse + `k6` live run + deploy (R5/R6 = user) |
 | 6 Card Payments (in-app + 3DS) | 2026-09-22 | 2026-09-23 | ✓ / | Done — Payment Intents backend + CardUtils + card endpoints, in-app CardPaymentForm + 3-D Secure poll + `/payment-result`, **TEST-MODE-ONLY** guard + `00 / 00` expiry mask; backend 111 + frontend 38 green, lint 0, build + bundle-gate pass. Live smoke vs real PayMongo sandbox passed (Visa success + 3-D Secure redirect + graceful decline). Remaining: human 3-D Secure popup click + admin Payments row = QA (user) |
 | 7 Production hotfix (preview 404s / blank inquiry rows / client images) | 2026-09-23 | 2026-09-23 | ✓ / | Done — Support Hub tier tab shows a friendly "API host unreachable" amber panel instead of the raw red 404; Inquiries table drops fully-blank rows; Email History shows an offline note; home package/destination cards use `imgSrc()` + `handleImgError()` so uploaded images fall back to a placeholder instead of breaking. Frontend **44/44** green, backend **111/111**, lint 0, build + bundle gate pass. Nothing removed. Deploy blockers unchanged: MonsterASP backend upload (R5*) + F4/F5 QA boxes |
+| 8 Tier Inquiry Quick Replies + Quick Questions | 2026-09-23 | 2026-09-23 | ✓ / | Done — shared `tierQuickReplies.js` templates; customer chat shows "Common tier questions" chips on Subscription threads; Super Admin Support Hub tier tab has a quick-reply panel (best-match starred, insert/append). 8A gate passed (lint 0, build OK, existing 44 green) before 8B; frontend **53/53**, backend **111/111**, lint 0, bundle gate OK. T3 manual QA = user |
 | Release Gate R1–R6 | 2026-09-23 | 2026-09-23 | ✓ / | R1–R5 Dev done: publish + build + vault/secrets clean + bundle gate OK + lint **0 problems** (62→0 cleanup: unused imports removed, `useMemo(setPage)` anti-pattern → `useEffect`, context-hook/static-component suppressions documented). Added **TEST-MODE-ONLY** PayMongo guard + `00 / 00` expiry mask. Pending (user): deploy to Vercel/host (R5*), human popup 3-D Secure QA, then R6 QA sign-off |
 | **Release** | | | / | **R6 pending — deploy on Vercel/host, then check QA boxes** |
 

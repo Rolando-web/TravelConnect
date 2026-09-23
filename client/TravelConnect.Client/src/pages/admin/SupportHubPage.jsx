@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Inbox, RefreshCw, Send, Mail, Headset, Crown, LifeBuoy, CheckCircle, CloudOff } from "lucide-react";
+import { Inbox, RefreshCw, Send, Mail, Headset, Crown, LifeBuoy, CheckCircle, CloudOff, Sparkles } from "lucide-react";
 import { supportAdminApi } from "../../services/api";
+import { TIER_QUICK_REPLIES, suggestTierReply } from "../../data/tierQuickReplies";
 import StatCard from "../../components/admin/StatCard";
 
 /**
@@ -137,6 +138,24 @@ export default function SupportHubPage() {
       setSending(false);
     }
   };
+
+  /** Fill the reply box with a canned tier answer (keeps any draft already typed). */
+  const insertQuickReply = (template) => {
+    setReply((prev) => {
+      const existing = prev.trim();
+      return existing ? `${existing}\n\n${template.reply}` : template.reply;
+    });
+  };
+
+  // Best-match canned reply for the customer's latest message, so the admin can
+  // pin the right template at a glance.
+  const suggestedReplyId = useMemo(() => {
+    const lastCustomer = (thread?.messages || [])
+      .filter((m) => String(m.senderType || "").toLowerCase() !== "agent")
+      .slice(-1)[0];
+    const suggestion = suggestTierReply(lastCustomer?.body);
+    return suggestion?.id ?? null;
+  }, [thread]);
 
   const setStatus = async (status) => {
     if (!selected) return;
@@ -365,6 +384,37 @@ export default function SupportHubPage() {
                   <div className="text-xs text-text-secondary text-center py-8">No messages yet.</div>
                 )}
               </div>
+
+              {activeTab === "tier" && (
+                <div className={`mb-3 rounded-xl border p-2.5 ${suggestedReplyId ? "border-cyan-accent/50 bg-cyan-accent/10" : "border-navy-700 bg-navy-900/40"}`}>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-cyan-accent mb-2 flex items-center gap-1.5">
+                    <Sparkles size={12} /> Quick replies — tier inquiries
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {TIER_QUICK_REPLIES.map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => insertQuickReply(t)}
+                        disabled={sending}
+                        className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition disabled:opacity-40 ${
+                          suggestedReplyId === t.id
+                            ? "border-cyan-accent bg-cyan-accent/20 text-cyan-400"
+                            : "border-navy-700 bg-navy-900 text-text-secondary hover:border-cyan-accent/50 hover:text-slate-100"
+                        }`}
+                        title={t.reply}
+                      >
+                        {suggestedReplyId === t.id && "★ "}
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                  {suggestedReplyId && (
+                    <p className="text-[10px] text-text-secondary mt-2">
+                      ★ best match for the customer's last message — click to insert.
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="flex items-center gap-2 border-t border-navy-700 pt-3">
                 <textarea
