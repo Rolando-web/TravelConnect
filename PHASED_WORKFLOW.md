@@ -589,6 +589,45 @@ bundle gate OK.
 | U2 | 9B tests green — frontend **61/61**, backend **114/114** | ☑ | |
 | U3 | Manual QA: log in as **Super Admin** → "Tier Support" only; log in as **Agency Admin** (Maria Santos / `admin@travelconnect.com`) → Agency Support Hub only; **Agency Staff** sees neither support hub | | ☐ |
 
+## Phase 10A — Role → Firestore Sync + Mobile Booking Email
+
+**Requested after Phase 9.** Two fixes:
+
+1. **In-app role→Firestore sync.** The admin menu role is resolved from Firestore
+   `users/{uid}.role` (via `AuthContext.resolveRole`), **not** the backend
+   SystemUsers table — so editing a user's role on the System Users page never
+   changed what they saw until now. A new `syncRoleToFirestore(email, role)`
+   service queries Firestore `users` where the email matches and `setDoc {role}`
+   (merge) onto every matching profile; `AdminManagementPage.handleSave` calls it
+   after a successful users-page save (non-fatal if Firestore is unreachable).
+   Also adds `InternalsVisibleTo("TravelConnect.Server.Tests")` so the email
+   renderer can be unit-tested.
+2. **Mobile booking email.** The confirmation email rendered flights in one wide
+   5-column table; on phones the right-most (Seat) column was clipped and the seat
+   number was invisible. `BuildBookingConfirmationHtml` now renders each flight as
+   a stacked card (label/value rows: Route, Date, Time, Class, Seat badges) and the
+   document gets `<meta name='viewport'>`. Verified on an actual phone with a Gmail
+   client; layout now wraps, seat badges stay visible.
+
+**Phase 10A gate:** lint 0, frontend **65/65**, backend **118/118**, build + bundle
+gate OK. (Dev server restarted after the test build — the running exe locks the
+build output.)
+
+## Phase 10B — Unit Tests
+
+| Test | Covers |
+|------|--------|
+| `FirestoreRoleSync.test.js` *(new)* | Updates every Firestore profile matching the (trimmed) email via `setDoc {role}` merge; returns 0 when nothing matches / args missing; swallows Firestore failures. |
+| `EmailRenderTests.cs` *(new)* | Confirmation email renders every seat badge; contains the mobile viewport meta; flights render as stacked cards (no 5-column `<th>` table); route readable in the card. |
+
+### 10.2 Phase 10 Gate Checklist
+
+| # | Item | Dev | QA |
+|---|------|-----|-----|
+| U1 | 10A implemented: role→Firestore sync wired into System Users save + responsive stacked-card booking email (viewport meta); lint 0, build + bundle gate OK, existing suites green before writing new tests | ☑ | |
+| U2 | 10B tests green — frontend **65/65**, backend **118/118** | ☑ | |
+| U3 | Manual QA: change a user's role on System Users → sign out/in → admin menu reflects it; receive a booking confirmation and check the seat number is visible on a phone | | ☐ |
+
 ---
 
 # 4. Progress Log
@@ -605,6 +644,7 @@ bundle gate OK.
 | 7 Production hotfix (preview 404s / blank inquiry rows / client images) | 2026-09-23 | 2026-09-23 | ✓ / | Done — Support Hub tier tab shows a friendly "API host unreachable" amber panel instead of the raw red 404; Inquiries table drops fully-blank rows; Email History shows an offline note; home package/destination cards use `imgSrc()` + `handleImgError()` so uploaded images fall back to a placeholder instead of breaking. Frontend **44/44** green, backend **111/111**, lint 0, build + bundle gate pass. Nothing removed. Deploy blockers unchanged: MonsterASP backend upload (R5*) + F4/F5 QA boxes |
 | 8 Tier Inquiry Quick Replies + Quick Questions | 2026-09-23 | 2026-09-23 | ✓ / | Done — shared `tierQuickReplies.js` templates; customer chat shows "Common tier questions" chips on Subscription threads; Super Admin Support Hub tier tab has a quick-reply panel (best-match starred, insert/append). 8A gate passed (lint 0, build OK, existing 44 green) before 8B; frontend **53/53**, backend **111/111**, lint 0, bundle gate OK. T3 manual QA = user |
 | 9 Separate Support Hubs (role ownership) | 2026-09-24 | 2026-09-24 | ✓ / | Done — new **Agency Admin** role (agency owner); Super Admin hub = tier plan inquiries only (problems tab removed); new Agency Support Hub = the agency's customer problems, Agency Admin only; Super Admin `Forbid` from agency problems (backend + UI), agents roster = Super Admin/Agency Admin, staff loses support access. 9A gate passed (lint 0, build OK, 53/53 + 111/111) before 9B; frontend **61/61**, backend **114/114**, lint 0, bundle gate OK. U3 manual QA = user |
+| 10 Role→Firestore Sync + Mobile Booking Email | 2026-09-24 | 2026-09-24 | ✓ / | Done — System Users role edits now sync to the Firestore profile (menu role source) via `syncRoleToFirestore`; booking confirmation email switched from a clipping 5-column itinerary table to stacked per-flight cards with a viewport meta so the Seat number is readable on phones. 10A gate passed (lint 0, build OK, 65/65 + 118/118) before 10B; lint 0, bundle gate OK. U3 manual QA = user |
 | Release Gate R1–R6 | 2026-09-23 | 2026-09-23 | ✓ / | R1–R5 Dev done: publish + build + vault/secrets clean + bundle gate OK + lint **0 problems** (62→0 cleanup: unused imports removed, `useMemo(setPage)` anti-pattern → `useEffect`, context-hook/static-component suppressions documented). Added **TEST-MODE-ONLY** PayMongo guard + `00 / 00` expiry mask. Pending (user): deploy to Vercel/host (R5*), human popup 3-D Secure QA, then R6 QA sign-off |
 | **Release** | | | / | **R6 pending — deploy on Vercel/host, then check QA boxes** |
 

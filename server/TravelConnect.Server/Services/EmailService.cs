@@ -258,23 +258,43 @@ public class EmailService
             $"<span style='display:inline-block;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:4px;padding:2px 8px;margin:2px 2px 2px 0;font-size:12px;'>{E(s)}</span>"));
     }
 
-    private static string BuildBookingConfirmationHtml(Booking booking, List<BookingFlight> flights)
+    internal static string BuildBookingConfirmationHtml(Booking booking, List<BookingFlight> flights)
     {
-        var flightRows = string.Join("", flights.Select(f => $@"
-            <tr>
-                <td style='padding:12px;border-bottom:1px solid #e5e7eb;'>
-                    <strong>{E(f.Airline)} {E(f.FlightNumber)}</strong><br/>
-                    <span style='color:#6b7280;font-size:13px;'>{E(f.DepartureCity)} → {E(f.ArrivalCity)}</span>
-                </td>
-                <td style='padding:12px;border-bottom:1px solid #e5e7eb;'>{E(f.DepartureDate)}</td>
-                <td style='padding:12px;border-bottom:1px solid #e5e7eb;'>{E(f.DepartureTime)} — {E(f.ArrivalTime)}</td>
-                <td style='padding:12px;border-bottom:1px solid #e5e7eb;'>{E(f.Class)}</td>
-                <td style='padding:12px;border-bottom:1px solid #e5e7eb;font-weight:600;color:#06D6A0;'>{BuildSeatBadges(f.SeatNumber)}</td>
-            </tr>"));
+        // Each flight renders as its own stacked card (label + value rows) so the
+        // Seat number stays fully visible on narrow phone screens — a single
+        // 5-column table gets clipped and hides the right-most (Seat) column.
+        var flightCards = string.Join("", flights.Select(f => $@"
+            <div style='background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:12px;'>
+                <div style='font-weight:700;color:#0f172a;font-size:14px;margin-bottom:8px;'>
+                    ✈ {E(f.Airline)} {E(f.FlightNumber)}
+                </div>
+                <table style='width:100%;border-collapse:collapse;'>
+                    <tr>
+                        <td style='padding:4px 0;color:#6b7280;font-size:13px;width:35%;'>Route</td>
+                        <td style='padding:4px 0;font-weight:600;font-size:13px;'>{E(f.DepartureCity)} → {E(f.ArrivalCity)}</td>
+                    </tr>
+                    <tr>
+                        <td style='padding:4px 0;color:#6b7280;font-size:13px;'>Date</td>
+                        <td style='padding:4px 0;font-weight:600;font-size:13px;'>{E(f.DepartureDate)}</td>
+                    </tr>
+                    <tr>
+                        <td style='padding:4px 0;color:#6b7280;font-size:13px;'>Time</td>
+                        <td style='padding:4px 0;font-weight:600;font-size:13px;'>{E(f.DepartureTime)} — {E(f.ArrivalTime)}</td>
+                    </tr>
+                    <tr>
+                        <td style='padding:4px 0;color:#6b7280;font-size:13px;'>Class</td>
+                        <td style='padding:4px 0;font-weight:600;font-size:13px;'>{E(f.Class)}</td>
+                    </tr>
+                    <tr>
+                        <td style='padding:6px 0 2px;color:#6b7280;font-size:13px;'>Seat</td>
+                        <td style='padding:6px 0 2px;'>{BuildSeatBadges(f.SeatNumber)}</td>
+                    </tr>
+                </table>
+            </div>"));
 
         return $@"
         <!DOCTYPE html>
-        <html><head><meta charset='utf-8'/></head>
+        <html><head><meta charset='utf-8'/><meta name='viewport' content='width=device-width,initial-scale=1'/></head>
         <body style='font-family:Segoe UI,Arial,sans-serif;background:#f9fafb;margin:0;padding:24px;'>
         <div style='max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);'>
             <div style='background:linear-gradient(135deg,#06D6A0,#118AB2);padding:32px;text-align:center;'>
@@ -299,16 +319,7 @@ public class EmailService
 
                 {(flights.Count > 0 ? $@"
                 <h2 style='color:#1f2937;font-size:18px;margin:0 0 8px;'>Flight Itinerary</h2>
-                <table style='width:100%;border-collapse:collapse;margin-bottom:24px;'>
-                    <thead><tr style='background:#f3f4f6;'>
-                        <th style='padding:10px 12px;text-align:left;font-size:12px;color:#6b7280;'>Flight</th>
-                        <th style='padding:10px 12px;text-align:left;font-size:12px;color:#6b7280;'>Date</th>
-                        <th style='padding:10px 12px;text-align:left;font-size:12px;color:#6b7280;'>Time</th>
-                        <th style='padding:10px 12px;text-align:left;font-size:12px;color:#6b7280;'>Class</th>
-                        <th style='padding:10px 12px;text-align:left;font-size:12px;color:#6b7280;'>Seat</th>
-                    </tr></thead>
-                    <tbody>{flightRows}</tbody>
-                </table>" : "")}
+                {flightCards}" : "")}
 
                 <div style='background:#f8fafc;border-radius:8px;padding:16px;'>
                     <table style='width:100%;'>

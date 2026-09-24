@@ -29,6 +29,7 @@ import {
   promotionsApi,
   leadsApi,
 } from "../../services/api";
+import { syncRoleToFirestore } from "../../services/firestoreRoleSync";
 
 const customPages = { profile: ProfilePage, support: SupportPage, settings: SystemSettingsPage, helpdesk: HelpdeskInboxPage };
 
@@ -450,6 +451,17 @@ export default function AdminManagementPage() {
     try {
       if (modal.mode === "add") await config.api.create(form);
       else await config.api.update(modal.data.id, { ...form, id: modal.data.id });
+
+      // Role changes on the System Users page must also reach Firestore so the
+      // account's admin menu (resolved from users/{uid}.role) updates too.
+      if (page === "users" && form.email && form.role) {
+        try {
+          await syncRoleToFirestore(form.email, form.role);
+        } catch {
+          /* non-fatal: backend row is saved; Firestore sync can be retried */
+        }
+      }
+
       setModal({ open: false, mode: "add", data: null });
       setLoading(true);
       load();
