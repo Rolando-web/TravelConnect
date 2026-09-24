@@ -1,17 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Inbox, RefreshCw, Send, Mail, Headset, Crown, CheckCircle, CloudOff, Sparkles } from "lucide-react";
+import { Inbox, RefreshCw, Send, LifeBuoy, Headset, CheckCircle, CloudOff } from "lucide-react";
 import { supportAdminApi } from "../../services/api";
-import { TIER_QUICK_REPLIES, suggestTierReply } from "../../data/tierQuickReplies";
 import StatCard from "../../components/admin/StatCard";
 
 /**
- * Tier Support Hub — the Super Admin's tier plan inquiry workspace.
- *   • Tier Inquiries (Category = "Subscription") → handled by Super Admin
+ * Agency Support Hub — the agency owner's customer problem workspace.
+ *   • Customer Problems (refunds, general issues) → handled by Agency Admin
  *
- * The backend enforces the split (Subscription ⇒ Super Admin only; an
- * agency's customer problems ⇒ Agency Admin only), so the Super Admin has
- * no authority over an agency's own customer problems.
+ * The backend enforces the split (an agency's problems ⇒ Agency Admin only;
+ * Subscription/tier inquiries ⇒ Super Admin only), so the Super Admin has
+ * no authority over this agency's customer problems.
  */
 const STATUS_BADGE = {
   Open: "badge-orange",
@@ -26,9 +25,9 @@ function initials(name = "") {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "—";
 }
 
-export default function SupportHubPage() {
+export default function AgencySupportHubPage() {
   const { role } = useOutletContext();
-  const isSuper = role === "Super Admin";
+  const isAgencyAdmin = role === "Agency Admin";
 
   const [convos, setConvos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,9 +45,12 @@ export default function SupportHubPage() {
     window.setTimeout(() => setToast(null), 3000);
   };
 
+  // No explicit category: the backend scopes the inbox to the role's own
+  // view — the Agency Admin sees the agency's customer problems and is never
+  // handed the tier (Subscription) threads owned by the Super Admin.
   const load = async () => {
     try {
-      const data = await supportAdminApi.inbox(`?category=${encodeURIComponent("Subscription")}`);
+      const data = await supportAdminApi.inbox("");
       setConvos(Array.isArray(data) ? data : []);
       setLoadError(null);
       setLoadErrorKind(null);
@@ -110,40 +112,6 @@ export default function SupportHubPage() {
     }
   };
 
-  const sendEmailReply = async () => {
-    if (!selected || !reply.trim()) return;
-    setSending(true);
-    try {
-      const result = await supportAdminApi.replyEmail(selected, { body: reply.trim() });
-      setReply("");
-      await openThread(selected);
-      await load(false);
-      showToast(result?.sent ? "Email reply sent + logged in Email History" : "Reply saved to chat, but the email could not be sent");
-    } catch (err) {
-      showToast(err.message || "Failed to send email reply");
-    } finally {
-      setSending(false);
-    }
-  };
-
-  /** Fill the reply box with a canned tier answer (keeps any draft already typed). */
-  const insertQuickReply = (template) => {
-    setReply((prev) => {
-      const existing = prev.trim();
-      return existing ? `${existing}\n\n${template.reply}` : template.reply;
-    });
-  };
-
-  // Best-match canned reply for the customer's latest message, so the admin can
-  // pin the right template at a glance.
-  const suggestedReplyId = useMemo(() => {
-    const lastCustomer = (thread?.messages || [])
-      .filter((m) => String(m.senderType || "").toLowerCase() !== "agent")
-      .slice(-1)[0];
-    const suggestion = suggestTierReply(lastCustomer?.body);
-    return suggestion?.id ?? null;
-  }, [thread]);
-
   const setStatus = async (status) => {
     if (!selected) return;
     try {
@@ -160,11 +128,11 @@ export default function SupportHubPage() {
     [convos]
   );
 
-  if (!isSuper) {
+  if (!isAgencyAdmin) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-text-secondary">
         <Headset size={40} className="mb-3 opacity-50" />
-        <p className="font-medium">Tier plan inquiries are handled by the Super Admin only.</p>
+        <p className="font-medium">This agency's customer problems are handled by the Agency Admin only.</p>
       </div>
     );
   }
@@ -173,10 +141,10 @@ export default function SupportHubPage() {
     <>
       <section className="flex flex-wrap gap-4 items-start justify-between mb-7">
         <div>
-          <p className="text-text-secondary text-sm">{role} &gt; Tier Support Hub</p>
-          <h1 className="text-3xl font-black mt-1 font-serif">Tier Support Hub</h1>
+          <p className="text-text-secondary text-sm">{role} &gt; Agency Support Hub</p>
+          <h1 className="text-3xl font-black mt-1 font-serif">Agency Support Hub</h1>
           <p className="text-text-secondary mt-2">
-            Tier plan inquiries are handled by the Super Admin; an agency's own customer problems stay with the Agency Admin.
+            Your agency's customer problems (refunds &amp; general issues). The Super Admin only handles your tier plan.
           </p>
         </div>
         <button onClick={refresh} className="btn-primary">
@@ -192,8 +160,8 @@ export default function SupportHubPage() {
 
       <div className="grid sm:grid-cols-3 gap-4 mb-6">
         <StatCard label="Inbox" value={convos.length} note="All threads" icon={Inbox} />
-        <StatCard label="Unread" value={unreadCount} note="New messages" icon={Crown} />
-        <StatCard label="Tier Handler" value="Super Admin" note="This inbox" icon={Headset} />
+        <StatCard label="Unread" value={unreadCount} note="New messages" icon={LifeBuoy} />
+        <StatCard label="Problem Handler" value="Agency Admin" note="This inbox" icon={Headset} />
       </div>
 
       <div className="grid lg:grid-cols-[340px_1fr] gap-4 items-start">
@@ -201,7 +169,7 @@ export default function SupportHubPage() {
         <div className="card p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-bold uppercase tracking-wide text-text-secondary flex items-center gap-2">
-              <Inbox size={15} className="text-cyan-accent" /> Tier inquiries
+              <Inbox size={15} className="text-cyan-accent" /> Customer problems
             </h3>
             <button
               onClick={refresh}
@@ -230,9 +198,9 @@ export default function SupportHubPage() {
             </div>
           ) : convos.length === 0 ? (
             <div className="text-center py-10 text-text-secondary">
-              <Headset size={32} className="mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No tier inquiries yet.</p>
-              <p className="text-xs mt-1">New requests about your plans will appear here.</p>
+              <LifeBuoy size={32} className="mx-auto mb-2 opacity-50" />
+              <p className="text-sm">No customer problems yet.</p>
+              <p className="text-xs mt-1">New customer requests from your agency will appear here.</p>
             </div>
           ) : (
             <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
@@ -332,44 +300,15 @@ export default function SupportHubPage() {
                 )}
               </div>
 
-              <div className={`mb-3 rounded-xl border p-2.5 ${suggestedReplyId ? "border-cyan-accent/50 bg-cyan-accent/10" : "border-navy-700 bg-navy-900/40"}`}>
-                <p className="text-[10px] font-bold uppercase tracking-wide text-cyan-accent mb-2 flex items-center gap-1.5">
-                  <Sparkles size={12} /> Quick replies — tier inquiries
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {TIER_QUICK_REPLIES.map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => insertQuickReply(t)}
-                      disabled={sending}
-                      className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition disabled:opacity-40 ${
-                        suggestedReplyId === t.id
-                          ? "border-cyan-accent bg-cyan-accent/20 text-cyan-400"
-                          : "border-navy-700 bg-navy-900 text-text-secondary hover:border-cyan-accent/50 hover:text-slate-100"
-                      }`}
-                      title={t.reply}
-                    >
-                      {suggestedReplyId === t.id && "★ "}
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-                {suggestedReplyId && (
-                  <p className="text-[10px] text-text-secondary mt-2">
-                    ★ best match for the customer's last message — click to insert.
-                  </p>
-                )}
-              </div>
-
               <div className="flex items-center gap-2 border-t border-navy-700 pt-3">
                 <textarea
                   value={reply}
                   onChange={(e) => setReply(e.target.value)}
                   rows={2}
-                  placeholder="Reply as Super Admin…"
+                  placeholder="Reply as Agency Admin…"
                   className="flex-1 px-3 py-2 rounded-xl bg-navy-900 border border-navy-700 text-sm placeholder:text-text-secondary focus:outline-none focus:border-cyan-accent resize-none"
                 />
-                <div className="shrink-0 flex flex-col gap-1.5">
+                <div className="shrink-0">
                   <button
                     onClick={sendReply}
                     disabled={sending || !reply.trim()}
@@ -377,14 +316,6 @@ export default function SupportHubPage() {
                     title="Send as a chat message (customer's support bubble)"
                   >
                     <Send size={13} /> Chat
-                  </button>
-                  <button
-                    onClick={sendEmailReply}
-                    disabled={sending || !reply.trim()}
-                    className="h-9 px-3.5 rounded-xl bg-navy-700 hover:bg-navy-600 text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-40 transition"
-                    title="Send a real email to the customer and log it in Email History"
-                  >
-                    <Mail size={13} /> Email
                   </button>
                 </div>
               </div>

@@ -35,9 +35,10 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
         string.Empty;
 
     // Support is split by responsibility:
-    //   • Tier / subscription inquiries  → Super Admin only
-    //   • Refunds & general customer problems → Agency Staff only
-    // so each inbox is only reachable by the team meant to handle it.
+    //   • Tier / subscription inquiries  → Super Admin only (platform operator)
+    //   • Refunds & general customer problems → Agency Admin only (agency owner)
+    // So each inbox is only reachable by the team meant to handle it, and the
+    // Super Admin has no authority over an agency's customer problems.
 
     private async Task<SystemUser?> CurrentSystemUserAsync()
     {
@@ -82,12 +83,12 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
                su.Role == "Super Admin";
     }
 
-    private async Task<bool> IsAgencyStaffAsync()
+    private async Task<bool> IsAgencyAdminAsync()
     {
         var su = await CurrentSystemUserAsync();
         return su is not null &&
                su.Status.Equals("Active", StringComparison.OrdinalIgnoreCase) &&
-               su.Role == "Agency Staff";
+               su.Role == "Agency Admin";
     }
 
     private static bool IsTierConversation(string? category) =>
@@ -95,9 +96,10 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
 
     // Only the role responsible for a conversation's category may read or act
     // on it. Returns false (and the caller returns Forbid) when the caller is
-    // the wrong team.
-    private static bool CanModerate(string? category, bool isSuper, bool isStaff) =>
-        IsTierConversation(category) ? isSuper : isStaff;
+    // the wrong team. The Super Admin cannot moderate (or even read) an
+    // agency's customer problems.
+    private static bool CanModerate(string? category, bool isSuper, bool isAgencyAdmin) =>
+        IsTierConversation(category) ? isSuper : isAgencyAdmin;
 
     /* ── customer side: my conversations + thread + send ─────────── */
 
@@ -227,9 +229,9 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
     public async Task<ActionResult<IEnumerable<SupportConversation>>> Inbox(string? status = null, string? assignee = null, string? category = null, int? page = null, int? pageSize = null)
     {
         var super = await IsSuperAdminAsync();
-        var staff = await IsAgencyStaffAsync();
+        var admin = await IsAgencyAdminAsync();
         var tierView = IsTierConversation(category);
-        if (tierView ? !super : !staff) return Forbid();
+        if (tierView ? !super : !admin) return Forbid();
         var query = db.SupportConversations.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(status) && status != "All")
             query = query.Where(c => c.Status == status);
@@ -237,7 +239,7 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
             query = query.Where(c => c.AssigneeEmail.ToLower() == assignee.ToLower());
         if (string.IsNullOrWhiteSpace(category) || category == "All")
         {
-            // No explicit category = the role's own scoped view. Agency Staff
+            // No explicit category = the role's own scoped view. Agency Admin
             // must not see tier (Subscription) conversations they cannot
             // moderate — those belong to the Super Admin's inbox only.
             query = query.Where(c => !IsTierConversation(c.Category));
@@ -260,8 +262,8 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
         var conv = await db.SupportConversations.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
         if (conv is null) return NotFound(new { message = "Conversation not found" });
         var super = await IsSuperAdminAsync();
-        var staff = await IsAgencyStaffAsync();
-        if (!CanModerate(conv.Category, super, staff)) return Forbid();
+        var admin = await IsAgencyAdminAsync();
+        if (!CanModerate(conv.Category, super, admin)) return Forbid();
         var messages = await db.SupportMessages
             .AsNoTracking()
             .Where(m => m.SupportConversationId == id)
@@ -276,8 +278,8 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
         var conv = await db.SupportConversations.FirstOrDefaultAsync(c => c.Id == id);
         if (conv is null) return NotFound(new { message = "Conversation not found" });
         var super = await IsSuperAdminAsync();
-        var staff = await IsAgencyStaffAsync();
-        if (!CanModerate(conv.Category, super, staff)) return Forbid();
+        var admin = await IsAgencyAdminAsync();
+        if (!CanModerate(conv.Category, super, admin)) return Forbid();
         conv.UnreadByAgent = 0;
         conv.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
@@ -301,20 +303,20 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
     }
 
     // Assignable support agents for the helpdesk "assign to" dropdown.
-    // Both Super Admin and Agency Staff can load the roster; only active
+    // Both Super Admin and Agency Admin can load the roster; only active
     // users in either role appear so tickets are never handed to someone
     // who is disabled or not on the support team.
     [HttpGet("agents")]
     public async Task<ActionResult<IEnumerable<object>>> Agents()
     {
         var super = await IsSuperAdminAsync();
-        var staff = await IsAgencyStaffAsync();
-        if (!super && !staff) return Forbid();
+        var admin = await IsAgencyAdminAsync();
+        if (!super && !admin) return Forbid();
 
         return await db.SystemUsers
             .AsNoTracking()
             .Where(u => u.Status.ToLower() == "active" &&
-                        (u.Role == "Super Admin" || u.Role == "Agency Staff"))
+                        (u.Role == "Super Admin" || u.Role == "Agency Admin"))
             .OrderBy(u => u.DisplayName)
             .Select(u => new { u.Id, name = u.DisplayName, email = u.Email, role = u.Role })
             .ToListAsync();
@@ -326,8 +328,8 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
         var conv = await db.SupportConversations.FirstOrDefaultAsync(c => c.Id == id);
         if (conv is null) return NotFound(new { message = "Conversation not found" });
         var super = await IsSuperAdminAsync();
-        var staff = await IsAgencyStaffAsync();
-        if (!CanModerate(conv.Category, super, staff)) return Forbid();
+        var admin = await IsAgencyAdminAsync();
+        if (!CanModerate(conv.Category, super, admin)) return Forbid();
 
         var agentEmail = CurrentEmail();
         var msg = new SupportMessage
@@ -362,8 +364,8 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
         var conv = await db.SupportConversations.FirstOrDefaultAsync(c => c.Id == id);
         if (conv is null) return NotFound(new { message = "Conversation not found" });
         var super = await IsSuperAdminAsync();
-        var staff = await IsAgencyStaffAsync();
-        if (!CanModerate(conv.Category, super, staff)) return Forbid();
+        var admin = await IsAgencyAdminAsync();
+        if (!CanModerate(conv.Category, super, admin)) return Forbid();
 
         var body = request.Body?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(body))
@@ -406,8 +408,8 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
         var conv = await db.SupportConversations.FirstOrDefaultAsync(c => c.Id == id);
         if (conv is null) return NotFound(new { message = "Conversation not found" });
         var super = await IsSuperAdminAsync();
-        var staff = await IsAgencyStaffAsync();
-        if (!CanModerate(conv.Category, super, staff)) return Forbid();
+        var admin = await IsAgencyAdminAsync();
+        if (!CanModerate(conv.Category, super, admin)) return Forbid();
         conv.AssigneeEmail = Normalize(request.AssigneeEmail ?? string.Empty);
         conv.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
@@ -420,8 +422,8 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
         var conv = await db.SupportConversations.FirstOrDefaultAsync(c => c.Id == id);
         if (conv is null) return NotFound(new { message = "Conversation not found" });
         var super = await IsSuperAdminAsync();
-        var staff = await IsAgencyStaffAsync();
-        if (!CanModerate(conv.Category, super, staff)) return Forbid();
+        var admin = await IsAgencyAdminAsync();
+        if (!CanModerate(conv.Category, super, admin)) return Forbid();
         conv.Status = request.Status ?? "Open";
         conv.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();

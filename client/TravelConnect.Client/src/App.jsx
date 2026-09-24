@@ -40,6 +40,7 @@ const SupportPage = lazy(() => import("./pages/admin/SupportPage"));
 const SubscriptionsPage = lazy(() => import("./pages/admin/SubscriptionsPage"));
 const AdminManagementPage = lazy(() => import("./pages/admin/AdminManagementPage"));
 const SupportHubPage = lazy(() => import("./pages/admin/SupportHubPage"));
+const AgencySupportHubPage = lazy(() => import("./pages/admin/AgencySupportHubPage"));
 const PaymentResultPage = lazy(() => import("./pages/PaymentResultPage"));
 
 function SuspenseFallback() {
@@ -85,6 +86,7 @@ export default function App() {
                   <Route path="profile" element={<ProfilePage />} />
                   <Route path="support" element={<SupportPage />} />
                   <Route path="support-hub" element={<SupportHubPage />} />
+                  <Route path="agency-support" element={<AgencySupportHubPage />} />
                   <Route path="subscriptions" element={<SubscriptionsPage />} />
                   <Route path=":page" element={<AdminManagementPage />} />
                 </Route>

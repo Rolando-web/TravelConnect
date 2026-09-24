@@ -245,7 +245,7 @@ public class SupportControllerTests
     {
         using var db = TestDb.Create();
         await SeedUserAsync(db, "su", "super@tc.com", "Super Admin");
-        await SeedUserAsync(db, "st", "staff@tc.com", "Agency Staff");
+        await SeedUserAsync(db, "st", "staff@tc.com", "Agency Admin");
         await SeedConversationAsync(db, "c@tc.com", category: "Subscription");
         await SeedConversationAsync(db, "d@tc.com", category: "General");
 
@@ -258,7 +258,7 @@ public class SupportControllerTests
 
         var staffGeneral = await Controller(db, "st", "staff@tc.com").Inbox();
         var staffList = Assert.IsAssignableFrom<List<SupportConversation>>(staffGeneral.Value);
-        // Staff's unscoped inbox must exclude Subscription (tier) threads they
+        // Agency Admin's unscoped inbox must exclude Subscription (tier) threads they
         // cannot moderate; only the Super Admin's tier inbox may see them.
         Assert.Single(staffList);
         Assert.Equal("General", staffList[0].Category);
@@ -273,10 +273,38 @@ public class SupportControllerTests
     }
 
     [Fact]
-    public async Task Inbox_filters_by_status_and_assignee()
+    public async Task Inbox_forbids_agency_staff_from_both_inboxes()
     {
         using var db = TestDb.Create();
         await SeedUserAsync(db, "st", "staff@tc.com", "Agency Staff");
+        await SeedConversationAsync(db, "c@tc.com", category: "General");
+
+        var tier = await Controller(db, "st", "staff@tc.com").Inbox(category: "Subscription");
+        Assert.IsType<ForbidResult>(tier.Result);
+
+        var problems = await Controller(db, "st", "staff@tc.com").Inbox();
+        Assert.IsType<ForbidResult>(problems.Result);
+    }
+
+    [Fact]
+    public async Task Inbox_forbids_super_admin_from_customer_problems()
+    {
+        using var db = TestDb.Create();
+        await SeedUserAsync(db, "su", "super@tc.com", "Super Admin");
+        await SeedConversationAsync(db, "c@tc.com", category: "General");
+
+        var problems = await Controller(db, "su", "super@tc.com").Inbox();
+        Assert.IsType<ForbidResult>(problems.Result);
+
+        var all = await Controller(db, "su", "super@tc.com").Inbox(category: "All");
+        Assert.IsType<ForbidResult>(all.Result);
+    }
+
+    [Fact]
+    public async Task Inbox_filters_by_status_and_assignee()
+    {
+        using var db = TestDb.Create();
+        await SeedUserAsync(db, "st", "staff@tc.com", "Agency Admin");
         await SeedConversationAsync(db, "a@tc.com", status: "Open");
         await SeedConversationAsync(db, "b@tc.com", status: "Replied");
         var assigned = await SeedConversationAsync(db, "c@tc.com", status: "Open");
@@ -299,7 +327,7 @@ public class SupportControllerTests
     public async Task ReplyAsAgent_sets_status_and_increments_customer_unread()
     {
         using var db = TestDb.Create();
-        await SeedUserAsync(db, "st", "staff@tc.com", "Agency Staff");
+        await SeedUserAsync(db, "st", "staff@tc.com", "Agency Admin");
         var conv = await SeedConversationAsync(db, "c@tc.com", body: "help");
 
         var result = await Controller(db, "st", "staff@tc.com").ReplyAsAgent(conv.Id, new AgentReplyRequest { AgentName = "S", Body = "We are on it" });
@@ -319,10 +347,22 @@ public class SupportControllerTests
     public async Task ReplyAsAgent_forbidden_for_wrong_team_on_subscription()
     {
         using var db = TestDb.Create();
-        await SeedUserAsync(db, "st", "staff@tc.com", "Agency Staff");
+        await SeedUserAsync(db, "st", "staff@tc.com", "Agency Admin");
         var conv = await SeedConversationAsync(db, "c@tc.com", category: "Subscription");
 
         var result = await Controller(db, "st", "staff@tc.com").ReplyAsAgent(conv.Id, new AgentReplyRequest { Body = "x" });
+
+        Assert.IsType<ForbidResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task ReplyAsAgent_forbidden_for_super_admin_on_customer_problem()
+    {
+        using var db = TestDb.Create();
+        await SeedUserAsync(db, "su", "super@tc.com", "Super Admin");
+        var conv = await SeedConversationAsync(db, "c@tc.com", category: "General", body: "help");
+
+        var result = await Controller(db, "su", "super@tc.com").ReplyAsAgent(conv.Id, new AgentReplyRequest { Body = "x" });
 
         Assert.IsType<ForbidResult>(result.Result);
     }
@@ -370,7 +410,7 @@ public class SupportControllerTests
     public async Task Assign_normalizes_assignee_email()
     {
         using var db = TestDb.Create();
-        await SeedUserAsync(db, "st", "staff@tc.com", "Agency Staff");
+        await SeedUserAsync(db, "st", "staff@tc.com", "Agency Admin");
         var conv = await SeedConversationAsync(db, "c@tc.com");
 
         var result = await Controller(db, "st", "staff@tc.com").Assign(conv.Id, new AssignRequest { AssigneeEmail = "  STAFF@tc.com  " });
@@ -383,7 +423,7 @@ public class SupportControllerTests
     public async Task SetStatus_applies_canonical_status()
     {
         using var db = TestDb.Create();
-        await SeedUserAsync(db, "st", "staff@tc.com", "Agency Staff");
+        await SeedUserAsync(db, "st", "staff@tc.com", "Agency Admin");
         var conv = await SeedConversationAsync(db, "c@tc.com", status: "Open");
 
         var ctrl = Controller(db, "st", "staff@tc.com");
@@ -402,6 +442,7 @@ public class SupportControllerTests
     {
         using var db = TestDb.Create();
         await SeedUserAsync(db, "su", "super@tc.com", "Super Admin");
+        await SeedUserAsync(db, "ad", "admin@tc.com", "Agency Admin");
         await SeedUserAsync(db, "st", "staff@tc.com", "Agency Staff");
         await SeedUserAsync(db, "su2", "super2@tc.com", "Super Admin", status: "Inactive");
         await SeedUserAsync(db, "cu", "cust@tc.com", "Customer");
@@ -416,6 +457,8 @@ public class SupportControllerTests
         Assert.Equal(2, emails.Count);
         Assert.DoesNotContain("cust@tc.com", emails);
         Assert.DoesNotContain("super2@tc.com", emails);
+        // Agency Staff no longer own a support inbox, so they are not assignable.
+        Assert.DoesNotContain("staff@tc.com", emails);
     }
 
     [Fact]

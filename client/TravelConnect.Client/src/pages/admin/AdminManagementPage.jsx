@@ -134,7 +134,7 @@ const PAGES = {
       { key: "displayName", label: "Name", required: true },
       { key: "email", label: "Email", required: true },
       { key: "phone", label: "Phone" },
-      { key: "role", label: "Role", type: "select", options: ["Super Admin", "Agency Staff", "Finance Staff", "Supplier"] },
+      { key: "role", label: "Role", type: "select", options: ["Super Admin", "Agency Admin", "Agency Staff", "Finance Staff", "Supplier"] },
       { key: "department", label: "Department" },
       { key: "status", label: "Status", type: "select", options: ["Active", "Inactive"] },
     ],

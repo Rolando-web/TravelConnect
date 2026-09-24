@@ -16,12 +16,15 @@ const adminApi = vi.hoisted(() => ({
 
 vi.mock("../../services/api", () => ({ supportAdminApi: adminApi }));
 
+const out = vi.hoisted(() => ({ role: "Super Admin" }));
+
 vi.mock("react-router-dom", () => ({
-  useOutletContext: () => ({ role: "Super Admin" }),
+  useOutletContext: () => ({ role: out.role }),
 }));
 
 beforeEach(() => {
   Object.values(adminApi).forEach((fn) => fn.mockReset());
+  out.role = "Super Admin";
 });
 
 describe("admin SupportHubPage", () => {
@@ -67,6 +70,23 @@ describe("admin SupportHubPage", () => {
     render(<SupportHubPage />);
 
     expect(await screen.findByText(/No tier inquiries yet/i)).toBeInTheDocument();
+  });
+
+  it("shows the gate message to non-Super-Admin roles", async () => {
+    out.role = "Agency Admin";
+
+    render(<SupportHubPage />);
+
+    expect(screen.getByText(/Tier plan inquiries are handled by the Super Admin only/i)).toBeInTheDocument();
+  });
+
+  it("never exposes the agency's customer problems tab", async () => {
+    adminApi.inbox.mockResolvedValue([]);
+
+    render(<SupportHubPage />);
+
+    await screen.findByText(/No tier inquiries yet/i);
+    expect(screen.queryByRole("button", { name: /Customer Problems/ })).not.toBeInTheDocument();
   });
 
   it("inserts a pre-made quick reply into the reply box", async () => {

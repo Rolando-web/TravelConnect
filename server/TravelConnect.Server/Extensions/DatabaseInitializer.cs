@@ -280,7 +280,7 @@ public static class DatabaseInitializer
             var systemUsers = new[]
             {
                 new SystemUser { FirebaseUid = "", Email = "superadmin@travelconnect.com", DisplayName = "Juan Dela Cruz", Phone = "+63 917 123 4567", Role = "Super Admin", Department = "Administration", Status = "Active" },
-                new SystemUser { FirebaseUid = "", Email = "admin@travelconnect.com", DisplayName = "Maria Santos", Phone = "+63 918 234 5678", Role = "Agency Staff", Department = "Operations", Status = "Active" },
+                new SystemUser { FirebaseUid = "", Email = "admin@travelconnect.com", DisplayName = "Maria Santos", Phone = "+63 918 234 5678", Role = "Agency Admin", Department = "Operations", Status = "Active" },
                 new SystemUser { FirebaseUid = "", Email = "finance@travelconnect.com", DisplayName = "Pedro Reyes", Phone = "+63 919 345 6789", Role = "Finance Staff", Department = "Finance", Status = "Active" },
                 new SystemUser { FirebaseUid = "", Email = "supplier@travelconnect.com", DisplayName = "Ana Garcia", Phone = "+63 920 456 7890", Role = "Supplier", Department = "Supply Chain", Status = "Active" },
             };

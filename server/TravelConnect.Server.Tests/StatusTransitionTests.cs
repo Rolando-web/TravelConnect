@@ -14,7 +14,7 @@ public class StatusTransitionTests
 {
     private static SupportController StaffController(TravelConnectDbContext db)
     {
-        db.SystemUsers.Add(new SystemUser { FirebaseUid = "st", Email = "staff@tc.com", DisplayName = "Staff", Role = "Agency Staff", Status = "Active" });
+        db.SystemUsers.Add(new SystemUser { FirebaseUid = "st", Email = "staff@tc.com", DisplayName = "Staff", Role = "Agency Admin", Status = "Active" });
         db.SaveChanges();
         return new SupportController(db, TestDb.FakeEmailService()).WithIdentity("st", "staff@tc.com");
     }

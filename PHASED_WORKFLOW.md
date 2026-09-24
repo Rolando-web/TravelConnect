@@ -551,6 +551,46 @@ Professional ₱7,999 / Enterprise ₱14,999).
 
 ---
 
+## Phase 9A — Implementation
+
+**Requested after Phase 8.** Separate support hubs by ownership: the Super Admin's
+hub handles **only tier plan inquiries** (no authority over an agency's customer
+problems or modules), while a new **Agency Support Hub** handles the agency's own
+customer problems — accessible only to the new **Agency Admin** role (the agency
+owner). `admin@travelconnect.com` (Maria Santos) is seeded as the Agency Admin.
+
+| Piece | What it does |
+|-------|--------------|
+| `DatabaseInitializer.cs` | Seeds new role **"Agency Admin"**; Maria Santos (`admin@travelconnect.com`) → Agency Admin (agency owner). |
+| `SupportController.cs` | Authz split: `IsAgencyAdminAsync()`; `CanModerate` = tier→Super Admin only, problems→Agency Admin only; Inbox + read/reply/reply-email/status/assign all scoped through it; `agents` roster = active Super Admin/Agency Admin (Agency Staff excluded). Super Admin is **Forbidden** from the agency problem inbox and cannot reply to a customer problem. |
+| `adminConfig.js` | `ADMIN_ROLES` + "Agency Admin"; nav: Super Admin → "Tier Support", new "Agency Admin" group (Agency Support + agency modules), Agency Staff loses `support-hub`; `ADMIN_ACCESS`/`pageMeta` updated; `AdminManagementPage` role dropdown includes "Agency Admin". |
+| `SupportHubPage.jsx` | Tier-only hub (Super Admin): **removed** the Customer Problems tab, staff fallback, and tab switcher. |
+| `AgencySupportHubPage.jsx` *(new)* | Problems-only hub (Agency Admin): customer problems inbox, chat reply, status; no tier/email features. |
+| `App.jsx` | New route `/admin/agency-support`. |
+| `SupportChatWidget.jsx` | Copy updated: Refund/Problem/General issues → "Agency Admin"; tier → Super Admin. |
+
+**Phase 9A gate:** lint 0, frontend **53/53**, backend **111/111** (existing staff
+fixtures migrated to Agency Admin + one leftover `!staff` reference fixed), build +
+bundle gate OK.
+
+## Phase 9B — Unit Tests
+
+| Test | Covers |
+|------|--------|
+| `SupportControllerTests.cs` (added) | Agency Staff forbidden from **both** inboxes; Super Admin forbidden from the problems inbox (unscoped + `All`); Super Admin cannot reply to a customer problem; agents roster excludes Agency Staff; migrated fixtures assert Agency Admin can moderate problems but cannot moderate tier. |
+| `SupportHubPage.test.jsx` (updated) | Non-Super-Admin role sees the gate message; the tier page never renders a "Customer Problems" tab/button. |
+| `AgencySupportHubPage.test.jsx` *(new, 6 tests)* | Lists customer problems; empty state; gate for Super Admin **and** Agency Staff; sends a chat reply as Agency Admin; offline panel. |
+
+### 9.2 Phase 9 Gate Checklist
+
+| # | Item | Dev | QA |
+|---|------|-----|-----|
+| U1 | 9A implemented: new **Agency Admin** role + tier-only Super Admin hub + Agency Support Hub; Super Admin blocked from agency problems (backend `Forbid` + UI); lint 0, build + bundle gate OK, existing suites green before writing new frontend tests | ☑ | |
+| U2 | 9B tests green — frontend **61/61**, backend **114/114** | ☑ | |
+| U3 | Manual QA: log in as **Super Admin** → "Tier Support" only; log in as **Agency Admin** (Maria Santos / `admin@travelconnect.com`) → Agency Support Hub only; **Agency Staff** sees neither support hub | | ☐ |
+
+---
+
 # 4. Progress Log
 
 | Phase | Started | Completed | Sign-off (Dev/QA) | Result |
@@ -564,6 +604,7 @@ Professional ₱7,999 / Enterprise ₱14,999).
 | 6 Card Payments (in-app + 3DS) | 2026-09-22 | 2026-09-23 | ✓ / | Done — Payment Intents backend + CardUtils + card endpoints, in-app CardPaymentForm + 3-D Secure poll + `/payment-result`, **TEST-MODE-ONLY** guard + `00 / 00` expiry mask; backend 111 + frontend 38 green, lint 0, build + bundle-gate pass. Live smoke vs real PayMongo sandbox passed (Visa success + 3-D Secure redirect + graceful decline). Remaining: human 3-D Secure popup click + admin Payments row = QA (user) |
 | 7 Production hotfix (preview 404s / blank inquiry rows / client images) | 2026-09-23 | 2026-09-23 | ✓ / | Done — Support Hub tier tab shows a friendly "API host unreachable" amber panel instead of the raw red 404; Inquiries table drops fully-blank rows; Email History shows an offline note; home package/destination cards use `imgSrc()` + `handleImgError()` so uploaded images fall back to a placeholder instead of breaking. Frontend **44/44** green, backend **111/111**, lint 0, build + bundle gate pass. Nothing removed. Deploy blockers unchanged: MonsterASP backend upload (R5*) + F4/F5 QA boxes |
 | 8 Tier Inquiry Quick Replies + Quick Questions | 2026-09-23 | 2026-09-23 | ✓ / | Done — shared `tierQuickReplies.js` templates; customer chat shows "Common tier questions" chips on Subscription threads; Super Admin Support Hub tier tab has a quick-reply panel (best-match starred, insert/append). 8A gate passed (lint 0, build OK, existing 44 green) before 8B; frontend **53/53**, backend **111/111**, lint 0, bundle gate OK. T3 manual QA = user |
+| 9 Separate Support Hubs (role ownership) | 2026-09-24 | 2026-09-24 | ✓ / | Done — new **Agency Admin** role (agency owner); Super Admin hub = tier plan inquiries only (problems tab removed); new Agency Support Hub = the agency's customer problems, Agency Admin only; Super Admin `Forbid` from agency problems (backend + UI), agents roster = Super Admin/Agency Admin, staff loses support access. 9A gate passed (lint 0, build OK, 53/53 + 111/111) before 9B; frontend **61/61**, backend **114/114**, lint 0, bundle gate OK. U3 manual QA = user |
 | Release Gate R1–R6 | 2026-09-23 | 2026-09-23 | ✓ / | R1–R5 Dev done: publish + build + vault/secrets clean + bundle gate OK + lint **0 problems** (62→0 cleanup: unused imports removed, `useMemo(setPage)` anti-pattern → `useEffect`, context-hook/static-component suppressions documented). Added **TEST-MODE-ONLY** PayMongo guard + `00 / 00` expiry mask. Pending (user): deploy to Vercel/host (R5*), human popup 3-D Secure QA, then R6 QA sign-off |
 | **Release** | | | / | **R6 pending — deploy on Vercel/host, then check QA boxes** |
 

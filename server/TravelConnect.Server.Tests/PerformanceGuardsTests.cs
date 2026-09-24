@@ -131,7 +131,7 @@ public class PerformanceGuardsTests
     {
         using var db = TestDb.Create();
         await Seed(db, 520, Conversation);
-        db.SystemUsers.Add(new SystemUser { FirebaseUid = "st", Email = "staff@tc.com", DisplayName = "Staff", Role = "Agency Staff", Status = "Active" });
+        db.SystemUsers.Add(new SystemUser { FirebaseUid = "st", Email = "staff@tc.com", DisplayName = "Staff", Role = "Agency Admin", Status = "Active" });
         await db.SaveChangesAsync();
 
         var controller = new SupportController(db, TestDb.FakeEmailService())

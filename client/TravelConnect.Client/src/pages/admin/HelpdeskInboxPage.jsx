@@ -15,7 +15,7 @@ const STATUSES = ["Open", "Replied", "Resolved", "Closed"];
 /**
  * Multi-agent helpdesk inbox.
  *
- * Super Admin / Agency Staff (role-accessable, tier-gated) work the same
+ * Super Admin / Agency Admin (role-accessable, tier-gated) work the same
  * shared inbox. "Assign" picks a specific support agent so each ticket has
  * a single owner (the user's "who assign in the support" requirement).
  * The "assignedToMe" toggle shows only tickets owned by the current agent.

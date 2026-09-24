@@ -12,8 +12,8 @@ const WELCOME = {
 
 // A customer picks a topic when they start a chat. The topic becomes the
 // conversation Category, which routes each thread to the right admin inbox:
-//   • Subscription → Super Admin (Support Hub → Tier Inquiries)
-//   • Problem / General → Agency Staff (Support Hub → Customer Problems)
+//   • Subscription → Super Admin (Tier Support Hub)
+//   • Problem / General → Agency Admin (Agency Support Hub)
 const TOPICS = [
   {
     key: "General",
@@ -40,7 +40,7 @@ const TOPICS = [
 
 const HEADER_NOTE = {
   Subscription: "Handled by the Super Admin",
-  Problem: "Handled by our Agency Staff",
+  Problem: "Handled by our Agency Admin",
   General: "Typically replies in minutes",
 };
 
@@ -355,7 +355,7 @@ export function CustomerSupportExperience() {
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">Customer Support</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Agency &amp; tier plans go to the Super Admin; refunds and booking problems go to our Agency Staff.
+            Agency &amp; tier plans go to the Super Admin; refunds and booking problems go to your Agency Admin.
           </p>
         </div>
       </div>
