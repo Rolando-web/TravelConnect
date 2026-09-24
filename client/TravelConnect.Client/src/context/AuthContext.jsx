@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { auth, googleProvider, db } from "../services/firebase";
 import {
   onAuthStateChanged,
@@ -12,15 +12,27 @@ import { ADMIN_ROLES } from "../pages/admin/adminConfig";
 const AuthContext = createContext(null);
 
 // Bound async ops so a blocked/offline Firestore (e.g. an ad-blocker killing
-// firestore.googleapis.com) can't stall login for the SDK's full retry window.
-const FIRESTORE_TIMEOUT_MS = 4000;
-const withFirestoreTimeout = (promise, ms = FIRESTORE_TIMEOUT_MS) =>
+// firestore.googleapis.com) can't stall login for the SDK's full retry window,
+// and so the double role lookup (login + the auth-state callback that follows
+// it) never exceeds a fixed budget. Role resolution used to be serial and
+// unbounded-ish (up to ~4s per Firestore read × 2 reads ≈ 7s felt): it is now
+// bounded at NETWORK_TIMEOUT_MS per call and cached per-uid for the session.
+const NETWORK_TIMEOUT_MS = 2000;
+const withTimeout = (promise, ms = NETWORK_TIMEOUT_MS) =>
   Promise.race([
     promise,
     new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Firestore request timed out")), ms)
+      setTimeout(() => reject(new Error("Role lookup timed out")), ms)
     )
   ]);
+
+// The login flow reads the Firestore profile twice back-to-back: once inside
+// loginWithEmail/loginWithGoogle and again when onAuthStateChanged fires right
+// after sign-in. Cache the resolved role per uid (short TTL) so the second
+// lookup is free; the first result is still authoritative since it was just
+// fetched from Firestore this session.
+const ROLE_CACHE_TTL_MS = 60_000;
+const roleCache = new Map(); // uid -> { at: number, result: {role, profile} }
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -30,41 +42,52 @@ export function AuthProvider({ children }) {
   const openLoginModal = () => setLoginModalOpen(true);
   const closeLoginModal = () => setLoginModalOpen(false);
 
-  /* ── Resolve role: Firestore doc → custom claims → Customer ─── */
-  const resolveRole = async (firebaseUser) => {
+  /* ── Resolve role: Firestore doc → custom claims → Customer ───
+     Firestore and the ID-token claims are read in PARALLEL, each bounded by
+     the timeout, so the FASTEST source that yields a role wins and a slow
+     Firestore can never serialize behind another round-trip. Firestore is
+     preferred when both answer because it is the role source of truth. */
+  const resolveRole = useCallback(async (firebaseUser) => {
     const uid = firebaseUser.uid;
 
-    // 1) Try Firestore users/{uid}
-    try {
-      const snap = await withFirestoreTimeout(getDoc(doc(db, "users", uid)));
-      if (snap.exists()) {
-        const data = snap.data();
-        if (data.role) {
-          return { role: data.role, profile: data };
-        }
-      }
-    } catch (err) {
-      console.warn("Firestore read failed:", err.message);
+    const cached = roleCache.get(uid);
+    if (cached && Date.now() - cached.at < ROLE_CACHE_TTL_MS) {
+      return cached.result;
     }
 
-    // 2) Fallback: Firebase Auth custom claims
-    try {
-      const token = await firebaseUser.getIdTokenResult();
-      if (token.claims?.role) {
-        return { role: token.claims.role, profile: null };
-      }
-    } catch (err) {
-      console.warn("Custom claims read failed:", err.message);
-    }
+    const readFirestore = () =>
+      withTimeout(getDoc(doc(db, "users", uid)))
+        .then((snap) => {
+          if (!snap.exists()) return null;
+          const data = snap.data();
+          return data.role ? { role: data.role, profile: data } : null;
+        })
+        .catch((err) => {
+          console.warn("Firestore role read failed:", err.message);
+          return null;
+        });
 
-    // 3) No role found → treat as a self-registered customer
-    return { role: "Customer", profile: null };
-  };
+    const readClaims = () =>
+      withTimeout(firebaseUser.getIdTokenResult())
+        .then((token) =>
+          token.claims?.role ? { role: token.claims.role, profile: null } : null
+        )
+        .catch((err) => {
+          console.warn("Custom claims read failed:", err.message);
+          return null;
+        });
+
+    const [fromStore, fromClaims] = await Promise.all([readFirestore(), readClaims()]);
+
+    const result = fromStore || fromClaims || { role: "Customer", profile: null };
+    roleCache.set(uid, { at: Date.now(), result });
+    return result;
+  }, []);
 
   /* ── Ensure a Firestore profile exists for Google sign-ins ──── */
-  const ensureCustomerProfile = async (firebaseUser) => {
+  const ensureCustomerProfile = useCallback(async (firebaseUser) => {
     try {
-      const snap = await getDoc(doc(db, "users", firebaseUser.uid));
+      const snap = await withTimeout(getDoc(doc(db, "users", firebaseUser.uid)));
       if (snap.exists()) return snap.data();
 
       const profile = {
@@ -81,16 +104,16 @@ export function AuthProvider({ children }) {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      await withFirestoreTimeout(setDoc(doc(db, "users", firebaseUser.uid), profile, { merge: true }));
+      await withTimeout(setDoc(doc(db, "users", firebaseUser.uid), profile, { merge: true }));
       return profile;
     } catch (err) {
       console.warn("Could not write customer profile:", err.message);
       return { role: "Customer" };
     }
-  };
+  }, []);
 
   /* ── Build profile object ──────────────────────────────────── */
-  const buildProfile = (firebaseUser, role, extra) => ({
+  const buildProfile = useCallback((firebaseUser, role, extra) => ({
     uid: firebaseUser.uid,
     name:
       extra?.displayName ||
@@ -100,13 +123,18 @@ export function AuthProvider({ children }) {
     email: firebaseUser.email,
     photoURL: firebaseUser.photoURL || extra?.photoURL || null,
     role,
-  });
+  }), []);
 
-  const persistProfile = (profile) => {
+  const persistProfile = useCallback((profile) => {
     setUser(profile);
     localStorage.setItem("tc_logged_in", "true");
     localStorage.setItem("tc_user", JSON.stringify(profile));
-  };
+  }, []);
+
+  /* ── Apply a resolved role to the UI + localStorage (single path) ─ */
+  const setRoleAndPersist = useCallback((firebaseUser, resolved) => {
+    persistProfile(buildProfile(firebaseUser, resolved.role, resolved.profile));
+  }, [buildProfile, persistProfile]);
 
   /* ── Update current user profile (merges + persists) ───────── */
   const updateProfile = (patch) => {
@@ -121,6 +149,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
       if (!fbUser) {
+        roleCache.clear();
         setUser(null);
         localStorage.removeItem("tc_logged_in");
         localStorage.removeItem("tc_user");
@@ -128,45 +157,47 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      const { role, profile } = await resolveRole(fbUser);
+      const resolved = await resolveRole(fbUser);
+      setRoleAndPersist(fbUser, resolved);
 
-      if (role === "Customer") {
+      if (resolved.role === "Customer") {
         ensureCustomerProfile(fbUser).catch(() => {});
       }
 
-      persistProfile(buildProfile(fbUser, role, profile));
       setLoading(false);
     });
 
     return () => unsub();
-  }, []);
+  }, [resolveRole, ensureCustomerProfile, setRoleAndPersist]);
 
   /* ── Email/password login ──────────────────────────────────── */
   const loginWithEmail = async (email, password) => {
     const cred = await signInWithEmailAndPassword(auth, email, password);
-    const { role, profile } = await resolveRole(cred.user);
+    const resolved = await resolveRole(cred.user);
 
-    if (!role || role === "Customer") {
+    setRoleAndPersist(cred.user, resolved);
+
+    if (resolved.role === "Customer") {
       ensureCustomerProfile(cred.user).catch(() => {});
     }
 
-    persistProfile(buildProfile(cred.user, role || "Customer", profile));
     closeLoginModal();
-    return { role: role || "Customer" };
+    return { role: resolved.role };
   };
 
   /* ── Google login ──────────────────────────────────────────── */
   const loginWithGoogle = async () => {
     const cred = await signInWithPopup(auth, googleProvider);
-    const { role, profile } = await resolveRole(cred.user);
+    const resolved = await resolveRole(cred.user);
 
-    if (role === "Customer") {
+    setRoleAndPersist(cred.user, resolved);
+
+    if (resolved.role === "Customer") {
       ensureCustomerProfile(cred.user).catch(() => {});
     }
 
-    persistProfile(buildProfile(cred.user, role, profile));
     closeLoginModal();
-    return { role };
+    return { role: resolved.role };
   };
 
   /* ── Logout ────────────────────────────────────────────────── */
@@ -176,6 +207,7 @@ export function AuthProvider({ children }) {
     } catch {
       // ignore
     }
+    roleCache.clear();
     setUser(null);
     localStorage.removeItem("tc_logged_in");
     localStorage.removeItem("tc_user");

@@ -628,6 +628,25 @@ build output.)
 | U2 | 10B tests green — frontend **65/65**, backend **118/118** | ☑ | |
 | U3 | Manual QA: change a user's role on System Users → sign out/in → admin menu reflects it; receive a booking confirmation and check the seat number is visible on a phone | | ☐ |
 
+## Phase 11 — Login/Auth Latency (production ~7s → bounded)
+
+**Requested after Phase 10.** Signing in felt like ~7s. The role lookup ran a
+**serial** Firestore read (bounded at 4s) and then re-read the same Firestore doc
+a second time because `onAuthStateChanged` fires right after login and resolved
+the role again.
+
+| Piece | What it does |
+|-------|--------------|
+| `AuthContext.jsx` | Role resolution now reads **Firestore and ID-token claims in parallel** (Firestore preferred when both answer); every network op is bounded by `NETWORK_TIMEOUT_MS` (2000ms) — including `ensureCustomerProfile`'s `getDoc`/`setDoc` which were previously unbounded; a short-TTL **per-uid role cache** makes the post-login auth-state callback free (no second Firestore read); cache is cleared on logout; helpers stabilized with `useCallback` so the bootstrap effect isn't torn down. |
+
+Healthy Firestore: login resolves in ~200-300ms. Worst case (Firestore blocked):
+bounded at ~2s per lookup instead of the previous ~4s × 2 serial waits (≈7s).
+
+**Phase 11 gate:** lint 0, frontend **71/71** (6 new `AuthContext.test.jsx` cases:
+claims fallback when Firestore hangs, Firestore preferred over claims, single
+Firestore read across login + auth-state callback, cache cleared on logout,
+signed-out boot, bounded returning-session boot), build + bundle gate OK.
+
 ---
 
 # 4. Progress Log
@@ -645,6 +664,7 @@ build output.)
 | 8 Tier Inquiry Quick Replies + Quick Questions | 2026-09-23 | 2026-09-23 | ✓ / | Done — shared `tierQuickReplies.js` templates; customer chat shows "Common tier questions" chips on Subscription threads; Super Admin Support Hub tier tab has a quick-reply panel (best-match starred, insert/append). 8A gate passed (lint 0, build OK, existing 44 green) before 8B; frontend **53/53**, backend **111/111**, lint 0, bundle gate OK. T3 manual QA = user |
 | 9 Separate Support Hubs (role ownership) | 2026-09-24 | 2026-09-24 | ✓ / | Done — new **Agency Admin** role (agency owner); Super Admin hub = tier plan inquiries only (problems tab removed); new Agency Support Hub = the agency's customer problems, Agency Admin only; Super Admin `Forbid` from agency problems (backend + UI), agents roster = Super Admin/Agency Admin, staff loses support access. 9A gate passed (lint 0, build OK, 53/53 + 111/111) before 9B; frontend **61/61**, backend **114/114**, lint 0, bundle gate OK. U3 manual QA = user |
 | 10 Role→Firestore Sync + Mobile Booking Email | 2026-09-24 | 2026-09-24 | ✓ / | Done — System Users role edits now sync to the Firestore profile (menu role source) via `syncRoleToFirestore`; booking confirmation email switched from a clipping 5-column itinerary table to stacked per-flight cards with a viewport meta so the Seat number is readable on phones. 10A gate passed (lint 0, build OK, 65/65 + 118/118) before 10B; lint 0, bundle gate OK. U3 manual QA = user |
+| 11 Login/Auth Latency | 2026-09-24 | 2026-09-24 | ✓ / | Done — role resolution is now parallel (Firestore + claims) and bounded at 2s per call, with a short-TTL per-uid role cache so the post-login auth-state callback reuses the result (no second Firestore read); `ensureCustomerProfile` reads/writes are bounded too; cache cleared on logout. 11A gate passed (lint 0, build OK, 65/65) before 11B; frontend **71/71**, lint 0, bundle gate OK. Pending manual: verify login feels fast on prod deploy |
 | Release Gate R1–R6 | 2026-09-23 | 2026-09-23 | ✓ / | R1–R5 Dev done: publish + build + vault/secrets clean + bundle gate OK + lint **0 problems** (62→0 cleanup: unused imports removed, `useMemo(setPage)` anti-pattern → `useEffect`, context-hook/static-component suppressions documented). Added **TEST-MODE-ONLY** PayMongo guard + `00 / 00` expiry mask. Pending (user): deploy to Vercel/host (R5*), human popup 3-D Secure QA, then R6 QA sign-off |
 | **Release** | | | / | **R6 pending — deploy on Vercel/host, then check QA boxes** |
 
