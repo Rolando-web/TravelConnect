@@ -18,9 +18,14 @@ public static class SqlServerConnection
             options.UseSqlServer(connectionString, sql =>
             {
                 sql.MigrationsAssembly("TravelConnect.Server");
+                // Phase 13 — bounded retry window. 5 retries x up to 10s headroom
+                // reverts a dropped SQL connection without letting a retry storm
+                // compound a cold start. Tune via Sql:MaxRetryCount / Sql:MaxRetryDelaySeconds.
+                var maxRetryCount = configuration.GetValue("Sql:MaxRetryCount", 5);
+                var maxRetryDelay = TimeSpan.FromSeconds(configuration.GetValue("Sql:MaxRetryDelaySeconds", 10));
                 sql.EnableRetryOnFailure(
-                    maxRetryCount: 5,
-                    maxRetryDelay: TimeSpan.FromSeconds(30),
+                    maxRetryCount: maxRetryCount,
+                    maxRetryDelay: maxRetryDelay,
                     errorNumbersToAdd: null);
             }));
 

@@ -7,15 +7,33 @@ const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:5110").trim()
 
 const DEFAULT_TIMEOUT_MS = 12000;
 
+// Admin saves pay a cold-start penalty on idle-recycling hosts (MonsterASP), so
+// writes get a generous budget instead of aborting after the default 12s.
+const ADMIN_WRITE_TIMEOUT_MS = 45000;
+
+// Verbs that are safe to re-issue once automatically: a network abort during a
+// GET/PUT/DELETE can be retried without side effects. POST is deliberately NOT
+// here — retrying a create could duplicate a row/booking, so it stays single-shot
+// (it still benefits from the longer timeout above).
+const RETRYABLE_METHODS = new Set(["GET", "HEAD", "PUT", "DELETE"]);
+
 // Every outbound call is bounded by an AbortController so a slow or unreachable
 // backend (a sleeping shared host, a dead proxy target, or an ad-blocker killing
 // the request) can never hold the UI hostage for the browser's ~30s timeout.
-function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  return fetch(url, { ...options, signal: controller.signal }).finally(() =>
-    clearTimeout(timer)
-  );
+// A single automatic retry absorbs a cold-start abort on idempotent verbs.
+export function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
+  const method = (options.method || "GET").toUpperCase();
+  const attempt = (n) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    return fetch(url, { ...options, signal: controller.signal })
+      .finally(() => clearTimeout(timer))
+      .catch((err) => {
+        if (n === 0 && RETRYABLE_METHODS.has(method)) return attempt(1);
+        throw err;
+      });
+  };
+  return attempt(0);
 }
 
 // Resolve stored image paths into absolute URLs.
@@ -54,7 +72,7 @@ async function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-async function request(url, options = {}) {
+async function request(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const headers = {
     "Content-Type": "application/json",
     ...(await authHeaders()),
@@ -63,7 +81,7 @@ async function request(url, options = {}) {
   const response = await fetchWithTimeout(`${API_URL}${url}`, {
     ...options,
     headers
-  });
+  }, timeoutMs);
   if (!response.ok) {
     const errBody = await response.json().catch(() => null);
     const message = errBody?.message || errBody?.detail || `Request failed (${response.status})`;
@@ -79,9 +97,9 @@ function crud(resource) {
   return {
     list: (query = "") => request(`/api/${resource}${query}`),
     get: (id) => request(`/api/${resource}/${id}`),
-    create: (body) => request(`/api/${resource}`, { method: "POST", body: JSON.stringify(body) }),
-    update: (id, body) => request(`/api/${resource}/${id}`, { method: "PUT", body: JSON.stringify(body) }),
-    remove: (id) => request(`/api/${resource}/${id}`, { method: "DELETE" })
+    create: (body) => request(`/api/${resource}`, { method: "POST", body: JSON.stringify(body) }, ADMIN_WRITE_TIMEOUT_MS),
+    update: (id, body) => request(`/api/${resource}/${id}`, { method: "PUT", body: JSON.stringify(body) }, ADMIN_WRITE_TIMEOUT_MS),
+    remove: (id) => request(`/api/${resource}/${id}`, { method: "DELETE" }, ADMIN_WRITE_TIMEOUT_MS)
   };
 }
 
@@ -149,7 +167,7 @@ export async function uploadImage(file) {
     method: "POST",
     body: form,
     headers: await authHeaders()
-  });
+  }, ADMIN_WRITE_TIMEOUT_MS);
   if (!response.ok) {
     const errBody = await response.json().catch(() => null);
     throw new Error(errBody?.message || "Image upload failed");

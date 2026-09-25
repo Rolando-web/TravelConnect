@@ -8,6 +8,7 @@ import {
   handleImgError,
   IMAGE_FALLBACK,
   validatePromoCode,
+  fetchWithTimeout,
 } from "./api";
 
 vi.mock("./firebase", () => ({
@@ -220,5 +221,58 @@ describe("API client", () => {
     const flat = await validatePromoCode("FLAT300", 2000);
     expect(flat.discountAmount).toBe(300);
     expect(flat.finalAmount).toBe(1700);
+  });
+
+  it("retries a network-rejected GET once and succeeds on the second attempt", async () => {
+    let calls = 0;
+    globalThis.fetch = vi.fn(() => {
+      calls += 1;
+      return calls === 1
+        ? Promise.reject(new TypeError("Failed to fetch"))
+        : Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) });
+    });
+
+    const res = await fetchWithTimeout(`${API_URL}/api/test`);
+    expect(res.status).toBe(200);
+    expect(calls).toBe(2);
+  });
+
+  it("retries idempotent PUT once (admin edit survives a cold-start abort)", async () => {
+    let calls = 0;
+    globalThis.fetch = vi.fn(() => {
+      calls += 1;
+      return calls === 1
+        ? Promise.reject(new TypeError("Failed to fetch"))
+        : Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) });
+    });
+
+    await fetchWithTimeout(`${API_URL}/api/flights/1`, { method: "PUT" });
+    expect(calls).toBe(2);
+  });
+
+  it("does NOT retry POST — create stays single-shot to avoid duplicates", async () => {
+    let calls = 0;
+    globalThis.fetch = vi.fn(() => {
+      calls += 1;
+      return Promise.reject(new TypeError("Failed to fetch"));
+    });
+
+    await expect(
+      fetchWithTimeout(`${API_URL}/api/flights`, { method: "POST" })
+    ).rejects.toThrow("Failed to fetch");
+    expect(calls).toBe(1);
+  });
+
+  it("only retries once — a second failure still rejects", async () => {
+    let calls = 0;
+    globalThis.fetch = vi.fn(() => {
+      calls += 1;
+      return Promise.reject(new TypeError("Failed to fetch"));
+    });
+
+    await expect(
+      fetchWithTimeout(`${API_URL}/api/flights/1`, { method: "DELETE" })
+    ).rejects.toThrow("Failed to fetch");
+    expect(calls).toBe(2);
   });
 });

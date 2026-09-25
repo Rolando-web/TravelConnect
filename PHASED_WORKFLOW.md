@@ -740,6 +740,36 @@ Probable contributors, strongest first:
 
 **Phase 13 does NOT start until Phase 12 is signed off (F1–F3).**
 
+## Phase 13A — Implementation (COMPLETE)
+
+| Piece | What it does |
+|-------|--------------|
+| `Middleware/RequestTimingMiddleware.cs` | Phase 13 observability: every request is Stopwatch-timed end-to-end (even under an exception — the `finally` always logs), stamped with `X-Elapsed-Ms` + `X-Request-Id` via an `OnStarting` callback (headers must be written before Kestrel commits the response), and requests `>= RequestTiming:SlowThresholdMs` (default 1s) are logged as **SLOW request** warnings. This is what will show the 20-30s cold start vs real controller work in production. It was registered early in `Program.cs` (`app.UseRequestTiming()`), and hit a real bug during smoke-testing (headers read-only after response start) — fixed with `OnStarting`, verified live (`X-Elapsed-Ms: 309` on `/api/flights`). |
+| `Services/KeepAliveService.cs` | App-Pool keep-alive `BackgroundService`: pings `KeepAlive:TargetUrl` (e.g. `https://travelconnect.runasp.net/api/test`) every `IntervalMinutes` (default 5). Keeps the idle-recycling host warm, and because every ping rides the timing middleware, its log line doubles as the cold-start proof. Disabled cleanly when `TargetUrl` is empty. Registered via `AddHostedService`. |
+| `SqlServerConnection.cs` | Bounded the EF retry window: `Sql:MaxRetryCount` (default 5) x `Sql:MaxRetryDelaySeconds` (default 10 — was a flat 30s delay) so a dropped SQL connection can't stack a retry storm on top of a cold start. |
+| `services/api.js` (client) | **Idempotent retry-once + longer write budget**: `fetchWithTimeout` now re-issues **GET/HEAD/PUT/DELETE** automatically on a network abort (absorbs a cold-start abort); **POST is deliberately single-shot** (never risk a duplicate row/booking). Generic admin `crud` create/update/remove + `uploadImage` get `ADMIN_WRITE_TIMEOUT_MS` (45s) instead of the 12s default, so a ~20s first save no longer aborts mid-flight. The admin pages already show a `saving` spinner, so the user just waits instead of re-clicking. |
+| `appsettings.json` | Added `KeepAlive`, `RequestTiming`, and `Sql` sections (documented defaults; `KeepAlive__TargetUrl` env var flips the ping on). |
+
+**Phase 13A gate:** lint 0, frontend **85/85**, backend **118/118**, build + bundle
+gate OK. (Backend dev server bounced for the test run, as usual.)
+
+## Phase 13B — Unit Tests
+
+| Test | Covers |
+|------|--------|
+| `RequestTimingMiddlewareTests.cs` (4 tests) | In-process `TestServer` proves responses carry `X-Elapsed-Ms` + `X-Request-Id` through the real `OnStarting` path; unit-level proves fast requests log `[Timing]` info, `threshold=0` requests log `SLOW request` warnings, and an exception inside the pipeline still logs the 500 timing. |
+| `KeepAliveServiceTests.cs` (4 tests) | `PingOnceAsync` returns true + logs info on a 200; slow/cold pings log the "cold start?" warning; network errors return false + log "ping error"; the disabled path (`TargetUrl` blank) logs "disabled" and exits immediately. |
+| `api.test.js` (4 new tests) | `fetchWithTimeout` retries a failed **GET** and **PUT** (admin edit) once and succeeds on the 2nd attempt; **POST is NOT retried** (single-shot, no duplicates); only one retry — a second failure still rejects. |
+
+### 13.3 Phase 13 Gate Checklist
+
+| # | Item | Dev | QA |
+|---|------|-----|-----|
+| C1 | 13A implemented: request-timing middleware + keep-alive + bounded EF retry + client idempotent retry/longer write timeout; lint 0, build + bundle gate OK, existing suites green before writing new tests | ☑ | |
+| C2 | 13B tests green — frontend **89/89** (85 + 4), backend **126/126** (122 + 4) | ☑ | |
+| C3 | Live smoke: `/api/flights` returns `X-Elapsed-Ms`/`X-Request-Id`; `[Timing]` lines in the server log | ☑ | |
+| C4 | Manual QA (prod deploy): set `KeepAlive__TargetUrl` on MonsterASP; watch the SLOW request logs on the first cold save, then confirm the keep-alive keeps subsequent writes fast | | ☐ |
+
 ---
 
 # 4. Progress Log
@@ -759,6 +789,7 @@ Probable contributors, strongest first:
 | 10 Role→Firestore Sync + Mobile Booking Email | 2026-09-24 | 2026-09-24 | ✓ / | Done — System Users role edits now sync to the Firestore profile (menu role source) via `syncRoleToFirestore`; booking confirmation email switched from a clipping 5-column itinerary table to stacked per-flight cards with a viewport meta so the Seat number is readable on phones. 10A gate passed (lint 0, build OK, 65/65 + 118/118) before 10B; lint 0, bundle gate OK. U3 manual QA = user |
 | 11 Login/Auth Latency | 2026-09-24 | 2026-09-24 | ✓ / | Done — role resolution is now parallel (Firestore + claims) and bounded at 2s per call, with a short-TTL per-uid role cache so the post-login auth-state callback reuses the result (no second Firestore read); `ensureCustomerProfile` reads/writes are bounded too; cache cleared on logout. 11A gate passed (lint 0, build OK, 65/65) before 11B; frontend **71/71**, lint 0, bundle gate OK. Pending manual: verify login feels fast on prod deploy |
 | 12 Dynamic Flight Search + Continent Fix + Davao Hub | 2026-09-25 | 2026-09-25 | ✓ / | Done — date is no longer an exact kill-gate: `flightFilter.js` returns the requested date's departures when they exist, otherwise the route's nearest departures with a visible "No departures exactly on …" notice; `SearchCard` defaults to dynamic near-future dates (was frozen `2026-08-25`); Siargao + El Nido added to `CITY_META` (Asia, not International); seed flights are date-relative and a **Davao hub** set was added (Manila/Cebu/Tokyo/Singapore/Siargao). 12A gate passed (lint 0, build OK, 71/71 + 118/118) before 12B; frontend **85/85** (71 + 10 + 5), backend **118/118**, lint 0, bundle gate OK. F3 manual QA (incl. prod reseed for Davao) = user |
+| 13 Admin CRUD Optimization (cold-start + retry) | 2026-09-25 | 2026-09-25 | ✓ / | Done — **not a CRUD bug, a cold start**: MonsterASP recycles the app pool after ~20 min idle, so the first create/edit pays a 20-30s boot; the client's 12s timeout then aborted it. Fix: request-timing middleware (`X-Elapsed-Ms`/`X-Request-Id` + SLOW warnings), keep-alive ping service (keeps the pool warm + logs cold starts), bounded EF retry (30s→10s delay), and client idempotent retry-once (GET/PUT/DELETE only) + 45s admin write budget (POST stays single-shot). Live-smoke: timing headers + `[Timing]` logs verified. 13A gate passed (lint 0, build OK, 85/85 + 118/118) before 13B; frontend **89/89**, backend **126/126**, lint 0, bundle gate OK. C4: set `KeepAlive__TargetUrl` on MonsterASP + confirm cold-save log = user |
 | Release Gate R1–R6 | 2026-09-23 | 2026-09-23 | ✓ / | R1–R5 Dev done: publish + build + vault/secrets clean + bundle gate OK + lint **0 problems** (62→0 cleanup: unused imports removed, `useMemo(setPage)` anti-pattern → `useEffect`, context-hook/static-component suppressions documented). Added **TEST-MODE-ONLY** PayMongo guard + `00 / 00` expiry mask. Pending (user): deploy to Vercel/host (R5*), human popup 3-D Secure QA, then R6 QA sign-off |
 | **Release** | | | / | **R6 pending — deploy on Vercel/host, then check QA boxes** |
 

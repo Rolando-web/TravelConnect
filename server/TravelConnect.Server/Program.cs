@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.SqlClient;
 using TravelConnect.Server.Data.Connections;
 using TravelConnect.Server.Extensions;
+using TravelConnect.Server.Middleware;
 using TravelConnect.Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,6 +23,19 @@ builder.WebHost.ConfigureKestrel(options =>
     options.Limits.MaxRequestBufferSize = 10 * 1024 * 1024;
 });
 builder.Services.AddTravelConnectSql(builder.Configuration);
+
+// Phase 13 — keep the App Pool warm on idle-recycling free hosts (MonsterASP).
+// Configure KeepAlive__TargetUrl (e.g. https://travelconnect.runasp.net/api/test)
+// on the host; empty TargetUrl disables the service cleanly.
+builder.Services.AddHttpClient();
+builder.Services.AddOptions<KeepAliveOptions>()
+    .Bind(builder.Configuration.GetSection("KeepAlive"))
+    .Validate(o => o.IntervalMinutes >= 1, "KeepAlive:IntervalMinutes must be >= 1");
+builder.Services.AddHostedService<KeepAliveService>();
+
+// Phase 13 — request timing/observability threshold (ms) for the SLOW warning.
+builder.Services.AddOptions<RequestTimingOptions>()
+    .Bind(builder.Configuration.GetSection("RequestTiming"));
 
 var firebaseProjectId = builder.Configuration["Authentication:FirebaseProjectId"] ?? string.Empty;
 if (!string.IsNullOrWhiteSpace(firebaseProjectId))
@@ -154,6 +168,12 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
+
+// Phase 13 — request timing goes as early as possible (after forwarding/exception
+// handling, right before the app's own middleware) so slow cold-starts are visible
+// end-to-end and every response carries X-Elapsed-Ms + X-Request-Id.
+app.UseRequestTiming();
+
 if (!app.Environment.IsDevelopment())
 {
     // Keep the redirect for real HTTPS deployments behind a proxy that has not
