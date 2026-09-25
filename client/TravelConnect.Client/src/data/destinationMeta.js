@@ -26,6 +26,12 @@ export const CITY_META = {
   Iloilo: {
     country: "Philippines", code: "ILO", region: "Asia", airport: "Iloilo Intl",
   },
+  Siargao: {
+    country: "Philippines", code: "IAO", region: "Asia", airport: "Sayak Airport",
+  },
+  "El Nido": {
+    country: "Philippines", code: "ENI", region: "Asia", airport: "El Nido Airport",
+  },
   Baguio: {
     country: "Philippines", code: "BAG", region: "Asia", airport: "Loakan Airport",
   },

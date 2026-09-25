@@ -8,6 +8,21 @@ import { useAvailable } from "../../context/AvailableContext";
 import { hasFlightRoute } from "../../data/availability";
 
 /* ═══ Location input (reusable for flight & car) ═══════════════════════ */
+const ISO_DAY_MS = 86400000;
+
+// Default the search dates to the near future (local calendar date) instead of a
+// hard-coded date that can drift into the past or miss the available departures.
+function localISO(offsetDays = 0) {
+  const d = new Date(Date.now() + offsetDays * ISO_DAY_MS);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+const DEFAULT_DEPARTURE = localISO(0);
+const DEFAULT_RETURN = localISO(2);
+
 function LocationInput({ label, inputRef, placeholder, selected, search, setSearch, showDD, setShowDD, onSelect, showAnywhere = false, mode = "all" }) {
   return (
     <div className={`space-y-1.5 sm:space-y-2 relative ${showDD ? "z-[70]" : "z-10"}`} ref={inputRef}>
@@ -96,8 +111,8 @@ export default function SearchCard() {
 
   // ─── Date states ───────────────────────────────────────────────────
   const [showCalendar, setShowCalendar] = useState(false);
-  const [departureDate, setDepartureDate] = useState("2026-08-25");
-  const [returnDate, setReturnDate] = useState("2026-08-27");
+  const [departureDate, setDepartureDate] = useState(DEFAULT_DEPARTURE);
+  const [returnDate, setReturnDate] = useState(DEFAULT_RETURN);
   const [selectingDateType, setSelectingDateType] = useState("depart");
 
   // ─── Traveler states ───────────────────────────────────────────────

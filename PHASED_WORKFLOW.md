@@ -649,6 +649,99 @@ signed-out boot, bounded returning-session boot), build + bundle gate OK.
 
 ---
 
+# PHASE 12 — DYNAMIC FLIGHT SEARCH + CONTINENT FIX + DAVAO HUB
+
+**Requested after Phase 11.** Three related flight-searching defects:
+
+1. **"No flight available" bug:** the search cards defaulted to the hard-coded
+   date `2026-08-25` and the results page filtered flights by **exact** date
+   equality — but the seeded departures are all near-future dates, so almost every
+   search (default or otherwise) produced an empty page even for routes that
+   clearly exist (e.g. Manila → Tokyo). A search system should display **what is
+   actually available** rather than a dead empty state over a date mismatch.
+2. **Continent grouping:** **Siargao** and **El Nido** were not in `CITY_META`,
+   so `toDestination()` fell back to the `"International"` bucket — two domestic
+   Philippine routes were listed under "International Flights".
+3. **Davao is missing as an origin:** `Davao` exists in `CITY_META` (DVO, Asia)
+   but no seeded flights depart from Davao — the agency's home city — so "Leaving
+   from: Davao" could never return results.
+
+## Phase 12A — Implementation
+
+| Piece | What it does |
+|-------|--------------|
+| `src/data/flightFilter.js` *(new, pure)* | Availability-first filter: route/class/free-text keep substring semantics, but the **date is not an exact gate** — if flights exist on the requested date they're returned exactly; otherwise the route's departures are returned sorted by **proximity** to the requested date with a `dateNotice` ("No departures exactly on … — showing the nearest available departures"). Pure & unit-testable. |
+| `Flights.jsx` | Replaces the inline exact-`departureDate` filter with `filterFlights(...)`; renders an informational notice banner when the route is served but the requested date has no exact departure. |
+| `destinationMeta.js` | Adds `Siargao` (IAO, Philippines/Asia, Sayak) and `El Nido` (ENI, Philippines/Asia) to `CITY_META` so they leave the "International" bucket. |
+| `SearchCard.jsx` | Default search dates become **dynamic near-future dates** (`today` / `today + 2`) in local calendar date format instead of the frozen `2026-08-25`. |
+| `DatabaseInitializer.cs` | All seeded flight `DepartureDate`s become **relative to today** (`DateTime.UtcNow.Date.AddDays(n)`) so a fresh database always has near-future departures; adds a **Davao hub** route set: Davao→Manila (PAL PR 1801), Davao→Cebu (5J 979), Davao→Tokyo (PR 2351), Davao→Singapore (Z2 522), Davao→Siargao (DG 401). |
+
+> **Deploy note:** seed dates/flights only apply to a fresh (or reseeded) database.
+> On the existing prod DB the Davao routes appear after a reseed; no schema change.
+
+**Phase 12A gate:** lint 0, existing frontend suite green, backend **118/118**,
+build + `check:bundle` OK.
+
+## Phase 12B — Unit Tests
+
+| Test | Covers |
+|------|--------|
+| `flightFilter.test.js` *(new, 10 cases)* | Route substring matching (case-insensitive); **exact-date match returns only that date's flights with no notice**; **no match on the date → all route flights returned, nearest-first, with the date-notice**; proximity ordering; no-date → route flights ungated; class filter (`Business` vs `All`); free-text search across airline/flight-no/cities; empty route → empty list with no notice. |
+| `destinationMeta.test.js` *(new, 5 cases)* | Siargao → Philippines/Asia/IAO (not International); El Nido → ENI/Asia; Davao → DVO/Asia/Francisco Bangoy; `groupDestinations` puts Siargao & El Nido in `asia` and **never** in `international`; unknown cities still fall back to International. |
+
+### 12.2 Phase 12 Gate Checklist
+
+| # | Item | Dev | QA |
+|---|------|-----|-----|
+| F1 | 12A implemented: dynamic (availability-first) date filter + notice, Siargao/El Nido under Asia, Davao hub flights + relative seed dates; lint 0, build + bundle gate OK, existing suites green before writing new tests | ☑ | |
+| F2 | 12B tests green — frontend **85/85** (71 + 10 + 5), backend **118/118** regression | ☑ | |
+| F3 | Manual QA: search any route with a non-matching date → flights show with the "nearest available" notice; Siargao/El Nido no longer under International; "Leaving from: Davao" returns the 5 Davao routes (after backend reseed/deploy) | | ☐ |
+
+---
+
+# PHASE 13 — ADMIN CRUD OPTIMIZATION (Production ~20s create/edit)
+
+**Requested after Phase 12 — PLANNING ONLY (no code yet).** Writing a new booking /
+creating or editing any record in the Admin panel (System Users, Flights, Hotels,
+Packages, etc.) takes **~20 seconds** on the production host.
+
+## 13.1 Root-cause assessment (to verify during 13A)
+
+Probable contributors, strongest first:
+
+1. **MonsterASP free-tier App Pool idle recycle (most likely).** Free-tier hosts
+   recycle the app pool after ~20 min idle; the **first request after a recycle**
+   cold-boots the ASP.NET app (compilation/JIT/EF model building) → 20–30 s before
+   the controller even runs. Mitigation previewing here: keep-alive pinging from a
+   health check, and confirm via server-side timing.
+2. **SQL connection drop + EF retry storm.** `EnableRetryOnFailure` reopens the
+   database under a drop/restart; combined with a cold start this multiplies
+   latency on the **first write**.
+3. **Client-side ~12s timeout aborting first attempts.** If the first request is
+   slowed waiting on the SQL open if neither 1 nor 2 is the real cause, the browser
+   can abandon an in-flight save, then the user retries and the second call succeeds
+   — making the system *feel* ~20s. (Client timeout value to be confirmed on
+   `services/api.js` during 13A.)
+4. **No request-duration observability.** There is no response-time middleware /
+   request logging server-side, so the split between cold-start, DB open, and
+   controller time is currently invisible. **13A adds it first.**
+
+## 13.2 Proposed Phase 13 scope (pending approval)
+
+| Step | Change |
+|------|--------|
+| 13A-1 | Add a **request-timing middleware** (captures `Stopwatch` per request; logs method, path, status, elapsed ms to `ILogger`; optionally an `X-Elapsed-Ms` header) so production latencies are measurable. |
+| 13A-2 | **Keep-alive ping**: background timer hitting a cheap public endpoint (e.g. `/api/test`) every ~5 min to keep the App Pool warm; log first-request-after-idle timings to confirm the cold-start theory. |
+| 13A-3 | **EF / SQL hardening**: verify `EnableRetryOnFailure` max-retry/count + a sane connection `CommandTimeout`; avoid re-opening the pool on every write where the DbContext lifetime allows it. |
+| 13A-4 | **Client resilience**: confirm the `api.js` timeout, add a single automatic retry for idempotent writes only (no double booking — booking reference guard already exists), and surface a fast "still working / retry" state instead of a silent abort. |
+| 13A-5 | Optional: `[ResponseCache]` for hot admin reads if profiling shows value. |
+| 13B | Unit tests: middleware elapsed logging, keep-alive registration, retry-once guard (cleanup on success, no duplicate booking call), config assertions. Read + write latency benchmark vs the pre-phase baseline. |
+| 13C | QA: create + edit a record in production while watching the request timing logs; confirm the ~20s collapses to cold-start only (~2–5s) and subsequent writes are fast. |
+
+**Phase 13 does NOT start until Phase 12 is signed off (F1–F3).**
+
+---
+
 # 4. Progress Log
 
 | Phase | Started | Completed | Sign-off (Dev/QA) | Result |
@@ -665,6 +758,7 @@ signed-out boot, bounded returning-session boot), build + bundle gate OK.
 | 9 Separate Support Hubs (role ownership) | 2026-09-24 | 2026-09-24 | ✓ / | Done — new **Agency Admin** role (agency owner); Super Admin hub = tier plan inquiries only (problems tab removed); new Agency Support Hub = the agency's customer problems, Agency Admin only; Super Admin `Forbid` from agency problems (backend + UI), agents roster = Super Admin/Agency Admin, staff loses support access. 9A gate passed (lint 0, build OK, 53/53 + 111/111) before 9B; frontend **61/61**, backend **114/114**, lint 0, bundle gate OK. U3 manual QA = user |
 | 10 Role→Firestore Sync + Mobile Booking Email | 2026-09-24 | 2026-09-24 | ✓ / | Done — System Users role edits now sync to the Firestore profile (menu role source) via `syncRoleToFirestore`; booking confirmation email switched from a clipping 5-column itinerary table to stacked per-flight cards with a viewport meta so the Seat number is readable on phones. 10A gate passed (lint 0, build OK, 65/65 + 118/118) before 10B; lint 0, bundle gate OK. U3 manual QA = user |
 | 11 Login/Auth Latency | 2026-09-24 | 2026-09-24 | ✓ / | Done — role resolution is now parallel (Firestore + claims) and bounded at 2s per call, with a short-TTL per-uid role cache so the post-login auth-state callback reuses the result (no second Firestore read); `ensureCustomerProfile` reads/writes are bounded too; cache cleared on logout. 11A gate passed (lint 0, build OK, 65/65) before 11B; frontend **71/71**, lint 0, bundle gate OK. Pending manual: verify login feels fast on prod deploy |
+| 12 Dynamic Flight Search + Continent Fix + Davao Hub | 2026-09-25 | 2026-09-25 | ✓ / | Done — date is no longer an exact kill-gate: `flightFilter.js` returns the requested date's departures when they exist, otherwise the route's nearest departures with a visible "No departures exactly on …" notice; `SearchCard` defaults to dynamic near-future dates (was frozen `2026-08-25`); Siargao + El Nido added to `CITY_META` (Asia, not International); seed flights are date-relative and a **Davao hub** set was added (Manila/Cebu/Tokyo/Singapore/Siargao). 12A gate passed (lint 0, build OK, 71/71 + 118/118) before 12B; frontend **85/85** (71 + 10 + 5), backend **118/118**, lint 0, bundle gate OK. F3 manual QA (incl. prod reseed for Davao) = user |
 | Release Gate R1–R6 | 2026-09-23 | 2026-09-23 | ✓ / | R1–R5 Dev done: publish + build + vault/secrets clean + bundle gate OK + lint **0 problems** (62→0 cleanup: unused imports removed, `useMemo(setPage)` anti-pattern → `useEffect`, context-hook/static-component suppressions documented). Added **TEST-MODE-ONLY** PayMongo guard + `00 / 00` expiry mask. Pending (user): deploy to Vercel/host (R5*), human popup 3-D Secure QA, then R6 QA sign-off |
 | **Release** | | | / | **R6 pending — deploy on Vercel/host, then check QA boxes** |
 

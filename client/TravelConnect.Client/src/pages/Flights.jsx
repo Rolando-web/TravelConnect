@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Plane, Eye, Wifi,
   Luggage, ShieldCheck, Search, X,
-  RotateCcw, Utensils
+  RotateCcw, Utensils, Info
 } from "lucide-react";
 import { useBooking } from "../context/BookingContext";
 import { useCurrency } from "../context/CurrencyContext";
@@ -12,6 +12,7 @@ import FlightFareTierModal from "../components/modals/booking/FlightFareTierModa
 import PageHeroCarousel from "../components/shared/PageHeroCarousel";
 import { flightsApi } from "../services/api";
 import { FALLBACK_LUXURY_FLIGHTS } from "../data/fallbackFlights";
+import { filterFlights } from "../data/flightFilter";
 
 const AIRPORT_CODES = {
   manila: "MNL",
@@ -19,6 +20,7 @@ const AIRPORT_CODES = {
   boracay: "MPH",
   caticlan: "MPH",
   "el nido": "ENI",
+  siargao: "IAO",
   "puerto princesa": "PPS",
   tokyo: "HND",
   singapore: "SIN",
@@ -148,6 +150,18 @@ export default function Flights() {
     return () => { active = false; };
   }, []);
 
+  const { list: routeList, dateNotice } = useMemo(
+    () =>
+      filterFlights(flights, {
+        from: appliedFrom,
+        to: appliedTo,
+        date: appliedDate,
+        flightClass: selectedClass,
+        search,
+      }),
+    [flights, appliedFrom, appliedTo, appliedDate, selectedClass, search]
+  );
+
   const filteredFlights = useMemo(() => {
     const timeToMinutes = (t) => {
       const m = String(t || "").match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
@@ -162,27 +176,7 @@ export default function Flights() {
       return ((h ? +h[1] * 60 : 0) + (min ? +min[1] : 0)) || 9999;
     };
 
-    const filtered = flights.filter((f) => {
-      const q = search.toLowerCase();
-
-      if (appliedFrom && !f.departureCity?.toLowerCase().includes(appliedFrom)) return false;
-      if (appliedTo && !f.arrivalCity?.toLowerCase().includes(appliedTo)) return false;
-      if (appliedDate && f.departureDate && f.departureDate.trim() !== "" && f.departureDate !== appliedDate) return false;
-
-      if (selectedClass !== "All" && !f.class?.toLowerCase().includes(selectedClass.toLowerCase())) {
-        return false;
-      }
-
-      return (
-        !search.trim() ||
-        f.airline?.toLowerCase().includes(q) ||
-        f.flightNumber?.toLowerCase().includes(q) ||
-        f.departureCity?.toLowerCase().includes(q) ||
-        f.arrivalCity?.toLowerCase().includes(q)
-      );
-    });
-
-    return [...filtered].sort((a, b) => {
+    return [...routeList].sort((a, b) => {
       switch (sortKey) {
         case "price-asc": return Number(a.price || 0) - Number(b.price || 0);
         case "price-desc": return Number(b.price || 0) - Number(a.price || 0);
@@ -191,7 +185,7 @@ export default function Flights() {
         default: return 0;
       }
     });
-  }, [flights, search, appliedFrom, appliedTo, appliedDate, selectedClass, sortKey]);
+  }, [routeList, sortKey]);
 
   const popularRoutes = [
     { from: "Manila", to: "Tokyo", codeFrom: "MNL", codeTo: "HND" },
@@ -343,6 +337,14 @@ export default function Flights() {
             </button>
           ))}
         </div>
+
+        {/* ─── Dynamic availability notice (route served, date has no exact departure) ─── */}
+        {dateNotice && (
+          <div className="mb-5 flex items-start gap-2 bg-sky-50 dark:bg-sky-500/10 border border-sky-200 dark:border-sky-500/30 text-sky-800 dark:text-sky-200 rounded-2xl px-4 py-3 text-xs sm:text-sm font-medium">
+            <Info size={16} className="shrink-0 mt-0.5" />
+            <span>{dateNotice}</span>
+          </div>
+        )}
 
         {/* ─── Empty State With Prominent Aviation Image (User Requirement) ─── */}
         {filteredFlights.length === 0 ? (
