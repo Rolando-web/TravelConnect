@@ -111,9 +111,9 @@ export const destinationsApi = crud("destinations");
 export const promotionsApi = crud("promotions");
 export const suppliersApi = crud("suppliers");
 export const leadsApi = crud("leads");
-export const convertLeadToCustomer = (id) => request(`/api/leads/${id}/convert`, { method: "POST" });
+export const convertLeadToCustomer = (id) => request(`/api/leads/${id}/convert`, { method: "POST" }, ADMIN_WRITE_TIMEOUT_MS);
 export const setLeadStage = (id, stage) =>
-  request(`/api/leads/${id}/stage`, { method: "POST", body: JSON.stringify({ stage }) });
+  request(`/api/leads/${id}/stage`, { method: "POST", body: JSON.stringify({ stage }) }, ADMIN_WRITE_TIMEOUT_MS);
 export const usersApi = crud("users");
 export const inquiriesApi = crud("inquiries");
 
@@ -132,12 +132,12 @@ export const supportApi = {
 export const supportAdminApi = {
   inbox: (query = "") => request(`/api/support/inbox${query}`),
   thread: (id) => request(`/api/support/inbox/${id}`),
-  reply: (id, body) => request(`/api/support/inbox/${id}/reply`, { method: "POST", body: JSON.stringify(body) }),
-  replyEmail: (id, body) => request(`/api/support/inbox/${id}/reply-email`, { method: "POST", body: JSON.stringify(body) }),
+  reply: (id, body) => request(`/api/support/inbox/${id}/reply`, { method: "POST", body: JSON.stringify(body) }, ADMIN_WRITE_TIMEOUT_MS),
+  replyEmail: (id, body) => request(`/api/support/inbox/${id}/reply-email`, { method: "POST", body: JSON.stringify(body) }, ADMIN_WRITE_TIMEOUT_MS),
   read: (id) => request(`/api/support/inbox/${id}/read`, { method: "PUT" }),
   emails: () => request("/api/support/emails"),
-  assign: (id, body) => request(`/api/support/inbox/${id}/assign`, { method: "PUT", body: JSON.stringify(body) }),
-  status: (id, body) => request(`/api/support/inbox/${id}/status`, { method: "PUT", body: JSON.stringify(body) }),
+  assign: (id, body) => request(`/api/support/inbox/${id}/assign`, { method: "PUT", body: JSON.stringify(body) }, ADMIN_WRITE_TIMEOUT_MS),
+  status: (id, body) => request(`/api/support/inbox/${id}/status`, { method: "PUT", body: JSON.stringify(body) }, ADMIN_WRITE_TIMEOUT_MS),
   agents: () => request("/api/support/agents"),
 };
 export const flightsApi = crud("flights");
@@ -150,9 +150,9 @@ export const activitiesApi = crud("activities");
 export const subscriptionsApi = {
   list: () => request("/api/subscriptions"),
   get: (id) => request(`/api/subscriptions/${id}`),
-  create: (body) => request("/api/subscriptions", { method: "POST", body: JSON.stringify(body) }),
-  update: (id, body) => request(`/api/subscriptions/${id}`, { method: "PUT", body: JSON.stringify(body) }),
-  remove: (id) => request(`/api/subscriptions/${id}`, { method: "DELETE" }),
+  create: (body) => request("/api/subscriptions", { method: "POST", body: JSON.stringify(body) }, ADMIN_WRITE_TIMEOUT_MS),
+  update: (id, body) => request(`/api/subscriptions/${id}`, { method: "PUT", body: JSON.stringify(body) }, ADMIN_WRITE_TIMEOUT_MS),
+  remove: (id) => request(`/api/subscriptions/${id}`, { method: "DELETE" }, ADMIN_WRITE_TIMEOUT_MS),
   getPlans: () => request("/api/subscriptions/plans"),
   getPlan: (id) => request(`/api/subscriptions/plans/${id}`),
   getStats: () => request("/api/subscriptions/stats"),
@@ -379,7 +379,7 @@ export async function adminOverrideSeat(payload) {
   return request(`/api/seatmaps/admin-override`, {
     method: "PUT",
     body: JSON.stringify(payload)
-  });
+  }, ADMIN_WRITE_TIMEOUT_MS);
 }
 
 // ── Payment reconciliation & admin refunds ──────────────────────
@@ -389,7 +389,7 @@ export async function getPaymentReconciliation(query = "") {
 }
 
 export async function refundPaymentToWallet(paymentId) {
-  return request(`/api/payments/${paymentId}/refund-to-wallet`, { method: "POST" });
+  return request(`/api/payments/${paymentId}/refund-to-wallet`, { method: "POST" }, ADMIN_WRITE_TIMEOUT_MS);
 }
 
 export async function sendCustomerInquiry(inquiryPayload) {
