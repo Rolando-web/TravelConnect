@@ -902,6 +902,68 @@ pills from live data, so "Car" appears automatically.
 
 ---
 
+# PHASE 17 — AGENCY OWNER SYSTEM USERS + SUPPORT HUB NAV FIX
+
+**Requested after Phase 16:** "Why is there no Support hub for the Agency/Admin
+role? And the Admin role doesn't have a System Users page — the agency bought
+the Full CRM and ERP system, so he should be able to create employee accounts.
+The Agency Support hub should only be about client problems (booking problem,
+refund, anything service-related) — the Tier plan is Super Admin only."
+
+### 17.1 The two gaps (verified, then fixed)
+
+1. **Agency Support hub was invisible.** The page has existed since Phase 9 and
+   the Agency Admin `ROLE_NAV` already listed `agency-support` — but
+   `AdminLayout` renders nav items only when they belong to one of its
+   `GROUPS`, and no group ever contained `agency-support`. So the item silently
+   never rendered and the hub was unreachable from the menu. Fixed by adding a
+   **Support** group (`agency-support`, `support-hub`, `support`, `helpdesk`)
+   + icon mappings. The hub was already correctly scoped to *client problems*
+   (booking, refund, service) and the Tier plan stays Super Admin only
+   (`support-hub`), so part 3 of the request was already enforced — now it is
+   finally visible.
+
+2. **Agency Admin had no System Users page.** The role had no `users` nav item
+   and no access. The Agency Admin is the agency owner who bought the Full
+   CRM/ERP, so they now get **System Users** (`Manage`, right below Dashboard)
+   and can create their employees' accounts. The system-user modal filters the
+   Role options by the person creating the user:
+   - **Super Admin** → all five roles.
+   - **Agency Admin** → `Agency Staff`, `Finance Staff`, `Supplier` only;
+     `Super Admin` / `Agency Admin` are reserved for the platform owner.
+
+### 17.2 Server-side enforcement (not just the UI)
+
+`UsersController` previously trusted the client for everything. It now resolves
+the signed-in user from the Firebase identity (uid → `SystemUsers`, email
+fallback with the UID binding persisted) and scopes every action:
+
+| Caller | List / Get | Create | Update | Delete |
+|--------|-----------|--------|--------|--------|
+| Super Admin | all users | any role | any user | any user |
+| Agency Admin | all users **except Super Admin rows** | employees only (403 + message otherwise) | non-privileged users only, no promotions into Super Admin/Agency Admin | non-privileged employees only |
+| Agency Staff / Finance Staff / Supplier / Customer | 403 | 403 | 403 | 403 |
+
+### 17.3 Phase 17 scope
+
+| # | Item | Status |
+|---|------|--------|
+| 17A-1 | **AdminLayout** — added a `Support` nav group + icons so `agency-support` (and `support-hub`/`support`/`helpdesk`) actually render; Agency Admin now sees **Agency Support** and Super Admin sees **Tier Support**, respectively. | ☑ |
+| 17A-2 | **Agency Admin System Users** — `users` nav item (`System Users`) + `ADMIN_ACCESS["Agency Admin"].users = "Manage"`; the user modal filters Role options by the creator (Agency Admin → employees only) and the page hint documents the rule. | ☑ |
+| 17B-1 | **UsersController role scoping** — resolves the signer; only Super Admin / Agency Admin may touch user records; Agency Admin cannot see, create, edit, promote, or delete privileged accounts (403 + readable messages). | ☑ |
+| 17C | Tests — `UsersControllerTests.cs` (13: super-admin sees all, agency hides Super Admin rows, non-managers/unknown 403, agency cannot read/copy-edit/create/delete privileged, staff-only creation allowed, super can create any role, employee update/delete allowed); `AdminLayout.test.jsx` (3: Agency Admin shows System Users + Agency Support + no Tier Support, Super Admin shows Tier Support + Subscriptions, Agency Staff shows neither); `AdminManagementPage.test.jsx` +2 (Agency Admin role options filtered, Super Admin sees all five). | ☑ |
+
+### 17.4 Phase 17 Gate Checklist
+
+| # | Item | Dev | QA |
+|---|------|-----|-----|
+| G1 | 17A/17B implemented; lint 0, build + bundle gate OK | ☑ | |
+| G2 | 17C green — frontend **146/146** (141 + 5); backend **147/147** (134 + 13), build 0 warn / 0 err | ☑ | |
+| G3 | Smoke: sign in as Agency Admin → Agency Support visible in menu → System Users visible → add an employee (role restricted to staff/finance/supplier) → sign out → employee signs in with the temp password | | ☐ |
+| G4 | Smoke (prod deploy): Agency Admin does NOT see Tier Support / Subscriptions; Super Admin still manages tiers + all roles | | ☐ |
+
+---
+
 # 4. Progress Log
 
 | Phase | Started | Completed | Sign-off (Dev/QA) | Result |
@@ -923,6 +985,7 @@ pills from live data, so "Car" appears automatically.
 | 14 Flight Status Card + Booking Lifecycle | 2026-09-26 | 2026-09-26 | ✓ / | Done — **lifecycle gap closed**: bookings no longer sit "upcoming" forever; `BookingLifecycleService` advances them to `completed` once the travel date passes (lazy on read, latest flight leg wins, itinerary EndDate fallback, cancelled/refunded/completed untouched). New client **`FlightStatusCard`** renders right after checkout (step 4) and on every flight booking in My Bookings: Scheduled · On Time / Traveling Today / Journey Completed / Booking Cancelled with route/date/times/seat per leg, derived via shared `src/data/flightStatus.js`. 14A gate passed (lint 0, build OK, 89/89 + 126/126) before 14B; frontend **102/102** (89 + 13), backend **134/134** (126 + 8), lint 0, bundle gate OK. D4: needs backend prod re-upload to flip existing past-date bookings = user |
 | 15 Input Error-Handling + Numeric Enforcement + Dead Code | 2026-09-26 | 2026-09-26 | ✓ / | Done — full input audit (87 controls / 33 files), then: **PH mobile rule** applied everywhere (`+63` = the leading 0, user types only 10 digits starting 9, live `9XX-XXX-XXXX` formatting, no more fake `+63 917 123 4567` default); checkout gains phone/date/DOB validation + limits; **dead code removed** (unreachable `specialRequests` state+branch, dead Change Password card in Profile); **non-working functions fixed** (Inquiry Send spinner no longer sticks — try/finally; Forgot password now sends a real Firebase reset email); **CrudModal** no longer writes silent `0`/`NaN` (→ null + required error), gained `email`/`tel` types + min/max/step + range/email validation; admin field configs re-tagged (emails/phones, ratings 0–5, prices ≥ 0); support phone + cancellation window hardened. 15A gate passed (lint 0, build OK, 102/102) before 15B; frontend **123/123** (102 + 21), backend **134/134** unchanged, lint 0, bundle gate OK, dead-code sweep 0 refs. E4: manual prod QA = user |
 | 16 System User Auth Fix + Car/Hotel Suppliers | 2026-09-26 | 2026-09-26 | ✓ / | Done — **auth gap closed**: creating a System User only wrote a SQL row, so Firebase login never recognized the new email (`user-not-found`). `createSystemUser()` in `src/services/systemUserProvision.js` now provisions the **Firebase Auth credential** (temp password, min 6, add-only field), saves the backend row with the `firebaseUid`, and writes the **Firestore role profile** so the admin menu resolves on first sign-in; email-already-in-use is caught before the backend row is written, errors are readable, the password never leaves the modal. CrudModal gained a masked `password` type + min-length validation. **Suppliers**: Hotels were already addable (+5 seeded); added **Car** as a supplier type (+ icon) and seeded 2 Car partners on fresh DBs. 16A gate passed (lint 0, build OK, 123/123 + 134/134) before 16C; frontend **141/141** (123 + 18), backend **134/134** (seed-only change), lint 0, bundle gate OK. F3/F4: create-a-user-then-login smoke + prod supplier re-check = user |
+| 17 Agency Owner System Users + Support Hub Nav | 2026-09-26 | 2026-09-26 | ✓ / | Done — **Agency Support hub was invisible**: the page existed since Phase 9 and the nav listed it, but `AdminLayout.GROUPS` never contained `agency-support`, so the menu item silently never rendered. Added a **Support** nav group + icons so the agency hub is reachable — client problems only (booking, refund, service); the Tier plan stays Super Admin only on `support-hub`. **Agency Admin (Full CRM/ERP owner) now has System Users** — `users` nav item + Manage access; the user modal filters Role by the creator, so an Agency Admin can create Agency Staff / Finance Staff / Supplier only (privileged Super Admin/Agency Admin roles are platform-owner-only). **Backend enforcement** (`UsersController`) resolves the signer from the Firebase identity and forbids non-managers; an Agency Admin cannot see, create, edit, promote, or delete privileged accounts (403 + messages). 17A gate passed (lint 0, build OK, 141/141 + 147/147) before 17C; frontend **146/146** (141 + 5), backend **147/147** (134 + 13), build 0 warn / 0 err, lint 0, bundle gate OK. G3/G4: Agency-Admin create-employee smoke + prod re-check = user |
 | Release Gate R1–R6 | 2026-09-23 | 2026-09-23 | ✓ / | R1–R5 Dev done: publish + build + vault/secrets clean + bundle gate OK + lint **0 problems** (62→0 cleanup: unused imports removed, `useMemo(setPage)` anti-pattern → `useEffect`, context-hook/static-component suppressions documented). Added **TEST-MODE-ONLY** PayMongo guard + `00 / 00` expiry mask. Pending (user): deploy to Vercel/host (R5*), human popup 3-D Secure QA, then R6 QA sign-off |
 | **Release** | | | / | **R6 pending — deploy on Vercel/host, then check QA boxes** |
 

@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import AdminManagementPage from "./AdminManagementPage";
 
 const mocks = vi.hoisted(() => ({
+  outletCtx: { access: { users: "Manage" }, role: "Super Admin" },
   api: {
     usersApi: { list: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn() },
     flightsApi: { list: vi.fn() },
@@ -23,7 +24,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("react-router-dom", () => ({
   useParams: () => ({ page: "users" }),
-  useOutletContext: () => ({ access: { users: "Manage" }, role: "Super Admin" }),
+  useOutletContext: () => mocks.outletCtx,
 }));
 
 vi.mock("../../services/api", () => mocks.api);
@@ -40,6 +41,7 @@ vi.mock("./SystemSettingsPage", () => ({ default: () => null }));
 vi.mock("./HelpdeskInboxPage", () => ({ default: () => null }));
 
 beforeEach(() => {
+  mocks.outletCtx.role = "Super Admin";
   mocks.api.usersApi.list.mockReset();
   mocks.api.usersApi.update.mockReset();
   mocks.createSystemUser.mockReset();
@@ -162,5 +164,29 @@ describe("AdminManagementPage System Users", () => {
     );
     expect(mocks.createSystemUser).not.toHaveBeenCalled();
     expect(screen.queryByText("Temporary Password")).not.toBeInTheDocument();
+  });
+
+  it("hides privileged roles from an Agency Admin's user form (employees only)", async () => {
+    mocks.outletCtx.role = "Agency Admin";
+
+    await openAddUser();
+
+    const select = inputFor("Role");
+    const roleOptions = [...select.options].filter((o) => o.value !== "").map((o) => o.text);
+    expect(roleOptions).toEqual(["Agency Staff", "Finance Staff", "Supplier"]);
+  });
+
+  it("keeps all roles visible to a Super Admin", async () => {
+    await openAddUser();
+
+    const select = inputFor("Role");
+    const roleOptions = [...select.options].filter((o) => o.value !== "").map((o) => o.text);
+    expect(roleOptions).toEqual([
+      "Super Admin",
+      "Agency Admin",
+      "Agency Staff",
+      "Finance Staff",
+      "Supplier",
+    ]);
   });
 });

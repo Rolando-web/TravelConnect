@@ -50,6 +50,8 @@ const ICONS = {
   support: MessageSquare,
   subscriptions: CreditCard,
   "support-hub": MessageSquare,
+  "agency-support": MessageSquare,
+  helpdesk: MessageSquare,
 };
 
 const GROUPS = {
@@ -59,7 +61,8 @@ const GROUPS = {
   Operations: ["bookings", "payments"],
   Growth: ["leads", "promotions", "inquiries"],
   Services: ["flights", "hotels", "cars", "activities"],
-  System: ["reports", "settings", "subscriptions", "support-hub", "support", "profile"],
+  Support: ["agency-support", "support-hub", "support", "helpdesk"],
+  System: ["reports", "settings", "subscriptions", "profile"],
 };
 
 export default function AdminLayout() {

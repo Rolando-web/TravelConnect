@@ -49,6 +49,11 @@ const TEMP_PASSWORD_FIELD = {
 
 const FALLBACK_FLIGHT_IMG = "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80";
 
+// Roles a non-Super-Admin manager is allowed to hand out on the System Users
+// page. Super Admin / Agency Admin accounts stay exclusive to the platform
+// owner, so an Agency Admin can only create accounts for their own employees.
+const PRIVILEGED_ROLES = ["Super Admin", "Agency Admin"];
+
 const statusBadge = {
   Active: "badge-green",
   Confirmed: "badge-green",
@@ -145,7 +150,7 @@ const PAGES = {
   users: {
     api: usersApi,
     singular: "User",
-    hint: "A new account here gets a REAL sign-in credential: set a Temporary Password when adding a user so they can log in with their email. Giving them the password is up to you. Role changes are synced to the account's Firestore profile, so the admin menu updates immediately.",
+    hint: "A new account here gets a REAL sign-in credential: set a Temporary Password when adding a user so they can log in with their email. Giving them the password is up to you. Role changes are synced to the account's Firestore profile, so the admin menu updates immediately. As Agency Admin you can only create employee roles (Agency Staff, Finance Staff, Supplier) — Super Admin and Agency Admin accounts are reserved for the platform owner.",
     fields: [
       { key: "displayName", label: "Name", required: true },
 { key: "email", label: "Email", required: true, type: "email" },
@@ -424,7 +429,7 @@ const PAGES = {
 
 export default function AdminManagementPage() {
   const { page } = useParams();
-  const { access } = useOutletContext();
+  const { access, role } = useOutletContext();
   const [query, setQuery] = useState("");
   const [notice, setNotice] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
@@ -439,6 +444,17 @@ export default function AdminManagementPage() {
   const config = PAGES[page];
   const [title, subtitle] = pageMeta[page] || ["Management", "Manage your TravelConnect records"];
   const permission = access[page];
+
+  // System Users: an Agency Admin (CRM/ERP owner) manages their own workforce,
+  // so privileged Super Admin / Agency Admin roles are hidden from their form.
+  const usersFields = useMemo(() => {
+    if (page !== "users" || role === "Super Admin") return config?.fields || [];
+    return (config?.fields || []).map((f) =>
+      f.key === "role"
+        ? { ...f, options: f.options.filter((r) => !PRIVILEGED_ROLES.includes(r)) }
+        : f
+    );
+  }, [page, config, role]);
 
   const load = useCallback(() => {
     if (!config) return;
@@ -687,8 +703,8 @@ export default function AdminManagementPage() {
           title={`${modal.mode === "add" ? "Add" : modal.mode === "edit" ? "Edit" : "View"} ${config.singular}`}
           fields={
             page === "users" && modal.mode === "add"
-              ? [...config.fields, TEMP_PASSWORD_FIELD]
-              : config.fields
+              ? [...usersFields, TEMP_PASSWORD_FIELD]
+              : usersFields
           }
           data={modal.data}
           onClose={() => setModal({ open: false, mode: "add", data: null })}

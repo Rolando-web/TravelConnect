@@ -31,6 +31,7 @@ export const ROLE_NAV = {
   ],
   "Agency Admin": [
     ["dashboard", "Dashboard"],
+    ["users", "System Users"],
     ["agency-support", "Agency Support"],
     ["packages", "Travel Packages"],
     ["flights", "Flights"],
@@ -113,6 +114,7 @@ export const ADMIN_ACCESS = {
   },
   "Agency Admin": {
     dashboard: "View",
+    users: "Manage",
     packages: "Manage",
     flights: "Manage",
     hotels: "Manage",
