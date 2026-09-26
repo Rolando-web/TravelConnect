@@ -88,6 +88,20 @@ public class UsersController(TravelConnectDbContext db) : ControllerBase
         return Ok(entity);
     }
 
+    /// <summary>
+    /// Returns the signed-in account's own System Users row (any authenticated
+    /// identity, including staff/agents — not just managers). The client's
+    /// login flow uses this as the authoritative role source so an admin whose
+    /// Firestore profile went stale can be reconciled automatically.
+    /// </summary>
+    [HttpGet("me")]
+    public async Task<IActionResult> Me()
+    {
+        var me = await CurrentUserAsync();
+        if (me is null) return NotFound(new { message = "This identity is not a System User" });
+        return Ok(me);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create(SystemUser entity)
     {

@@ -230,4 +230,48 @@ public class UsersControllerTests
         Assert.IsType<NoContentResult>(await Controller(db, "a", "a@tc.com").Delete(emp.Id));
         Assert.Single(db.SystemUsers);
     }
+
+    /* ── GET /api/users/me (role reconciliation source) ────────── */
+
+    [Fact]
+    public async Task Me_returns_self_row_for_any_staff_identity()
+    {
+        using var db = TestDb.Create();
+        await SeedUserAsync(db, "st", "st@tc.com", "Agency Staff");
+        await SeedUserAsync(db, "s", "s@tc.com", "Super Admin");
+
+        var asStaff = Assert.IsType<OkObjectResult>(await Controller(db, "st", "st@tc.com").Me());
+        var staffRow = Assert.IsType<SystemUser>(asStaff.Value);
+        Assert.Equal("Agency Staff", staffRow.Role);
+
+        var asSuper = Assert.IsType<OkObjectResult>(await Controller(db, "s", "s@tc.com").Me());
+        Assert.Equal("Super Admin", Assert.IsType<SystemUser>(asSuper.Value).Role);
+    }
+
+    [Fact]
+    public async Task Me_binds_and_resolves_by_email_when_uid_is_unset()
+    {
+        using var db = TestDb.Create();
+        await SeedUserAsync(db, "", "admin@tc.com", "Agency Admin");
+
+        var result = Assert.IsType<OkObjectResult>(
+            await Controller(db, "fresh-uid", "admin@tc.com").Me());
+
+        var row = Assert.IsType<SystemUser>(result.Value);
+        Assert.Equal("Agency Admin", row.Role);
+        Assert.Equal("fresh-uid", row.FirebaseUid);
+
+        var persisted = await db.SystemUsers.FirstAsync(u => u.Email == "admin@tc.com");
+        Assert.Equal("fresh-uid", persisted.FirebaseUid);
+    }
+
+    [Fact]
+    public async Task Me_returns_404_for_identity_that_is_not_a_system_user()
+    {
+        using var db = TestDb.Create();
+        await SeedUserAsync(db, "a", "a@tc.com", "Agency Admin");
+
+        Assert.IsType<NotFoundObjectResult>(await Controller(db, "ghost", "ghost@tc.com").Me());
+        Assert.IsType<NotFoundObjectResult>(await Controller(db, "", "").Me());
+    }
 }

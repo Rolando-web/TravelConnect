@@ -8,6 +8,7 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { ADMIN_ROLES } from "../pages/admin/adminConfig";
+import { usersApi } from "../services/api";
 
 const AuthContext = createContext(null);
 
@@ -33,6 +34,22 @@ const withTimeout = (promise, ms = NETWORK_TIMEOUT_MS) =>
 // fetched from Firestore this session.
 const ROLE_CACHE_TTL_MS = 60_000;
 const roleCache = new Map(); // uid -> { at: number, result: {role, profile} }
+
+// Legacy/alias role strings that map onto the current staff roles. If an account
+// was seeded or swapped in with one of these, treat it as "Agency Admin" so the
+// admin menu (and Firestore rules) stay on the canonical set.
+const ROLE_ALIASES = {
+  "Agency Owner": "Agency Admin",
+  Owner: "Agency Admin",
+  Admin: "Agency Admin",
+  "Super User": "Super Admin",
+};
+
+function normalizeRole(role) {
+  if (!role) return null;
+  const canonical = ROLE_ALIASES[role] || role;
+  return ADMIN_ROLES.includes(canonical) ? canonical : null;
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -77,9 +94,58 @@ export function AuthProvider({ children }) {
           return null;
         });
 
-    const [fromStore, fromClaims] = await Promise.all([readFirestore(), readClaims()]);
+    // The backend SystemUsers registry is the authoritative staff record (edits
+    // via the System Users page land here). When the signed-in identity exists
+    // there, its role wins over Firestore/claims so a stale Firestore profile
+    // can't lock an admin into a staff menu — and we self-heal the profile.
+    const readBackendRole = () =>
+      withTimeout(usersApi.me())
+        .then((row) =>
+          row?.role && ADMIN_ROLES.includes(normalizeRole(row.role))
+            ? { role: row.role, profile: null, fromBackend: true }
+            : null
+        )
+        .catch((err) => {
+          console.warn("Backend role read failed:", err.message);
+          return null;
+        });
 
-    const result = fromStore || fromClaims || { role: "Customer", profile: null };
+    const [fromStore, fromClaims, fromBackend] = await Promise.all([
+      readFirestore(),
+      readClaims(),
+      readBackendRole(),
+    ]);
+
+    // Backend registry takes precedence for staff accounts. A Customer is never
+    // in SystemUsers (me() 404s), so customers keep the store/claims path.
+    const chosen = fromBackend || fromStore || fromClaims || { role: "Customer", profile: null };
+
+    const role = normalizeRole(chosen.role) || "Customer";
+    const result = {
+      role,
+      profile: chosen.profile
+        ? { ...chosen.profile, role: chosen.profile.role ? normalizeRole(chosen.profile.role) : undefined }
+        : null,
+    };
+
+    // Self-heal: persist the backend role to the Firestore users/{uid} profile
+    // so future logins and the Firestore security rules see the same role.
+    if (chosen.fromBackend && fromStore?.role !== result.role) {
+      try {
+        const profile = {
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName || "",
+          name: firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "User",
+          role: result.role,
+          status: "Active",
+          updatedAt: new Date().toISOString(),
+        };
+        await withTimeout(setDoc(doc(db, "users", uid), profile, { merge: true }));
+      } catch (err) {
+        console.warn("Could not reconcile Firestore role:", err.message);
+      }
+    }
+
     roleCache.set(uid, { at: Date.now(), result });
     return result;
   }, []);

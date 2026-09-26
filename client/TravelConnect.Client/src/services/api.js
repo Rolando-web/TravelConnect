@@ -114,7 +114,10 @@ export const leadsApi = crud("leads");
 export const convertLeadToCustomer = (id) => request(`/api/leads/${id}/convert`, { method: "POST" }, ADMIN_WRITE_TIMEOUT_MS);
 export const setLeadStage = (id, stage) =>
   request(`/api/leads/${id}/stage`, { method: "POST", body: JSON.stringify({ stage }) }, ADMIN_WRITE_TIMEOUT_MS);
-export const usersApi = crud("users");
+export const usersApi = {
+  ...crud("users"),
+  me: () => request("/api/users/me"),
+};
 export const inquiriesApi = crud("inquiries");
 
 // ── Customer Support Chat ─────────────────────────────────────

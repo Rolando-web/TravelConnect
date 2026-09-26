@@ -16,8 +16,13 @@ const firestore = vi.hoisted(() => ({
   setDoc: vi.fn(),
 }));
 
+const api = vi.hoisted(() => ({
+  usersApi: { me: vi.fn() },
+}));
+
 vi.mock("firebase/auth", () => authModule);
 vi.mock("firebase/firestore", () => firestore);
+vi.mock("../services/api", () => api);
 vi.mock("../services/firebase", () => ({
   auth: { type: "mock-auth" },
   googleProvider: { type: "mock-google" },
@@ -52,6 +57,7 @@ beforeEach(() => {
   localStorage.clear();
   ctxRef = { current: null };
   authCallback = undefined;
+  api.usersApi.me.mockRejectedValue(new Error("Request failed (404)"));
   authModule.onAuthStateChanged.mockImplementation((auth, cb) => {
     authCallback = cb;
     return () => {};
@@ -190,5 +196,98 @@ describe("AuthContext login performance", () => {
 
     expect(done).toBe(true);
     expect(getCtx().user?.role).toBe("Customer");
+  });
+});
+
+describe("AuthContext backend role reconciliation", () => {
+  it("prefers the backend SystemUsers role when Firestore went stale, then self-heals", async () => {
+    renderProvider();
+
+    authModule.signInWithEmailAndPassword.mockResolvedValue({
+      user: fbUser("u-admin", { role: "Agency Staff" }),
+    });
+    // Firestore disagrees with the authoritative registry...
+    firestore.getDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => ({ role: "Agency Staff", displayName: "Maria Santos" }),
+    });
+    // ...and the backend says the account is really the Agency Admin.
+    api.usersApi.me.mockResolvedValue({ email: "admin@tc.com", role: "Agency Admin" });
+
+    let result;
+    await act(async () => {
+      result = await getCtx().loginWithEmail("admin@tc.com", "secret1");
+    });
+
+    expect(result.role).toBe("Agency Admin");
+    expect(firestore.setDoc).toHaveBeenCalledWith(
+      "doc-ref",
+      expect.objectContaining({ role: "Agency Admin", email: "u-admin@tc.com" }),
+      { merge: true }
+    );
+  });
+
+  it("normalizes an Agency Owner record to Agency Admin", async () => {
+    renderProvider();
+
+    authModule.signInWithEmailAndPassword.mockResolvedValue({
+      user: fbUser("u-owner", {}),
+    });
+    firestore.getDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => ({ role: "Agency Owner" }),
+    });
+    api.usersApi.me.mockResolvedValue({ email: "owner@tc.com", role: "Agency Owner" });
+
+    let result;
+    await act(async () => {
+      result = await getCtx().loginWithEmail("owner@tc.com", "secret1");
+    });
+
+    expect(result.role).toBe("Agency Admin");
+    expect(firestore.setDoc).toHaveBeenCalledWith(
+      "doc-ref",
+      expect.objectContaining({ role: "Agency Admin" }),
+      { merge: true }
+    );
+  });
+
+  it("falls back to the Firestore role when the backend is unreachable", async () => {
+    renderProvider();
+
+    authModule.signInWithEmailAndPassword.mockResolvedValue({
+      user: fbUser("u-offline", {}),
+    });
+    firestore.getDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => ({ role: "Finance Staff", displayName: "Pedro" }),
+    });
+
+    let result;
+    await act(async () => {
+      result = await getCtx().loginWithEmail("pedro@tc.com", "secret1");
+    });
+
+    expect(result.role).toBe("Finance Staff");
+  });
+
+  it("keeps a Customer when the backend has no SystemUsers row (404)", async () => {
+    renderProvider();
+
+    authModule.signInWithEmailAndPassword.mockResolvedValue({
+      user: fbUser("u-cust", {}),
+    });
+    firestore.getDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => ({ role: "Customer", displayName: "Pat" }),
+    });
+
+    let result;
+    await act(async () => {
+      result = await getCtx().loginWithEmail("pat@tc.com", "secret1");
+    });
+
+    expect(result.role).toBe("Customer");
+    expect(firestore.setDoc).not.toHaveBeenCalled();
   });
 });
