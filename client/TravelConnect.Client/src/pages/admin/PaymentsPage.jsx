@@ -125,10 +125,10 @@ export default function PaymentsPage() {
 
   const modalFields = [
     { key: "referenceId", label: "Reference ID", required: true },
-    { key: "bookingId", label: "Booking ID", type: "number" },
+    { key: "bookingId", label: "Booking ID", type: "number", min: 0 },
     { key: "customerName", label: "Customer", required: true },
     { key: "packageName", label: "Package" },
-    { key: "amount", label: "Amount (₱)", type: "number" },
+    { key: "amount", label: "Amount (₱)", type: "number", min: 0 },
     { key: "method", label: "Method", type: "select", options: ["GCash", "gcash", "PayMaya", "paymaya", "Card", "PayPal", "Bank"] },
     { key: "status", label: "Status", type: "select", options: ["Paid", "Partial", "Pending", "Refunded"] },
     { key: "paymentDate", label: "Payment Date", type: "date" },

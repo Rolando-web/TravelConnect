@@ -148,14 +148,14 @@ export default function BookingsPage() {
 
   const modalFields = [
     { key: "customerName", label: "Customer", required: true },
-    { key: "customerEmail", label: "Customer Email", type: "text" },
-    { key: "customerPhone", label: "Customer Phone" },
+    { key: "customerEmail", label: "Customer Email", type: "email" },
+    { key: "customerPhone", label: "Customer Phone", type: "tel" },
     { key: "packageName", label: "Package", required: true },
     { key: "location", label: "Destination" },
     { key: "startDate", label: "Start Date", type: "date" },
     { key: "endDate", label: "End Date", type: "date" },
-    { key: "travellers", label: "Travellers", type: "number" },
-    { key: "totalAmount", label: "Total Amount (₱)", type: "number" },
+    { key: "travellers", label: "Travellers", type: "number", min: 1 },
+    { key: "totalAmount", label: "Total Amount (₱)", type: "number", min: 0 },
     { key: "status", label: "Status", type: "select", options: ["upcoming", "pending", "completed", "cancelled"] },
     { key: "paymentMethod", label: "Payment Method", type: "select", options: ["GCash", "PayMaya", "Card", "PayPal", "Bank"] },
     { key: "paid", label: "Payment Status", type: "checkbox" },

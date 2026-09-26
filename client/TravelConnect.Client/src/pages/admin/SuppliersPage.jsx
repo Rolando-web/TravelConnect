@@ -116,10 +116,10 @@ export default function SuppliersPage() {
     { key: "imageUrl", label: "Supplier Image", type: "image", placeholder: "Paste image URL..." },
     { key: "companyName", label: "Company Name", required: true },
     { key: "contactName", label: "Contact Name" },
-    { key: "contactEmail", label: "Contact Email", type: "text" },
-    { key: "contactPhone", label: "Contact Phone" },
+    { key: "contactEmail", label: "Contact Email", type: "email" },
+    { key: "contactPhone", label: "Contact Phone", type: "tel" },
     { key: "type", label: "Type", type: "select", options: ["Hotel", "Transport", "Tour Op.", "Activity", "Airline"] },
-    { key: "rating", label: "Rating", type: "number", placeholder: "0.0 – 5.0" },
+    { key: "rating", label: "Rating", type: "number", placeholder: "0.0 – 5.0", min: 0, max: 5, step: 0.1 },
     { key: "status", label: "Status", type: "select", options: ["Active", "Review", "Inactive"] },
   ];
 

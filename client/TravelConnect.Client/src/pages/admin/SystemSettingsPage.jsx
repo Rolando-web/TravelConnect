@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Sliders,
 } from "lucide-react";
+import { sanitizePhMobile, formatPhMobileFull } from "../../utils/phone";
 
 const SETTINGS_KEY = "tc_system_settings";
 
@@ -237,11 +238,13 @@ export default function SystemSettingsPage() {
                 <Field label="Support Phone" hint="Included in voucher PDFs and customer itinerary headers.">
                   <input
                     type="tel"
+                    inputMode="tel"
+                    maxLength={16}
                     className="input-field"
                     value={settings.supportPhone}
-                    onChange={(e) => set("supportPhone", e.target.value)}
+                    onChange={(e) => set("supportPhone", formatPhMobileFull(sanitizePhMobile(e.target.value)))}
                     disabled={!canManage}
-                    placeholder="+63 917 000 0000"
+                    placeholder="+63 9XX-XXX-XXXX"
                   />
                 </Field>
               </div>
@@ -306,10 +309,11 @@ export default function SystemSettingsPage() {
                   <input
                     type="number"
                     min="0"
+                    max="8760"
                     step="1"
                     className="input-field"
                     value={settings.cancellationWindowHours}
-                    onChange={(e) => set("cancellationWindowHours", Number(e.target.value))}
+                    onChange={(e) => set("cancellationWindowHours", Math.min(8760, Math.max(0, Number(e.target.value) || 0)))}
                     disabled={!canManage}
                   />
                 </Field>

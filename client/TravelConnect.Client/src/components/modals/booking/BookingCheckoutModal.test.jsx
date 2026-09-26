@@ -134,6 +134,34 @@ describe("BookingCheckoutModal promo application", () => {
   });
 });
 
+describe("BookingCheckoutModal customer contact", () => {
+  it("blocks advancing to payment when the mobile number is invalid", async () => {
+    render(<BookingCheckoutModal />);
+    fireEvent.click(await screen.findByText("Continue to Passenger Details"));
+
+    const phoneInput = screen.getByPlaceholderText("9XX-XXX-XXXX");
+    fireEvent.change(phoneInput, { target: { value: "+63 123" } });
+    fireEvent.click(screen.getByText("Continue to Payment"));
+
+    expect(
+      await screen.findByText(/valid mobile number — 10 digits starting with 9/)
+    ).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Promo code? (e.g. SUMMER26, WELCOME50)")).not.toBeInTheDocument();
+  });
+
+  it("caps the number at 10 digits and strips non-numeric characters", async () => {
+    render(<BookingCheckoutModal />);
+    fireEvent.click(await screen.findByText("Continue to Passenger Details"));
+
+    const phoneInput = screen.getByPlaceholderText("9XX-XXX-XXXX");
+    fireEvent.change(phoneInput, {
+      target: { value: "+63917 123-4567 890" },
+    });
+
+    expect(phoneInput).toHaveValue("+63 917-123-4567");
+  });
+});
+
 describe("BookingCheckoutModal card payment", () => {
   const fillCard = async () => {
     fireEvent.click(screen.getByRole("radio", { name: /Credit \/ Debit Card/ }));

@@ -114,12 +114,12 @@ export default function LeadsPage() {
 
   const modalFields = [
     { key: "name", label: "Name", required: true },
-    { key: "email", label: "Email", required: true },
-    { key: "phone", label: "Phone" },
+    { key: "email", label: "Email", required: true, type: "email" },
+    { key: "phone", label: "Phone", type: "tel" },
     { key: "interest", label: "Interest" },
     { key: "source", label: "Source", type: "select", options: SOURCES },
     { key: "stage", label: "Stage", type: "select", options: stageFilters.slice(1) },
-    { key: "worth", label: "Potential Value (₱)", type: "number" },
+    { key: "worth", label: "Potential Value (₱)", type: "number", min: 0 },
     { key: "nextFollowUp", label: "Next Follow-up", type: "date" },
     { key: "assignedTo", label: "Assigned To" },
     { key: "lastContact", label: "Last Contact", type: "date" },

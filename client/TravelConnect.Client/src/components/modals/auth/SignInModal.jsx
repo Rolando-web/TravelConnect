@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { X, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { auth } from "../../../services/firebase";
 import { useAuth } from "../../../context/AuthContext";
 import { ADMIN_ROLES } from "../../../pages/admin/adminConfig";
 import { usePublicStats } from "../../../hooks/usePublicStats";
@@ -37,6 +39,7 @@ export default function SignInModal() {
   const [password, setPassword] = useState("");
   const [showPw, setShowPw]     = useState(false);
   const [error, setError]       = useState("");
+  const [resetMsg, setResetMsg] = useState("");
   const [loading, setLoading]   = useState(false);
   const [slideIdx, setSlideIdx] = useState(0);
 
@@ -78,7 +81,9 @@ export default function SignInModal() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setResetMsg("");
     if (!email || !password) { setError("Please fill in all fields."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError("Please enter a valid email address."); return; }
     if (password.length < 6)  { setError("Password must be at least 6 characters."); return; }
 
     setLoading(true);
@@ -95,6 +100,22 @@ export default function SignInModal() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  /* ── Forgot password: sends a Firebase reset email ── */
+  const handleForgot = async () => {
+    setError("");
+    setResetMsg("");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError("Enter your account email above first to reset your password.");
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      setResetMsg("Password reset email sent — please check your inbox.");
+    } catch {
+      setError("Could not send the reset email. Check the address and try again.");
     }
   };
 
@@ -192,6 +213,8 @@ export default function SignInModal() {
               <input
                 ref={emailRef}
                 type="email"
+                autoComplete="email"
+                maxLength={254}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email address"
@@ -203,6 +226,9 @@ export default function SignInModal() {
             <div className="relative">
               <input
                 type={showPw ? "text" : "password"}
+                autoComplete="current-password"
+                minLength={6}
+                maxLength={128}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
@@ -218,8 +244,15 @@ export default function SignInModal() {
             </div>
 
             {/* Forgot */}
-            <div className="flex justify-end">
-              <button type="button" className="text-[#008fe5] text-xs font-semibold hover:underline">
+            <div className="flex flex-col items-end gap-1">
+              {resetMsg && (
+                <p className="w-full text-[11px] font-semibold text-emerald-600">{resetMsg}</p>
+              )}
+              <button
+                type="button"
+                onClick={handleForgot}
+                className="text-[#008fe5] text-xs font-semibold hover:underline"
+              >
                 Forgot password?
               </button>
             </div>

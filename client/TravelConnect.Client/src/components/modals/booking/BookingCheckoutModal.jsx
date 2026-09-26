@@ -8,10 +8,15 @@ import {
 import { useBooking } from "../../../context/BookingContext";
 import { useAuth } from "../../../context/AuthContext";
 import { useCurrency } from "../../../context/CurrencyContext";
-import { sendCustomerInquiry, flightsApi } from "../../../services/api";
+import { flightsApi } from "../../../services/api";
 import SeatMapModal from "./SeatMapModal";
 import CardPaymentForm from "../../booking/CardPaymentForm";
 import FlightStatusCard from "../../booking/FlightStatusCard";
+import {
+  sanitizePhMobile,
+  formatPhMobileFull,
+  isValidPhMobile
+} from "../../../utils/phone";
 
 const MAX_FLIGHT_SEGMENTS = 6;
 const MAX_REGULAR_PASSENGERS = 9;
@@ -75,12 +80,14 @@ export default function BookingCheckoutModal() {
 
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
-  const [guestPhone, setGuestPhone] = useState("+63 917 123 4567");
-  const [specialRequests] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
 
   // Tracks whether the customer has hand-typed their name: once they do, the
   // email field stops overwriting it with the auto-derived email name.
   const guestNameTouched = useRef(false);
+
+  // Today's date (yyyy-MM-dd) used to clamp DOB and journey dates.
+  const maxDateISO = new Date().toISOString().slice(0, 10);
 
   // Typing an email auto-fills the passenger name from the email prefix (same
   // for flights, hotels, cars and package deals). Never clobbers a name that
@@ -155,7 +162,7 @@ export default function BookingCheckoutModal() {
       setGuestName(name);
     }
     if (user?.email) setGuestEmail(user.email);
-    if (user?.phone) setGuestPhone(user.phone);
+    if (user?.phone) setGuestPhone(sanitizePhMobile(user.phone));
   }, [checkoutModalOpen, user?.name, user?.email, user?.phone]);
 
   const maxPassengers = isFlight ? MAX_REGULAR_PASSENGERS : 99;
@@ -195,7 +202,7 @@ export default function BookingCheckoutModal() {
       if (user) {
         if (user.name) setGuestName(nameFromEmail(user.email) || user.name);
         if (user.email) setGuestEmail(user.email);
-        if (user.phone) setGuestPhone(user.phone);
+        if (user.phone) setGuestPhone(sanitizePhMobile(user.phone));
       }
       // No user → leave the fields blank so the customer must type their real
       // name & email (never a fake "Juan Dela Cruz" placeholder that would
@@ -259,14 +266,22 @@ export default function BookingCheckoutModal() {
 
   // Validate the active step before allowing the user to continue.
   const validateStep = () => {
+    if (step === 1) {
+      if (!startDate || !endDate) return "Please select both departure and return dates.";
+      if (endDate < startDate) return "Return date must be on or after the departure date.";
+      return "";
+    }
     if (step === 2) {
       const effectiveName = noSurname ? guestFirstName.trim() : `${guestFirstName.trim()} ${guestLastName.trim()}`.trim();
       if (!guestFirstName.trim() || (!noSurname && !guestLastName.trim())) {
         return "Please provide both first and last name for the primary passenger.";
       }
+      if (guestDob && guestDob > maxDateISO) return "Date of birth cannot be in the future.";
       if (!guestEmail.trim()) return "Please provide an email address for your e-ticket.";
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim()))
         return "Please enter a valid email address.";
+      if (!isValidPhMobile(guestPhone))
+        return "Please enter a valid mobile number — 10 digits starting with 9 (e.g. 9XX-XXX-XXXX).";
       setGuestName(effectiveName);
       return "";
     }
@@ -293,6 +308,10 @@ export default function BookingCheckoutModal() {
       setValidationMsg("Please provide your name and email address.");
       return;
     }
+    if (!isValidPhMobile(guestPhone)) {
+      setValidationMsg("Please enter a valid mobile number — 10 digits starting with 9 (e.g. 9XX-XXX-XXXX).");
+      return;
+    }
 
     if (paymentMethod === "card" && !cardValid.valid) {
       setValidationMsg("Please complete the card details correctly (number, expiry, CVV and name on card).");
@@ -315,8 +334,7 @@ export default function BookingCheckoutModal() {
       promoCodeUsed: promoResult ? promoResult.code : "",
       customerName: guestName,
       customerEmail: guestEmail,
-      customerPhone: guestPhone,
-      specialRequests,
+      customerPhone: formatPhMobileFull(guestPhone),
       category: checkoutPackage.category || "package",
       flightSegments: isFlight
         ? (flightSegments || [])
@@ -357,16 +375,6 @@ export default function BookingCheckoutModal() {
         paymentPayload,
         paymentMethod === "card" ? card : null
       );
-
-      if (specialRequests.trim()) {
-        await sendCustomerInquiry({
-          customerName: guestName,
-          customerEmail: guestEmail,
-          subject: `Special Request for ${created.id || created.referenceNumber}`,
-          message: specialRequests,
-          bookingReference: created.id || created.referenceNumber
-        });
-      }
 
       setCompletedBooking(created);
       setIsProcessing(false);
@@ -554,6 +562,7 @@ export default function BookingCheckoutModal() {
                         <input
                           type="date"
                           value={startDate}
+                          min={maxDateISO}
                           onChange={(e) => setStartDate(e.target.value)}
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-[#008fe5]"
                         />
@@ -889,6 +898,7 @@ export default function BookingCheckoutModal() {
                   <input
                     type="date"
                     value={guestDob}
+                    max={maxDateISO}
                     onChange={(e) => setGuestDob(e.target.value)}
                     className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-xl py-2.5 px-3.5 text-xs font-bold text-slate-900 outline-none focus:border-[#008fe5]"
                   />
@@ -935,6 +945,7 @@ export default function BookingCheckoutModal() {
                   </select>
                   <input
                     type="text"
+                    maxLength={20}
                     value={frequentFlyerNumber}
                     onChange={(e) => setFrequentFlyerNumber(e.target.value)}
                     placeholder="Frequent flyer number"
@@ -968,6 +979,7 @@ export default function BookingCheckoutModal() {
                   <input
                     type="email"
                     value={guestEmail}
+                    maxLength={254}
                     onChange={(e) => handleGuestEmailChange(e.target.value)}
                     placeholder="juan@gmail.com"
                     className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-xl py-2.5 px-3.5 text-xs font-bold text-slate-900 outline-none focus:border-[#008fe5]"
@@ -979,9 +991,12 @@ export default function BookingCheckoutModal() {
                   </label>
                   <input
                     type="tel"
-                    value={guestPhone}
-                    onChange={(e) => setGuestPhone(e.target.value)}
-                    placeholder="+63 917 123 4567"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    maxLength={16}
+                    value={formatPhMobileFull(guestPhone)}
+                    onChange={(e) => setGuestPhone(sanitizePhMobile(e.target.value))}
+                    placeholder="9XX-XXX-XXXX"
                     className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-xl py-2.5 px-3.5 text-xs font-bold text-slate-900 outline-none focus:border-[#008fe5]"
                   />
                 </div>
@@ -1180,6 +1195,7 @@ export default function BookingCheckoutModal() {
                   <Tag size={16} className="text-[#008fe5] shrink-0" />
                   <input
                     type="text"
+                    maxLength={24}
                     placeholder="Promo code? (e.g. SUMMER26, WELCOME50)"
                     value={promoInput}
                     onChange={(e) => setPromoInput(e.target.value)}

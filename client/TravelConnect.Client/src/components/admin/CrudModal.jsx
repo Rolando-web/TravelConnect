@@ -51,11 +51,34 @@ export default function CrudModal({
     if (errors[key]) setErrors((e) => ({ ...e, [key]: undefined }));
   };
 
+  // Empty/NaN numeric input becomes null (so "required" still fires) instead of
+  // silently writing 0 or NaN into the record.
+  const coerceNumber = (value) => {
+    if (value === "" || value === null || value === undefined) return null;
+    const n = Number(value);
+    return Number.isNaN(n) ? null : n;
+  };
+
   const validate = () => {
     const errs = {};
     for (const f of allFields) {
-      if (f.required && (form[f.key] === undefined || form[f.key] === null || form[f.key] === "")) {
+      const v = form[f.key];
+      if (f.required && (v === undefined || v === null || v === "")) {
         errs[f.key] = `${f.label} is required`;
+        continue;
+      }
+      if (f.type === "email" && v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v).trim())) {
+        errs[f.key] = `${f.label} must be a valid email address`;
+        continue;
+      }
+      if (f.type === "number" && v !== null && v !== undefined && v !== "") {
+        const n = Number(v);
+        if (Number.isNaN(n)) {
+          errs[f.key] = `${f.label} must be a number`;
+          continue;
+        }
+        if (f.min !== undefined && n < f.min) errs[f.key] = `${f.label} must be at least ${f.min}`;
+        else if (f.max !== undefined && n > f.max) errs[f.key] = `${f.label} must be at most ${f.max}`;
       }
     }
     setErrors(errs);
@@ -179,11 +202,25 @@ export default function CrudModal({
         </label>
       );
     }
+    const resolveType = () => {
+      switch (f.type) {
+        case "number": return "number";
+        case "date": return "date";
+        case "email": return "email";
+        case "tel": return "tel";
+        default: return "text";
+      }
+    };
     return (
       <input
-        type={f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}
+        type={resolveType()}
         value={form[f.key] ?? ""}
-        onChange={(e) => set(f.key, f.type === "number" ? Number(e.target.value) : e.target.value)}
+        min={f.min}
+        max={f.max}
+        step={f.step}
+        maxLength={f.maxLength}
+        inputMode={f.inputMode || (f.type === "number" ? "decimal" : undefined)}
+        onChange={(e) => set(f.key, f.type === "number" ? coerceNumber(e.target.value) : e.target.value)}
         disabled={disabled}
         placeholder={f.placeholder || ""}
         className={`${cls}${errCls}`}

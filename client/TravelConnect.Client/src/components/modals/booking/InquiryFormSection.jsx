@@ -6,6 +6,7 @@ export default function InquiryFormSection({ booking }) {
   const [inquirySubject, setInquirySubject] = useState("");
   const [inquiryText, setInquiryText] = useState("");
   const [inquirySent, setInquirySent] = useState(false);
+  const [inquiryError, setInquiryError] = useState("");
   const [isSendingInquiry, setIsSendingInquiry] = useState(false);
 
   const handleSendInquiry = async (e) => {
@@ -13,18 +14,24 @@ export default function InquiryFormSection({ booking }) {
     if (!inquiryText.trim()) return;
 
     setIsSendingInquiry(true);
-    await sendCustomerInquiry({
-      customerName: booking.customerName || "Customer",
-      customerEmail: booking.customerEmail || "customer@example.com",
-      subject: inquirySubject || `Inquiry for ${booking.id || booking.referenceNumber}`,
-      message: inquiryText,
-      bookingReference: booking.id || booking.referenceNumber
-    });
-    setIsSendingInquiry(false);
-    setInquirySent(true);
-    setInquiryText("");
-    setInquirySubject("");
-    setTimeout(() => setInquirySent(false), 4000);
+    setInquiryError("");
+    try {
+      await sendCustomerInquiry({
+        customerName: booking.customerName || "Customer",
+        customerEmail: booking.customerEmail || "customer@example.com",
+        subject: inquirySubject.trim() || `Inquiry for ${booking.id || booking.referenceNumber}`,
+        message: inquiryText,
+        bookingReference: booking.id || booking.referenceNumber
+      });
+      setInquirySent(true);
+      setInquiryText("");
+      setInquirySubject("");
+      setTimeout(() => setInquirySent(false), 4000);
+    } catch {
+      setInquiryError("Could not send your inquiry. Please try again.");
+    } finally {
+      setIsSendingInquiry(false);
+    }
   };
 
   return (
@@ -41,18 +48,20 @@ export default function InquiryFormSection({ booking }) {
         <form onSubmit={handleSendInquiry} className="space-y-3">
           <input
             type="text"
+            maxLength={120}
             value={inquirySubject}
-            onChange={(e) => setInquirySubject(e.target.value)}
+            onChange={(e) => { setInquirySubject(e.target.value); setInquiryError(""); }}
             placeholder="Inquiry Subject (e.g., Flight Time Change, Special Dietary Request)"
             className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs outline-none focus:border-[#008fe5]"
           />
           <div className="flex gap-2">
-            <input
-              type="text"
+            <textarea
+              rows={2}
+              maxLength={1000}
               value={inquiryText}
-              onChange={(e) => setInquiryText(e.target.value)}
+              onChange={(e) => { setInquiryText(e.target.value); setInquiryError(""); }}
               placeholder="Type your message or inquiry here..."
-              className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-xs outline-none focus:border-[#008fe5]"
+              className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-xs outline-none focus:border-[#008fe5] resize-none"
             />
             <button
               type="submit"
@@ -62,6 +71,9 @@ export default function InquiryFormSection({ booking }) {
               <Send size={13} /> Send
             </button>
           </div>
+          {inquiryError && (
+            <p className="text-xs font-semibold text-rose-600">{inquiryError}</p>
+          )}
         </form>
       )}
     </div>

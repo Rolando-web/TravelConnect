@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Camera, Lock, Save, User, Mail, Shield } from "lucide-react";
+import { Camera, Save, User, Mail, Shield } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { sanitizePhMobile, formatPhMobileFull } from "../../utils/phone";
 
 const EXTRAS_KEY = "tc_profile_extras";
 
@@ -31,19 +32,17 @@ export default function ProfilePage() {
       jobTitle: extras.jobTitle || "",
     };
   });
-  const [passwords, setPasswords] = useState({
-    current: "",
-    new: "",
-    confirm: "",
-  });
   const [saved, setSaved] = useState(false);
 
   const handleProfileChange = (e) => {
+    if (e.target.name === "phone") {
+      setProfile((prev) => ({
+        ...prev,
+        phone: formatPhMobileFull(sanitizePhMobile(e.target.value)),
+      }));
+      return;
+    }
     setProfile((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-  };
-
-  const handlePasswordChange = (e) => {
-    setPasswords((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSaveProfile = (e) => {
@@ -188,10 +187,18 @@ export default function ProfilePage() {
                 Phone Number
                 <input
                   name="phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  maxLength={16}
                   value={profile.phone}
                   onChange={handleProfileChange}
+                  placeholder="+63 9XX-XXX-XXXX"
                   className="mt-2 input-field"
                 />
+                <span className="mt-1 block text-[11px] text-text-secondary">
+                  Philippine mobile — enter 10 digits starting with 9.
+                </span>
               </label>
               <label className="block text-xs text-text-secondary sm:col-span-2">
                 Address
@@ -228,60 +235,6 @@ export default function ProfilePage() {
               </button>
             </div>
           </form>
-
-          {/* Password Change */}
-          <div className="card">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-badge-orange/15 flex items-center justify-center text-badge-orange">
-                <Lock size={18} />
-              </div>
-              <div>
-                <h2 className="font-bold">Change Password</h2>
-                <p className="text-sm text-text-secondary">
-                  Update your account password
-                </p>
-              </div>
-            </div>
-
-            <div className="grid sm:grid-cols-3 gap-4">
-              <label className="block text-xs text-text-secondary">
-                Current Password
-                <input
-                  name="current"
-                  type="password"
-                  value={passwords.current}
-                  onChange={handlePasswordChange}
-                  className="mt-2 input-field"
-                />
-              </label>
-              <label className="block text-xs text-text-secondary">
-                New Password
-                <input
-                  name="new"
-                  type="password"
-                  value={passwords.new}
-                  onChange={handlePasswordChange}
-                  className="mt-2 input-field"
-                />
-              </label>
-              <label className="block text-xs text-text-secondary">
-                Confirm Password
-                <input
-                  name="confirm"
-                  type="password"
-                  value={passwords.confirm}
-                  onChange={handlePasswordChange}
-                  className="mt-2 input-field"
-                />
-              </label>
-            </div>
-
-            <div className="flex justify-end mt-6">
-              <button className="btn-primary">
-                <Lock size={16} /> Update Password
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

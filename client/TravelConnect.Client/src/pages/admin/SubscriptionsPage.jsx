@@ -222,8 +222,8 @@ export default function SubscriptionsPage() {
 
   const modalFields = [
     { key: "agencyName", label: "Agency Name", required: true },
-    { key: "contactEmail", label: "Contact Email", required: true },
-    { key: "contactPhone", label: "Contact Phone" },
+    { key: "contactEmail", label: "Contact Email", required: true, type: "email" },
+    { key: "contactPhone", label: "Contact Phone", type: "tel" },
     { key: "tierLevel", label: "Tier Level", type: "select", required: true, options: [
       { value: 1, label: "Tier 1 — Starter (₱2,999/mo, 2 users)" },
       { value: 2, label: "Tier 2 — Professional (₱7,999/mo, 10 users)" },

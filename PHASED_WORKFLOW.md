@@ -802,6 +802,46 @@ adds the missing rule end-to-end and proves it with tests.
 
 ---
 
+# PHASE 15 — INPUT ERROR-HANDLING + NUMERIC ENFORCEMENT + DEAD CODE (final optimization)
+
+**Requested after Phase 14 (same day):** audit every input for error handling,
+enforce numeric-only where a field is a number, cap the PayMongo-era mobile phone
+to the PH format, scan other modals, remove dead code, and fix non-working
+functions found along the way. A full client-wide controls audit was run first
+(87 controls across 33 files) and the gaps below were fixed.
+
+### 15.1 PayMongo / PH mobile rule (implemented)
+
+PH mobiles dial as `+63 9XX-XXX-XXXX`. The `+63` covers the leading `0`, so the
+user only ever types **10 digits starting with 9**. `src/utils/phone.js`:
+`sanitizePhMobile()` strips symbols and a leading `0`/`63`, caps at 10 digits;
+`formatPhMobileFull()` displays `+63 9XX-XXX-XXXX` live in the field; every bare
+phone input in the app now uses it and flags `+63` as the fixed prefix (no fake
+`+63 917 123 4567` default was shipped anymore — the old one was stored into
+live bookings).
+
+### 15.2 Phase 15 scope
+
+| # | Item | Status |
+|---|------|--------|
+| 15A-1 | **Checkout (BookingCheckoutModal)** — mobile field: numeric-only, 10-digit cap, `+63` prefix, required on Step 2 **and** before payment; email/ff/promo `maxLength`; journey dates cross-validated (return ≥ departure); DOB clamped to today; prefill from the account sanitized. | ☑ |
+| 15A-2 | **Dead code removed** — the checkout `specialRequests` state had **no input and a dead branch** (nothing could ever set it): removed the state, payload key and the unreachable `sendCustomerInquiry` call. `ProfilePage` had a **Change Password card whose button did nothing** (no `onClick`, no backend): removed, plus the idle state it tied to. | ☑ |
+| 15A-3 | **Non-working functions fixed** — `InquiryFormSection` awaited `sendCustomerInquiry` with **no try/catch** (a network failure left the Send spinner stuck forever): wrapped in try/finally with an error message, message now a `<textarea>` with limits. `SignInModal` **Forgot password?** button did nothing: now sends a real Firebase reset email; login gains email-format validation, `autoComplete`, and bounds. | ☑ |
+| 15A-4 | **Admin CRUD (CrudModal)** — clearing a required numeric field used to silently write `0`, garbage wrote `NaN` (both now become `null` → required error); added `email`/`tel` input types, `min`/`max`/`step` passthrough, and email + numeric-range validation. Admin field configs re-tagged: emails → `email`, phones → `tel`, ratings `0–5`, prices/counts `≥ 0`. | ☑ |
+| 15A-5 | **Other modals/settings** — support phone formatted as `+63 9XX-XXX-XXXX`; cancellation window clamped `0–8760h` (was `Number("")→0` and unbounded). | ☑ |
+| 15B | Tests — `phone.test.js` (15: sanitize/strip-63/strip-0/cap/format/validate), `CrudModal.test.jsx` (4: required-cleared-number, rating max, malformed email, coerced submit), `BookingCheckoutModal.test.jsx` +2 (invalid phone blocks step 2; 10-digit cap + strip). | ☑ |
+
+### 15.3 Phase 15 Gate Checklist
+
+| # | Item | Dev | QA |
+|---|------|-----|-----|
+| E1 | 15A implemented; lint 0, build + bundle gate OK, existing suites green | ☑ | |
+| E2 | 15B green — frontend **123/123** (102 + 21); backend unchanged **134/134** | ☑ | |
+| E3 | Dead-code sweep: `specialRequests`, `handlePasswordChange`, `passwords` — 0 references left in `src` | ☑ | |
+| E4 | Manual QA (prod deploy): book → mobile field enforces `9XX-XXX-XXXX`; CRUD rejects bad numbers/emails; support phone/region consistent | | ☐ |
+
+---
+
 # 4. Progress Log
 
 | Phase | Started | Completed | Sign-off (Dev/QA) | Result |
@@ -821,6 +861,7 @@ adds the missing rule end-to-end and proves it with tests.
 | 12 Dynamic Flight Search + Continent Fix + Davao Hub | 2026-09-25 | 2026-09-25 | ✓ / | Done — date is no longer an exact kill-gate: `flightFilter.js` returns the requested date's departures when they exist, otherwise the route's nearest departures with a visible "No departures exactly on …" notice; `SearchCard` defaults to dynamic near-future dates (was frozen `2026-08-25`); Siargao + El Nido added to `CITY_META` (Asia, not International); seed flights are date-relative and a **Davao hub** set was added (Manila/Cebu/Tokyo/Singapore/Siargao). 12A gate passed (lint 0, build OK, 71/71 + 118/118) before 12B; frontend **85/85** (71 + 10 + 5), backend **118/118**, lint 0, bundle gate OK. F3 manual QA (incl. prod reseed for Davao) = user |
 | 13 Admin CRUD Optimization (cold-start + retry) | 2026-09-25 | 2026-09-25 | ✓ / | Done — **not a CRUD bug, a cold start**: MonsterASP recycles the app pool after ~20 min idle, so the first create/edit pays a 20-30s boot; the client's 12s timeout then aborted it. Fix: request-timing middleware (`X-Elapsed-Ms`/`X-Request-Id` + SLOW warnings), keep-alive ping service (keeps the pool warm + logs cold starts), bounded EF retry (30s→10s delay), and client idempotent retry-once (GET/PUT/DELETE only) + 45s admin write budget (POST stays single-shot). Live-smoke: timing headers + `[Timing]` logs verified. 13A gate passed (lint 0, build OK, 85/85 + 118/118) before 13B; frontend **89/89**, backend **126/126**, lint 0, bundle gate OK. C4: set `KeepAlive__TargetUrl` on MonsterASP + confirm cold-save log = user |
 | 14 Flight Status Card + Booking Lifecycle | 2026-09-26 | 2026-09-26 | ✓ / | Done — **lifecycle gap closed**: bookings no longer sit "upcoming" forever; `BookingLifecycleService` advances them to `completed` once the travel date passes (lazy on read, latest flight leg wins, itinerary EndDate fallback, cancelled/refunded/completed untouched). New client **`FlightStatusCard`** renders right after checkout (step 4) and on every flight booking in My Bookings: Scheduled · On Time / Traveling Today / Journey Completed / Booking Cancelled with route/date/times/seat per leg, derived via shared `src/data/flightStatus.js`. 14A gate passed (lint 0, build OK, 89/89 + 126/126) before 14B; frontend **102/102** (89 + 13), backend **134/134** (126 + 8), lint 0, bundle gate OK. D4: needs backend prod re-upload to flip existing past-date bookings = user |
+| 15 Input Error-Handling + Numeric Enforcement + Dead Code | 2026-09-26 | 2026-09-26 | ✓ / | Done — full input audit (87 controls / 33 files), then: **PH mobile rule** applied everywhere (`+63` = the leading 0, user types only 10 digits starting 9, live `9XX-XXX-XXXX` formatting, no more fake `+63 917 123 4567` default); checkout gains phone/date/DOB validation + limits; **dead code removed** (unreachable `specialRequests` state+branch, dead Change Password card in Profile); **non-working functions fixed** (Inquiry Send spinner no longer sticks — try/finally; Forgot password now sends a real Firebase reset email); **CrudModal** no longer writes silent `0`/`NaN` (→ null + required error), gained `email`/`tel` types + min/max/step + range/email validation; admin field configs re-tagged (emails/phones, ratings 0–5, prices ≥ 0); support phone + cancellation window hardened. 15A gate passed (lint 0, build OK, 102/102) before 15B; frontend **123/123** (102 + 21), backend **134/134** unchanged, lint 0, bundle gate OK, dead-code sweep 0 refs. E4: manual prod QA = user |
 | Release Gate R1–R6 | 2026-09-23 | 2026-09-23 | ✓ / | R1–R5 Dev done: publish + build + vault/secrets clean + bundle gate OK + lint **0 problems** (62→0 cleanup: unused imports removed, `useMemo(setPage)` anti-pattern → `useEffect`, context-hook/static-component suppressions documented). Added **TEST-MODE-ONLY** PayMongo guard + `00 / 00` expiry mask. Pending (user): deploy to Vercel/host (R5*), human popup 3-D Secure QA, then R6 QA sign-off |
 | **Release** | | | / | **R6 pending — deploy on Vercel/host, then check QA boxes** |
 

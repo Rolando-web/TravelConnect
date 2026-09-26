@@ -64,11 +64,11 @@ export default function CustomersPage() {
 
   const modalFields = [
     { key: "name", label: "Name", required: true },
-    { key: "email", label: "Email", required: true },
-    { key: "phone", label: "Phone" },
+    { key: "email", label: "Email", required: true, type: "email" },
+    { key: "phone", label: "Phone", type: "tel" },
     { key: "country", label: "Country" },
-    { key: "totalBookings", label: "Total Bookings", type: "number" },
-    { key: "totalSpent", label: "Total Spent (₱)", type: "number" },
+    { key: "totalBookings", label: "Total Bookings", type: "number", min: 0 },
+    { key: "totalSpent", label: "Total Spent (₱)", type: "number", min: 0 },
     { key: "status", label: "Status", type: "select", options: ["Active", "Inactive", "Pending"] },
   ];
 

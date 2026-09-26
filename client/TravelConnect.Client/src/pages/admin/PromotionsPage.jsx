@@ -70,10 +70,10 @@ export default function PromotionsPage() {
     { key: "code", label: "Code", required: true },
     { key: "campaignName", label: "Campaign Name", required: true },
     { key: "description", label: "Description", type: "textarea", rows: 3 },
-    { key: "discount", label: "Discount", type: "number" },
+    { key: "discount", label: "Discount", type: "number", min: 0 },
     { key: "discountType", label: "Type", type: "select", options: ["Percent", "Fixed"] },
-    { key: "maxUses", label: "Max Uses", type: "number" },
-    { key: "usedCount", label: "Used Count", type: "number" },
+    { key: "maxUses", label: "Max Uses", type: "number", min: 1 },
+    { key: "usedCount", label: "Used Count", type: "number", min: 0 },
     { key: "expiresAt", label: "Expires At", type: "date" },
     { key: "status", label: "Status", type: "select", options: ["Active", "Scheduled", "Expired", "Inactive"] },
   ];

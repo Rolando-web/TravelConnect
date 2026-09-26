@@ -79,9 +79,9 @@ export default function PackagesPage() {
     { key: "location", label: "Location", required: true },
     { key: "description", label: "Description", type: "textarea", rows: 3 },
     { key: "duration", label: "Duration (e.g. 7D)" },
-    { key: "price", label: "Price (₱)", type: "number" },
-    { key: "rating", label: "Rating", type: "number" },
-    { key: "reviews", label: "Reviews", type: "number" },
+    { key: "price", label: "Price (₱)", type: "number", min: 0 },
+    { key: "rating", label: "Rating", type: "number", min: 0, max: 5, step: 0.5 },
+    { key: "reviews", label: "Reviews", type: "number", min: 0 },
     { key: "tag", label: "Tag", type: "select", options: ["Best Seller", "Top Rated", "Cultural", "Luxury", "Ultra-Luxury", "City Break", "Adventure"] },
     { key: "status", label: "Status", type: "select", options: ["Active", "Inactive", "Draft"] },
   ];
