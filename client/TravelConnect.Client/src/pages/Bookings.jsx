@@ -3,12 +3,13 @@ import { Link } from "react-router-dom";
 import {
   MapPin, Calendar, Users, CreditCard, BadgeCheck, CalendarClock,
   ArrowRight, Globe, Lock, FileText, RotateCcw, ShieldCheck, CheckCircle2,
-  Coins, Check, Download, Plane
+  Coins, Check, Download
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useBooking } from "../context/BookingContext";
 import { useCurrency } from "../context/CurrencyContext";
 import { getRefundPreview, generateItineraryPdf } from "../services/api";
+import FlightStatusCard from "../components/booking/FlightStatusCard";
 
 /* ─── Status helpers ─────────────────────────────────────────────────── */
 const STATUS_CONFIG = {
@@ -75,7 +76,6 @@ function BookingVoucherCard({ booking, onViewDetails, onRequestCancel, onDownloa
   const st = STATUS_CONFIG[booking.status] || STATUS_CONFIG.upcoming;
   const bookingAmount = booking.amount || booking.totalAmount || 0;
   const flightSegments = Array.isArray(booking.bookingFlights) ? booking.bookingFlights : [];
-  const seatCount = flightSegments.filter((f) => f.seatNumber).length;
   const isDownloading = downloadingRef === (booking.id || booking.referenceNumber);
 
   return (
@@ -136,41 +136,10 @@ function BookingVoucherCard({ booking, onViewDetails, onRequestCancel, onDownloa
             </span>
           </div>
 
-          {/* Live Ticket Strip: confirmed seat numbers & flight status */}
+          {/* Flight Status Card: live journey status + leg/seat details */}
           {flightSegments.length > 0 && (
-            <div className="mt-4 rounded-2xl border border-slate-200/70 dark:border-white/[0.06] overflow-hidden">
-              {flightSegments.map((f, i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between gap-2 px-3.5 py-2.5 text-[11px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-50/70 dark:bg-white/[0.02] border-b border-slate-200/50 dark:border-white/[0.04] last:border-0"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Plane size={13} className="text-[#008fe5] shrink-0" />
-                    <span className="truncate">
-                      {f.airline} {f.flightNumber} · {f.departureCity} → {f.arrivalCity}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {f.seatNumber ? (
-                      <span className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-lg font-mono font-black">
-                        SEAT {f.seatNumber}
-                      </span>
-                    ) : (
-                      <span className="bg-slate-100 dark:bg-white/[0.04] text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-lg font-mono">
-                        SEAT AT CHECK-IN
-                      </span>
-                    )}
-                    <span className="bg-blue-500/10 text-[#008fe5] dark:text-[#38bdf8] border border-blue-500/20 px-2 py-0.5 rounded-lg font-black uppercase">
-                      On Time
-                    </span>
-                  </div>
-                </div>
-              ))}
-              {seatCount > 0 && (
-                <div className="px-3.5 py-1.5 bg-emerald-500/5 text-[10px] text-emerald-700 dark:text-emerald-400 font-bold uppercase tracking-wider">
-                  ✓ {seatCount} confirmed seat{seatCount > 1 ? "s" : ""} assigned
-                </div>
-              )}
+            <div className="mt-4">
+              <FlightStatusCard booking={booking} />
             </div>
           )}
 

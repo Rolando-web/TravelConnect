@@ -90,6 +90,7 @@ public class PerformanceGuardsTests
 
         var controller = new BookingsController(
             db, null!, null!, new CancellationService(), new PromoService(db),
+            new BookingLifecycleService(db),
             NullLogger<BookingsController>.Instance)
             .WithIdentity("u", "super@tc.com");
 

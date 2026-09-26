@@ -17,11 +17,14 @@ public class BookingsController(
     PdfService pdfService,
     CancellationService cancellationService,
     PromoService promoService,
+    BookingLifecycleService lifecycleService,
     ILogger<BookingsController> logger) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Booking>>> GetAll(string? status = null, string? customer = null, int? page = null, int? pageSize = null)
     {
+        // Phase 14: journey dates that have passed move to "completed" on read.
+        await lifecycleService.AdvanceExpiredAsync();
         IQueryable<Booking> query = db.Bookings.AsNoTracking().OrderByDescending(b => b.CreatedAt);
         if (!string.IsNullOrWhiteSpace(status))
             query = query.Where(b => b.Status == status);
@@ -45,6 +48,7 @@ public class BookingsController(
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Booking>> GetById(int id)
     {
+        await lifecycleService.AdvanceExpiredAsync();
         var booking = await db.Bookings
             .Include(b => b.BookingFlights.OrderBy(f => f.SegmentOrder))
             .AsNoTracking()
@@ -57,6 +61,7 @@ public class BookingsController(
     [AllowAnonymous]
     public async Task<ActionResult<Booking>> GetByReference(string reference)
     {
+        await lifecycleService.AdvanceExpiredAsync();
         var booking = await db.Bookings
             .Include(b => b.BookingFlights.OrderBy(f => f.SegmentOrder))
             .Where(b => b.ReferenceNumber == reference)
@@ -69,6 +74,7 @@ public class BookingsController(
     [AllowAnonymous]
     public async Task<ActionResult<IEnumerable<Booking>>> GetByCustomer(string email)
     {
+        await lifecycleService.AdvanceExpiredAsync();
         return await db.Bookings
             .Where(b => b.CustomerEmail.ToLower() == email.ToLower())
             .Include(b => b.BookingFlights.OrderBy(f => f.SegmentOrder))

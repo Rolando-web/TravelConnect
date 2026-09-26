@@ -32,6 +32,7 @@ public class BookingsControllerTests
             new PdfService(),
             new CancellationService(),
             new PromoService(db),
+            new BookingLifecycleService(db),
             NullLogger<BookingsController>.Instance);
     }
 

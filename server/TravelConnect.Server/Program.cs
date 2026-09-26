@@ -74,6 +74,10 @@ builder.Services.AddSingleton<CancellationService>();
 // pipeline. It consumes the scoped DbContext, so it must be scoped too.
 builder.Services.AddScoped<PromoService>();
 
+// Booking lifecycle (Phase 14): advancing "upcoming" -> "completed" once the
+// journey date passes. Consumes the scoped DbContext => scoped.
+builder.Services.AddScoped<BookingLifecycleService>();
+
 // EmailJS admin notifications (sent server-side so the email path is
 // rate-limited like the inquiry endpoint it rides on).
 builder.Services.Configure<EmailJsOptions>(builder.Configuration.GetSection("EmailJs"));

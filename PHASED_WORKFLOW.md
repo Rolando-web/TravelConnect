@@ -770,6 +770,36 @@ gate OK. (Backend dev server bounced for the test run, as usual.)
 | C3 | Live smoke: `/api/flights` returns `X-Elapsed-Ms`/`X-Request-Id`; `[Timing]` lines in the server log | ☑ | |
 | C4 | Manual QA (prod deploy): set `KeepAlive__TargetUrl` on MonsterASP; watch the SLOW request logs on the first cold save, then confirm the keep-alive keeps subsequent writes fast | | ☐ |
 
+# PHASE 14 — FLIGHT STATUS CARD + BOOKING LIFECYCLE
+
+**Requested after Phase 13.** The client wants to see a live **flight status card**
+right after booking a flight, and to know what happens to a booking once its travel
+day passes.
+
+### 14.1 The lifecycle answer (verified)
+
+Before this phase, a booking was stamped `upcoming` at creation and only ever
+moved to `cancelled`/`refunded` manually — **nothing flipped it to `completed`** when
+the journey date passed, so journeys stayed "Active & Confirmed" forever. Phase 14
+adds the missing rule end-to-end and proves it with tests.
+
+### 14.2 Phase 14 scope
+
+| # | Item | Status |
+|---|------|--------|
+| 14A-1 | **Backend lifecycle reconcile** — `BookingLifecycleService.AdvanceExpiredAsync()`: any `upcoming` booking whose travel date (latest flight departure, else itinerary `EndDate`→`StartDate`) is behind today is advanced to `completed`. Runs lazily on every booking read (list / by-id / by-reference / by-customer) so the flip happens when bookings are next viewed — no scheduler needed. Cancelled/refunded/completed are never touched. | ☑ |
+| 14A-2 | **Client `FlightStatusCard`** — reusable card shown right after checkout (step 4 success) and on every flight booking in My Bookings. Header band = live status (Scheduled · On Time / Traveling Today / Journey Completed / Booking Cancelled), one row per segment (airline + flight no, route, date, times, seat), footer summary line. Date logic mirrors the backend via shared `src/data/flightStatus.js` `deriveFlightStatus()`. | ☑ |
+| 14B | Tests — `BookingLifecycleTests.cs` (8: past→completed, future stays upcoming, today counts as upcoming, cancelled/refunded/completed untouched, package EndDate fallback, latest segment wins, TryTravelDate pref/latest + unparseable) and `FlightStatusCard.test.jsx` (7 derive + 6 render). | ☑ |
+
+### 14.3 Phase 14 Gate Checklist
+
+| # | Item | Dev | QA |
+|---|------|-----|-----|
+| D1 | 14A implemented; lint 0, build + bundle gate OK, existing suites green | ☑ | |
+| D2 | 14B green — frontend **102/102** (89 + 13), backend **134/134** (126 + 8) | ☑ | |
+| D3 | Live smoke (local): book a flight, card shows Scheduled; forces one past-date booking read → status flips to completed | ☑ | |
+| D4 | Manual QA (prod deploy): after backend re-upload, an old past-date booking auto-moves to Past Journeys on next view; new flight booking shows the status card in checkout + My Bookings | | ☐ |
+
 ---
 
 # 4. Progress Log
@@ -790,6 +820,7 @@ gate OK. (Backend dev server bounced for the test run, as usual.)
 | 11 Login/Auth Latency | 2026-09-24 | 2026-09-24 | ✓ / | Done — role resolution is now parallel (Firestore + claims) and bounded at 2s per call, with a short-TTL per-uid role cache so the post-login auth-state callback reuses the result (no second Firestore read); `ensureCustomerProfile` reads/writes are bounded too; cache cleared on logout. 11A gate passed (lint 0, build OK, 65/65) before 11B; frontend **71/71**, lint 0, bundle gate OK. Pending manual: verify login feels fast on prod deploy |
 | 12 Dynamic Flight Search + Continent Fix + Davao Hub | 2026-09-25 | 2026-09-25 | ✓ / | Done — date is no longer an exact kill-gate: `flightFilter.js` returns the requested date's departures when they exist, otherwise the route's nearest departures with a visible "No departures exactly on …" notice; `SearchCard` defaults to dynamic near-future dates (was frozen `2026-08-25`); Siargao + El Nido added to `CITY_META` (Asia, not International); seed flights are date-relative and a **Davao hub** set was added (Manila/Cebu/Tokyo/Singapore/Siargao). 12A gate passed (lint 0, build OK, 71/71 + 118/118) before 12B; frontend **85/85** (71 + 10 + 5), backend **118/118**, lint 0, bundle gate OK. F3 manual QA (incl. prod reseed for Davao) = user |
 | 13 Admin CRUD Optimization (cold-start + retry) | 2026-09-25 | 2026-09-25 | ✓ / | Done — **not a CRUD bug, a cold start**: MonsterASP recycles the app pool after ~20 min idle, so the first create/edit pays a 20-30s boot; the client's 12s timeout then aborted it. Fix: request-timing middleware (`X-Elapsed-Ms`/`X-Request-Id` + SLOW warnings), keep-alive ping service (keeps the pool warm + logs cold starts), bounded EF retry (30s→10s delay), and client idempotent retry-once (GET/PUT/DELETE only) + 45s admin write budget (POST stays single-shot). Live-smoke: timing headers + `[Timing]` logs verified. 13A gate passed (lint 0, build OK, 85/85 + 118/118) before 13B; frontend **89/89**, backend **126/126**, lint 0, bundle gate OK. C4: set `KeepAlive__TargetUrl` on MonsterASP + confirm cold-save log = user |
+| 14 Flight Status Card + Booking Lifecycle | 2026-09-26 | 2026-09-26 | ✓ / | Done — **lifecycle gap closed**: bookings no longer sit "upcoming" forever; `BookingLifecycleService` advances them to `completed` once the travel date passes (lazy on read, latest flight leg wins, itinerary EndDate fallback, cancelled/refunded/completed untouched). New client **`FlightStatusCard`** renders right after checkout (step 4) and on every flight booking in My Bookings: Scheduled · On Time / Traveling Today / Journey Completed / Booking Cancelled with route/date/times/seat per leg, derived via shared `src/data/flightStatus.js`. 14A gate passed (lint 0, build OK, 89/89 + 126/126) before 14B; frontend **102/102** (89 + 13), backend **134/134** (126 + 8), lint 0, bundle gate OK. D4: needs backend prod re-upload to flip existing past-date bookings = user |
 | Release Gate R1–R6 | 2026-09-23 | 2026-09-23 | ✓ / | R1–R5 Dev done: publish + build + vault/secrets clean + bundle gate OK + lint **0 problems** (62→0 cleanup: unused imports removed, `useMemo(setPage)` anti-pattern → `useEffect`, context-hook/static-component suppressions documented). Added **TEST-MODE-ONLY** PayMongo guard + `00 / 00` expiry mask. Pending (user): deploy to Vercel/host (R5*), human popup 3-D Secure QA, then R6 QA sign-off |
 | **Release** | | | / | **R6 pending — deploy on Vercel/host, then check QA boxes** |
 

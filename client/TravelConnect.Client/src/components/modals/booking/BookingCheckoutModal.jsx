@@ -11,6 +11,7 @@ import { useCurrency } from "../../../context/CurrencyContext";
 import { sendCustomerInquiry, flightsApi } from "../../../services/api";
 import SeatMapModal from "./SeatMapModal";
 import CardPaymentForm from "../../booking/CardPaymentForm";
+import FlightStatusCard from "../../booking/FlightStatusCard";
 
 const MAX_FLIGHT_SEGMENTS = 6;
 const MAX_REGULAR_PASSENGERS = 9;
@@ -1411,6 +1412,34 @@ export default function BookingCheckoutModal() {
                 </span>
               </div>
             </div>
+
+            {isFlight && (() => {
+              const segs = Array.isArray(completedBooking?.flightSegments)
+                ? completedBooking.flightSegments
+                : flightSegments;
+              return segs.length > 0 ? (
+                <div className="max-w-xl mx-auto text-left">
+                  <FlightStatusCard
+                    booking={{
+                      id: completedBooking.id,
+                      status: "upcoming",
+                      startDate,
+                      endDate,
+                      bookingFlights: segs.map((s) => ({
+                        airline: s.airline,
+                        flightNumber: s.flightNumber,
+                        departureCity: s.departureCity,
+                        arrivalCity: s.arrivalCity,
+                        departureTime: s.departureTime,
+                        arrivalTime: s.arrivalTime,
+                        departureDate: s.departureDate,
+                        seatNumber: s.seatNumber,
+                      })),
+                    }}
+                  />
+                </div>
+              ) : null;
+            })()}
 
             <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
               <button
