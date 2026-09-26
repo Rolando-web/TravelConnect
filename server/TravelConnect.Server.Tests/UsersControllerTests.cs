@@ -142,6 +142,31 @@ public class UsersControllerTests
                 "Agency Admin can only create employee accounts (Agency Staff, Finance Staff, Supplier).",
                 result);
         }
+
+        // No privileged (or any) row may have been written for those attempts.
+        Assert.Empty(db.SystemUsers.Where(u => u.Email.StartsWith("x-")));
+    }
+
+    [Fact]
+    public async Task Create_rejects_unknown_or_typo_roles_outright()
+    {
+        using var db = TestDb.Create();
+        await SeedUserAsync(db, "a", "a@tc.com", "Agency Admin");
+
+        foreach (var role in new[] { "superadmin", "Super Admin ", "boss", "" })
+        {
+            var result = await Controller(db, "a", "a@tc.com").Create(new SystemUser
+            {
+                Email = $"x-{role.Trim()}@tc.com",
+                DisplayName = "X",
+                Role = role
+            });
+
+            var bad = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Contains("Unknown role", TestDb.ToJson(bad.Value).GetProperty("message").GetString());
+        }
+
+        Assert.Empty(db.SystemUsers.Where(u => u.Email.StartsWith("x-")));
     }
 
     [Fact]

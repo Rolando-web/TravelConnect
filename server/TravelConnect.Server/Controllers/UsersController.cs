@@ -20,6 +20,18 @@ public class UsersController(TravelConnectDbContext db) : ControllerBase
         "Agency Admin"
     };
 
+    // Canonical role allowlist. Anything else (including typo'd or lowercase
+    // variants like "superadmin") is rejected outright so a stray string can
+    // never smuggle a privilege through the privileged-role comparison.
+    private static readonly HashSet<string> KnownRoles = new(StringComparer.Ordinal)
+    {
+        "Super Admin",
+        "Agency Admin",
+        "Agency Staff",
+        "Finance Staff",
+        "Supplier"
+    };
+
     // Resolves the signed-in SystemUser from the Firebase identity, with the
     // same fallback as the other controllers: seeded accounts start with an
     // empty FirebaseUid, so fall back to the verified token email and persist
@@ -108,7 +120,10 @@ public class UsersController(TravelConnectDbContext db) : ControllerBase
         var me = await CurrentUserAsync();
         if (me is null || !IsManager(me)) return Forbid();
 
-        if (!IsSuperAdmin(me) && (string.IsNullOrWhiteSpace(entity.Role) || PrivilegedRoles.Contains(entity.Role)))
+        if (!KnownRoles.Contains(entity.Role))
+            return BadRequest(new { message = $"Unknown role '{entity.Role}'. Use one of: Super Admin, Agency Admin, Agency Staff, Finance Staff, Supplier." });
+
+        if (!IsSuperAdmin(me) && PrivilegedRoles.Contains(entity.Role))
             return StatusCode(403, new { message = "Agency Admin can only create employee accounts (Agency Staff, Finance Staff, Supplier)." });
 
         entity.CreatedAt = DateTime.UtcNow;
@@ -128,6 +143,9 @@ public class UsersController(TravelConnectDbContext db) : ControllerBase
 
         var existing = await db.SystemUsers.FirstOrDefaultAsync(e => e.Id == id);
         if (existing is null) return NotFound(new { message = "Record not found" });
+
+        if (!KnownRoles.Contains(entity.Role))
+            return BadRequest(new { message = $"Unknown role '{entity.Role}'. Use one of: Super Admin, Agency Admin, Agency Staff, Finance Staff, Supplier." });
 
         // An Agency Admin can neither edit a platform-owner account nor promote
         // someone into a privileged role. Super Admins have no limits.
