@@ -14,13 +14,13 @@ const fields = [
   { key: "rating", label: "Rating", type: "number", min: 0, max: 5 },
 ];
 
-const renderModal = (onSave = vi.fn(), data = {}) =>
+const renderModal = (onSave = vi.fn(), data = {}, fieldsOverride) =>
   render(
     <CrudModal
       open
       title="Test Entity"
       mode="edit"
-      fields={fields}
+      fields={fieldsOverride || fields}
       data={data}
       onSave={onSave}
     />
@@ -69,5 +69,49 @@ describe("CrudModal input validation", () => {
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({ price: 100, rating: 3 })
     );
+  });
+});
+
+describe("CrudModal password fields", () => {
+  const passwordFields = [
+    { key: "email", label: "Email", type: "email" },
+    {
+      key: "password",
+      label: "Temporary Password",
+      type: "password",
+      required: true,
+      minLength: 6,
+      autoComplete: "new-password",
+    },
+  ];
+
+  it("renders a masked password input", () => {
+    renderModal(vi.fn(), {}, passwordFields);
+    const input = screen.getByText("Temporary Password").parentElement.querySelector("input");
+    expect(input).toHaveAttribute("type", "password");
+    expect(input).toHaveAttribute("minlength", "6");
+    expect(input).toHaveAttribute("autocomplete", "new-password");
+  });
+
+  it("rejects a password shorter than the minimum", () => {
+    renderModal(vi.fn(), {}, passwordFields);
+    fireEvent.change(
+      screen.getByText("Temporary Password").parentElement.querySelector("input"),
+      { target: { value: "12345" } }
+    );
+    submit();
+
+    expect(
+      screen.getByText("Temporary Password must be at least 6 characters")
+    ).toBeInTheDocument();
+  });
+
+  it("requires the temporary password", () => {
+    const onSave = vi.fn();
+    renderModal(onSave, { email: "staff@tc.com" }, passwordFields);
+    submit();
+
+    expect(screen.getByText("Temporary Password is required")).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
   });
 });

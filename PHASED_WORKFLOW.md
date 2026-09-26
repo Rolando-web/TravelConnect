@@ -842,6 +842,66 @@ live bookings).
 
 ---
 
+# PHASE 16 — SYSTEM USER AUTH FIX + CAR/HOTEL SUPPLIERS
+
+**Requested after Phase 15:** "System Users adding is not working — you can create
+a user, but when it's time to log in, authentication doesn't recognize the
+newly created account." Also: add suppliers for **Cars** and **Hotels**.
+
+### 16.1 The auth bug (verified, then fixed)
+
+Creating a user on the System Users page used to insert a row into the backend
+SQL `SystemUsers` table **only** (`FirebaseUid = ""`). Nothing ever created a
+**Firebase Auth** account for the email, so `signInWithEmailAndPassword` always
+failed with `user-not-found` — the account existed in the admin table but login
+didn't recognize it. The pre-seeded accounts worked only because real Firebase
+users with those emails had been provisioned outside this flow.
+
+The fix now provisions a real sign-in credential at create time
+(`src/services/systemUserProvision.js`):
+1. **Firebase Auth** — `createUserWithEmailAndPassword(auth, email, temporaryPassword)`.
+2. **Backend row** — `usersApi.create({ ...form, firebaseUid })` (never leaks the password).
+3. **Firestore role profile** — `users/{uid}` doc with the role, so
+   `AuthContext.resolveRole` (the menu's role source) resolves correctly at
+   first sign-in.
+
+The Add/Edit User modal gained a **Temporary Password** field (shown only when
+adding, stored nowhere, min 6 chars) and readable Firebase error handling
+(email already registered → clear message, no orphan backend row; backend-save
+failure → tells you the auth account was created so you can re-run/delete).
+Email-in-use is detected BEFORE the backend row is written. CrudModal now
+supports `type: "password"` with `minLength`/`autoComplete` + validation.
+
+### 16.2 Suppliers for Cars and Hotels
+
+Hotels were already an addable supplier type (+ 5 seeded); **Cars** were not —
+the closest was "Transport". The supplier Type list now includes **Car** (with
+its own icon) alongside Hotel/Transport/Tour Op./Activity/Airline, and fresh
+databases seed two Car-supplier partners (Manila Executive Car Rental, Island
+Auto Leasing) joining the hotel seeds. Supplier pages re-render the type filter
+pills from live data, so "Car" appears automatically.
+
+### 16.3 Phase 16 scope
+
+| # | Item | Status |
+|---|------|--------|
+| 16A-1 | **`systemUserProvision.js`** — creates Firebase Auth + backend row (with `firebaseUid`) + Firestore role profile; strips the password; friendly errors for `email-already-in-use`, invalid/weak password, disabled email/password provider, network failures; backend-save failure is distinguishable. | ☑ |
+| 16A-2 | **AdminManagementPage** — Temporary Password field (add-only), required, min 6; add routes through `createSystemUser`; edit still CRUD-updates the row + `syncRoleToFirestore(form.email, form.role)`. Users-page hint explains the sign-in credential. | ☑ |
+| 16A-3 | **CrudModal** — `password` input type (masked) with `minLength`/`autoComplete` props + min-length validation. | ☑ |
+| 16B-1 | Suppliers Type options + icon include **Car** (Hotels already present); backend seeds 2 Car suppliers (fresh DB only). | ☑ |
+| 16C | Tests — `systemUserProvision.test.js` (8: auth created w/ trimmed email + password, backend save carries uid + drops password, Firestore profile write, email-in-use → no backend row, backend-save failure surfaced, email/password required, error normalization), `CrudModal.test.jsx` +3 (masked input attrs, min-length, required), `AdminManagementPage.test.jsx` (5: lists, password required blocks create, provision flow, alert on provision failure, edit role→backend+Firestore without re-auth), `SuppliersPage.test.jsx` (2: Car+Hotel options, Car row + type filter). | ☑ |
+
+### 16.4 Phase 16 Gate Checklist
+
+| # | Item | Dev | QA |
+|---|------|-----|-----|
+| F1 | 16A/16B implemented; lint 0, build + bundle gate OK | ☑ | |
+| F2 | 16C green — frontend **141/141** (123 + 18); backend **134/134** (seed-only change), lint 0 | ☑ | |
+| F3 | Smoke: create `staff{ts}@tc.com` via System Users with temp password → sign out → sign in with that email/password → role menu matches | | ☐ |
+| F4 | Smoke (prod deploy): a fresh re-uploaded backend seeds Car suppliers on a fresh DB; add a Hotel + a Car supplier in the UI | | ☐ |
+
+---
+
 # 4. Progress Log
 
 | Phase | Started | Completed | Sign-off (Dev/QA) | Result |
@@ -862,6 +922,7 @@ live bookings).
 | 13 Admin CRUD Optimization (cold-start + retry) | 2026-09-25 | 2026-09-25 | ✓ / | Done — **not a CRUD bug, a cold start**: MonsterASP recycles the app pool after ~20 min idle, so the first create/edit pays a 20-30s boot; the client's 12s timeout then aborted it. Fix: request-timing middleware (`X-Elapsed-Ms`/`X-Request-Id` + SLOW warnings), keep-alive ping service (keeps the pool warm + logs cold starts), bounded EF retry (30s→10s delay), and client idempotent retry-once (GET/PUT/DELETE only) + 45s admin write budget (POST stays single-shot). Live-smoke: timing headers + `[Timing]` logs verified. 13A gate passed (lint 0, build OK, 85/85 + 118/118) before 13B; frontend **89/89**, backend **126/126**, lint 0, bundle gate OK. C4: set `KeepAlive__TargetUrl` on MonsterASP + confirm cold-save log = user |
 | 14 Flight Status Card + Booking Lifecycle | 2026-09-26 | 2026-09-26 | ✓ / | Done — **lifecycle gap closed**: bookings no longer sit "upcoming" forever; `BookingLifecycleService` advances them to `completed` once the travel date passes (lazy on read, latest flight leg wins, itinerary EndDate fallback, cancelled/refunded/completed untouched). New client **`FlightStatusCard`** renders right after checkout (step 4) and on every flight booking in My Bookings: Scheduled · On Time / Traveling Today / Journey Completed / Booking Cancelled with route/date/times/seat per leg, derived via shared `src/data/flightStatus.js`. 14A gate passed (lint 0, build OK, 89/89 + 126/126) before 14B; frontend **102/102** (89 + 13), backend **134/134** (126 + 8), lint 0, bundle gate OK. D4: needs backend prod re-upload to flip existing past-date bookings = user |
 | 15 Input Error-Handling + Numeric Enforcement + Dead Code | 2026-09-26 | 2026-09-26 | ✓ / | Done — full input audit (87 controls / 33 files), then: **PH mobile rule** applied everywhere (`+63` = the leading 0, user types only 10 digits starting 9, live `9XX-XXX-XXXX` formatting, no more fake `+63 917 123 4567` default); checkout gains phone/date/DOB validation + limits; **dead code removed** (unreachable `specialRequests` state+branch, dead Change Password card in Profile); **non-working functions fixed** (Inquiry Send spinner no longer sticks — try/finally; Forgot password now sends a real Firebase reset email); **CrudModal** no longer writes silent `0`/`NaN` (→ null + required error), gained `email`/`tel` types + min/max/step + range/email validation; admin field configs re-tagged (emails/phones, ratings 0–5, prices ≥ 0); support phone + cancellation window hardened. 15A gate passed (lint 0, build OK, 102/102) before 15B; frontend **123/123** (102 + 21), backend **134/134** unchanged, lint 0, bundle gate OK, dead-code sweep 0 refs. E4: manual prod QA = user |
+| 16 System User Auth Fix + Car/Hotel Suppliers | 2026-09-26 | 2026-09-26 | ✓ / | Done — **auth gap closed**: creating a System User only wrote a SQL row, so Firebase login never recognized the new email (`user-not-found`). `createSystemUser()` in `src/services/systemUserProvision.js` now provisions the **Firebase Auth credential** (temp password, min 6, add-only field), saves the backend row with the `firebaseUid`, and writes the **Firestore role profile** so the admin menu resolves on first sign-in; email-already-in-use is caught before the backend row is written, errors are readable, the password never leaves the modal. CrudModal gained a masked `password` type + min-length validation. **Suppliers**: Hotels were already addable (+5 seeded); added **Car** as a supplier type (+ icon) and seeded 2 Car partners on fresh DBs. 16A gate passed (lint 0, build OK, 123/123 + 134/134) before 16C; frontend **141/141** (123 + 18), backend **134/134** (seed-only change), lint 0, bundle gate OK. F3/F4: create-a-user-then-login smoke + prod supplier re-check = user |
 | Release Gate R1–R6 | 2026-09-23 | 2026-09-23 | ✓ / | R1–R5 Dev done: publish + build + vault/secrets clean + bundle gate OK + lint **0 problems** (62→0 cleanup: unused imports removed, `useMemo(setPage)` anti-pattern → `useEffect`, context-hook/static-component suppressions documented). Added **TEST-MODE-ONLY** PayMongo guard + `00 / 00` expiry mask. Pending (user): deploy to Vercel/host (R5*), human popup 3-D Secure QA, then R6 QA sign-off |
 | **Release** | | | / | **R6 pending — deploy on Vercel/host, then check QA boxes** |
 

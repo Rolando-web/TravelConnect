@@ -30,6 +30,7 @@ const statusFilters = ["All", "Active", "Review", "Inactive"];
 
 const typeIcons = {
   Hotel: Building2,
+  Car: Car,
   Transport: Car,
   "Tour Op.": Compass,
   Activity: Ticket,
@@ -118,7 +119,7 @@ export default function SuppliersPage() {
     { key: "contactName", label: "Contact Name" },
     { key: "contactEmail", label: "Contact Email", type: "email" },
     { key: "contactPhone", label: "Contact Phone", type: "tel" },
-    { key: "type", label: "Type", type: "select", options: ["Hotel", "Transport", "Tour Op.", "Activity", "Airline"] },
+    { key: "type", label: "Type", type: "select", options: ["Hotel", "Car", "Transport", "Tour Op.", "Activity", "Airline"] },
     { key: "rating", label: "Rating", type: "number", placeholder: "0.0 – 5.0", min: 0, max: 5, step: 0.1 },
     { key: "status", label: "Status", type: "select", options: ["Active", "Review", "Inactive"] },
   ];

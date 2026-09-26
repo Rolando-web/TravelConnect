@@ -30,8 +30,22 @@ import {
   leadsApi,
 } from "../../services/api";
 import { syncRoleToFirestore } from "../../services/firestoreRoleSync";
+import { createSystemUser } from "../../services/systemUserProvision";
 
 const customPages = { profile: ProfilePage, support: SupportPage, settings: SystemSettingsPage, helpdesk: HelpdeskInboxPage };
+
+// Shown only when adding a System User. The temporary password provisions a real
+// Firebase Auth credential — without it the account would appear in this table
+// but could never sign in (AuthContext.loginWithEmail would get user-not-found).
+const TEMP_PASSWORD_FIELD = {
+  key: "password",
+  label: "Temporary Password",
+  type: "password",
+  required: true,
+  minLength: 6,
+  autoComplete: "new-password",
+  placeholder: "Minimum 6 characters — the user signs in with this",
+};
 
 const FALLBACK_FLIGHT_IMG = "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80";
 
@@ -131,6 +145,7 @@ const PAGES = {
   users: {
     api: usersApi,
     singular: "User",
+    hint: "A new account here gets a REAL sign-in credential: set a Temporary Password when adding a user so they can log in with their email. Giving them the password is up to you. Role changes are synced to the account's Firestore profile, so the admin menu updates immediately.",
     fields: [
       { key: "displayName", label: "Name", required: true },
 { key: "email", label: "Email", required: true, type: "email" },
@@ -449,16 +464,23 @@ export default function AdminManagementPage() {
   const handleSave = async (form) => {
     setSaving(true);
     try {
-      if (modal.mode === "add") await config.api.create(form);
-      else await config.api.update(modal.data.id, { ...form, id: modal.data.id });
+      // System Users: adding a user also provisions the Firebase Auth account
+      // (+ writes the Firestore role profile) so the new email can sign in at
+      // all. Plain CRUD for every other resource.
+      if (page === "users" && modal.mode === "add") {
+        await createSystemUser(form);
+      } else {
+        if (modal.mode === "add") await config.api.create(form);
+        else await config.api.update(modal.data.id, { ...form, id: modal.data.id });
 
-      // Role changes on the System Users page must also reach Firestore so the
-      // account's admin menu (resolved from users/{uid}.role) updates too.
-      if (page === "users" && form.email && form.role) {
-        try {
-          await syncRoleToFirestore(form.email, form.role);
-        } catch {
-          /* non-fatal: backend row is saved; Firestore sync can be retried */
+        // Role changes on the System Users page must also reach Firestore so the
+        // account's admin menu (resolved from users/{uid}.role) updates too.
+        if (page === "users" && form.email && form.role) {
+          try {
+            await syncRoleToFirestore(form.email, form.role);
+          } catch {
+            /* non-fatal: backend row is saved; Firestore sync can be retried */
+          }
         }
       }
 
@@ -663,7 +685,11 @@ export default function AdminManagementPage() {
           open={modal.open}
           mode={modal.mode}
           title={`${modal.mode === "add" ? "Add" : modal.mode === "edit" ? "Edit" : "View"} ${config.singular}`}
-          fields={config.fields}
+          fields={
+            page === "users" && modal.mode === "add"
+              ? [...config.fields, TEMP_PASSWORD_FIELD]
+              : config.fields
+          }
           data={modal.data}
           onClose={() => setModal({ open: false, mode: "add", data: null })}
           onSave={handleSave}

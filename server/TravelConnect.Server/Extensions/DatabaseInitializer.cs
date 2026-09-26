@@ -405,6 +405,8 @@ public static class DatabaseInitializer
                 new Supplier { CompanyName = "Nusa Hospitality Group", ImageUrl = "https://images.unsplash.com/photo-1589391887305-86d93d8b0e62?w=800&q=80", ContactName = "Putu Wirya", ContactEmail = "stay@nusahospitality.id", ContactPhone = "+62 361 555 0104", Type = "Hotel", Rating = 4.8m, Status = "Active" },
                 new Supplier { CompanyName = "Paris Luxury Concierge", ImageUrl = "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&q=80", ContactName = "Éloise Moreau", ContactEmail = "concierge@parislux.fr", ContactPhone = "+33 1 55 55 0105", Type = "Hotel", Rating = 4.6m, Status = "Review" },
                 new Supplier { CompanyName = "Bluewater Tours & Transport", ImageUrl = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&q=80", ContactName = "Miguel Robles", ContactEmail = "ops@bluewatertours.ph", ContactPhone = "+63 919 555 0106", Type = "Tour Op.", Rating = 4.5m, Status = "Active" },
+                new Supplier { CompanyName = "Manila Executive Car Rental", ImageUrl = "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&q=80", ContactName = "Daniel Cruz", ContactEmail = "bookings@manilaexecdrive.ph", ContactPhone = "+63 917 555 0107", Type = "Car", Rating = 4.6m, Status = "Active" },
+                new Supplier { CompanyName = "Island Auto Leasing", ImageUrl = "https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=800&q=80", ContactName = "Andrea Ramos", ContactEmail = "fleet@islandautoleasing.ph", ContactPhone = "+63 918 555 0108", Type = "Car", Rating = 4.4m, Status = "Active" },
             });
             await db.SaveChangesAsync();
 

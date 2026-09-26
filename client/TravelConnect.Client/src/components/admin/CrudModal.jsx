@@ -80,6 +80,9 @@ export default function CrudModal({
         if (f.min !== undefined && n < f.min) errs[f.key] = `${f.label} must be at least ${f.min}`;
         else if (f.max !== undefined && n > f.max) errs[f.key] = `${f.label} must be at most ${f.max}`;
       }
+      if (f.type === "password" && v && f.minLength && String(v).length < f.minLength) {
+        errs[f.key] = `${f.label} must be at least ${f.minLength} characters`;
+      }
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -208,6 +211,7 @@ export default function CrudModal({
         case "date": return "date";
         case "email": return "email";
         case "tel": return "tel";
+        case "password": return "password";
         default: return "text";
       }
     };
@@ -219,6 +223,8 @@ export default function CrudModal({
         max={f.max}
         step={f.step}
         maxLength={f.maxLength}
+        minLength={f.minLength}
+        autoComplete={f.autoComplete}
         inputMode={f.inputMode || (f.type === "number" ? "decimal" : undefined)}
         onChange={(e) => set(f.key, f.type === "number" ? coerceNumber(e.target.value) : e.target.value)}
         disabled={disabled}
