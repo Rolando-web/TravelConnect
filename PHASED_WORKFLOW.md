@@ -1064,6 +1064,47 @@ privileged check, so `superadmin` etc. can never smuggle through).
 
 ---
 
+### 20.1 The gap (requested)
+
+The CRM & Leads page still had a manual **Add Lead** flow — a modal button that
+POSTed a lead into `Leads` by hand. Leads are supposed to be **inquiry-sourced
+only** (auto-created from website & checkout messages via `InquiriesController`),
+so the manual add path is contradictory dead weight.
+
+### 20.2 The fix — no POST, no manual add
+
+- **Client `LeadsPage.jsx`:** removed the **Add Lead** button entirely (only the
+  Export button remains in the header), removed the `add` branch of the save
+  handler (`leadsApi.create` call) so the modal can only **edit / view**, removed
+  the `Add Lead` modal title branch, dropped the now-unused `Plus` icon import,
+  and updated the pipeline copy ("leads are auto-created from website & checkout
+  messages" — no manual entry).
+- **Client `api.js`:** `leadsApi` no longer exposes `create` — the client-side
+  POST for leads is deleted from the API surface (other entity CRUD untouched).
+- **Backend `LeadsController.cs`:** removed the `[HttpPost] Create` action. There
+  is now **no `POST /api/leads`** at all — verified live as **405**. Leads are
+  created only by the inquiry pipeline; stage-move and convert actions remain.
+
+### 20.3 Phase 20 scope
+
+| # | Item | Status |
+|---|------|--------|
+| 20A-1 | CRM page Add Lead button + modal-add flow removed (edit/view modal retained). | ☑ |
+| 20A-2 | Client `leadsApi.create` dead code deleted from `api.js`. | ☑ |
+| 20A-3 | Backend `POST /api/leads` removed → 405; inquiry auto-create untouched. | ☑ |
+| 20C | Gates — frontend **150/150**, backend **154/154**, lint 0, build 0 warn / 0 err, LeadsPage bundle shrank (10.7 kB → 10.5 kB). | ☑ |
+
+### 20.4 Phase 20 Gate Checklist
+
+| # | Item | Dev | QA |
+|---|------|-----|-----|
+| J1 | 20A implemented; lint 0, build + bundle gate OK | ☑ | |
+| J2 | 20C green — frontend **150/150**, backend **154/154**, build 0 warn / 0 err | ☑ | |
+| J3 | Smoke: CRM & Leads page has no Add button; Add/Edit modal opens only for existing rows; submitting a raw `POST /api/leads` returns 405 | | ☐ |
+| J4 | Prod re-check after Vercel + backend re-upload | | ☐ |
+
+---
+
 # 4. Progress Log
 
 | Phase | Started | Completed | Sign-off (Dev/QA) | Result |
@@ -1088,6 +1129,7 @@ privileged check, so `superadmin` etc. can never smuggle through).
 | 17 Agency Owner System Users + Support Hub Nav | 2026-09-26 | 2026-09-26 | ✓ / | Done — **Agency Support hub was invisible**: the page existed since Phase 9 and the nav listed it, but `AdminLayout.GROUPS` never contained `agency-support`, so the menu item silently never rendered. Added a **Support** nav group + icons so the agency hub is reachable — client problems only (booking, refund, service); the Tier plan stays Super Admin only on `support-hub`. **Agency Admin (Full CRM/ERP owner) now has System Users** — `users` nav item + Manage access; the user modal filters Role by the creator, so an Agency Admin can create Agency Staff / Finance Staff / Supplier only (privileged Super Admin/Agency Admin roles are platform-owner-only). **Backend enforcement** (`UsersController`) resolves the signer from the Firebase identity and forbids non-managers; an Agency Admin cannot see, create, edit, promote, or delete privileged accounts (403 + messages). 17A gate passed (lint 0, build OK, 141/141 + 147/147) before 17C; frontend **146/146** (141 + 5), backend **147/147** (134 + 13), build 0 warn / 0 err, lint 0, bundle gate OK. G3/G4: Agency-Admin create-employee smoke + prod re-check = user |
 | 18 Admin Menu Role Reconciliation | 2026-09-26 | 2026-09-26 | ✓ / | Done — **the admin menu is now driven by the authoritative backend System Users table, not just Firestore.** The user's "admin account" had the right role in the backend registry but still logged into a staff-level menu because `resolveRole` only ever read Firestore/claims, and a stale/missing profile (or a legacy role string) pinned it down. Added `GET /api/users/me` (self row for any authenticated identity, email-fallback + UID binding preserved), and `AuthContext.resolveRole` now reads Firestore + claims + backend **in parallel, bounded 2s, cached per session** — the backend role wins when the account exists there, legacy aliases normalize (`Agency Owner`/`Owner`/`Admin` → `Agency Admin`), and a mismatched Firestore profile is **self-healed** automatically. Customers (404 in the registry) are untouched. 18A gate passed (lint 0, build OK, 146/146 + 150/150) before 18C; frontend **150/150** (146 + 4), backend **150/150** (147 + 3), build 0 warn / 0 err, lint 0, bundle gate OK. H3/H4: sign-in as the owner email → badge shows Agency Admin + the pages appear; prod re-check = user |
 | 19 Same-Tier Agency Admin Provisioning | 2026-09-27 | 2026-09-27 | ✓ / | Done — **an Agency Admin can now onboard another Agency Admin** (co-run the agency), and only **Super Admin creation/promotion** stays reserved for the platform owner. Backend: `PrivilegedRoles` narrowed to `SuperAdminOnly = { "Super Admin" }` — create/edit guards block Agency-Admin creators from creating a Super Admin, editing an existing one, or promoting anyone to it (403 + messages); role allowlist from `883fae8` still rejects unknown/typo role strings. Client: `PRIVILEGED_ROLES = ["Super Admin"]`, so an Agency Admin's dropdown shows Agency Admin · Agency Staff · Finance Staff · Supplier; the newly created Agency Admin automatically gets **System Users + Agency Support** via the role resolver/`AdminLayout` groups. Also fixed pre-existing nullable warning (`Environment.ProcessPath`) → backend build **0 warn / 0 err**. 19A gate passed (lint 0, build OK, 150/150 + 150/150) before 19C; frontend **150/150**, backend **154/154**, lint 0, bundle gate OK. I3/I4: sign in as the new Agency Admin → pages appear; trying to create Super Admin is rejected; prod re-check = user |
+| 20 CRM No-Manual-Add (inquiry-sourced leads) | 2026-09-27 | 2026-09-27 | ✓ / | Done — **the CRM & Leads page can no longer add leads by hand.** Removed the Add Lead modal button + the modal's `add`-mode save branch + the `Add Lead` title case + unused `Plus` import; `leadsApi` no longer exposes `create` (client `POST /api/leads` deleted); backend `LeadsController` dropped its `[HttpPost] Create` action — **`POST /api/leads` now returns 405** (verified live). Leads are created only by the inquiry pipeline (`InquiriesController`); stage-move and convert actions are unaffected. Edit/view modal stays. 20A gate passed (lint 0, build OK, 150/150 + 154/154) before 20C; frontend **150/150**, backend **154/154**, build 0 warn / 0 err, lint 0, bundle gate OK (LeadsPage chunk 10.7 kB → 10.5 kB). J3/J4: smoke the 405 + no Add button; prod re-check = user |
 | Release Gate R1–R6 | 2026-09-23 | 2026-09-23 | ✓ / | R1–R5 Dev done: publish + build + vault/secrets clean + bundle gate OK + lint **0 problems** (62→0 cleanup: unused imports removed, `useMemo(setPage)` anti-pattern → `useEffect`, context-hook/static-component suppressions documented). Added **TEST-MODE-ONLY** PayMongo guard + `00 / 00` expiry mask. Pending (user): deploy to Vercel/host (R5*), human popup 3-D Secure QA, then R6 QA sign-off |
 | **Release** | | | / | **R6 pending — deploy on Vercel/host, then check QA boxes** |
 

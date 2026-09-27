@@ -34,6 +34,25 @@ $stale = Get-Process -Name $name | Where-Object {
 
 if (-not $stale) { exit 0 }
 
+# Kill the owning `dotnet run` parents FIRST. `dotnet run` supervises the app
+# process and will respawn it if only the child .exe dies, so terminating the child
+# alone just races a fresh instance against the build that is about to start.
+$parents = @()
+foreach ($p in $stale) {
+    try {
+        $ppid = (Get-CimInstance Win32_Process -Filter "ProcessId=$($p.Id)").ParentProcessId
+        $parent = Get-CimInstance Win32_Process -Filter "ProcessId=$ppid" -ErrorAction SilentlyContinue
+        if ($parent -and $parent.Name -eq 'dotnet.exe' -and $parent.CommandLine -match 'TravelConnect') {
+            $parents += $parent
+        }
+    } catch { }
+}
+
+foreach ($pp in ($parents | Sort-Object ProcessId -Unique)) {
+    Write-Host "[build] stopping previous 'dotnet run' host (PID $($pp.ProcessId))"
+    Stop-Process -Id $pp.ProcessId -Force
+}
+
 foreach ($p in $stale) {
     Write-Host "[build] stopping previous server instance (PID $($p.Id))"
     Stop-Process -Id $p.Id -Force

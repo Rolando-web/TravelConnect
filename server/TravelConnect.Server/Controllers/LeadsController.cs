@@ -28,17 +28,9 @@ public class LeadsController(TravelConnectDbContext db) : ControllerBase
         return Ok(entity);
     }
 
-    [HttpPost]
-    public async Task<ActionResult<Lead>> Create(Lead entity)
-    {
-        entity.CreatedAt = DateTime.UtcNow;
-        entity.UpdatedAt = DateTime.UtcNow;
-        if (string.IsNullOrWhiteSpace(entity.Source)) entity.Source = "Manual";
-        if (string.IsNullOrWhiteSpace(entity.Stage)) entity.Stage = "New";
-        db.Leads.Add(entity);
-        await db.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetById), new { id = entity.Id }, entity);
-    }
+    // No POST create on purpose: leads are inquiry-sourced only (see
+    // InquiriesController). Manual entry was removed; there is no /api/leads
+    // POST to add a lead by hand. Stage moves + conversion are separate actions.
 
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, Lead entity)

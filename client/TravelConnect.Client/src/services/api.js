@@ -110,7 +110,13 @@ export const packagesApi = crud("packages");
 export const destinationsApi = crud("destinations");
 export const promotionsApi = crud("promotions");
 export const suppliersApi = crud("suppliers");
-export const leadsApi = crud("leads");
+// Leads are inquiry-sourced only (see InquiriesController) — manual creation
+// is intentionally removed, so the POST create is excluded from the client API.
+export const leadsApi = (() => {
+  const api = crud("leads");
+  delete api.create;
+  return api;
+})();
 export const convertLeadToCustomer = (id) => request(`/api/leads/${id}/convert`, { method: "POST" }, ADMIN_WRITE_TIMEOUT_MS);
 export const setLeadStage = (id, stage) =>
   request(`/api/leads/${id}/stage`, { method: "POST", body: JSON.stringify({ stage }) }, ADMIN_WRITE_TIMEOUT_MS);

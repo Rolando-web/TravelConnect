@@ -28,12 +28,16 @@
 
   <!--
     A running instance locks its own .exe, so rebuilding while one is up fails with
-    MSB3021 and the new process then cannot bind :5110 either. Stop the old instance
-    before the build so a plain `dotnet run` always works. Debug/Windows only, and the
-    helper only ever stops processes running this project's own output binary.
+    MSB3021 before the app ever starts. Stop the old instance first so a plain
+    `dotnet run` always works. Debug/Windows only, and the helper only ever stops
+    processes running this project's own output binary.
+
+    Hooked on PrepareForBuild, NOT Build: a BeforeTargets="Build" injection runs after
+    that target's DependsOnTargets, which is where CoreBuild already copies
+    apphost.exe, so the exe would still be locked by the time this ran.
   -->
   <Target Name="StopPreviousServerInstance"
-          BeforeTargets="Build"
+          BeforeTargets="PrepareForBuild"
           Condition="'$(OS)' == 'Windows_NT' AND '$(Configuration)' == 'Debug' AND '$(TargetPath)' != ''">
     <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\stop-stale-server.ps1&quot; -ExePath &quot;$(TargetPath)&quot;"
           ContinueOnError="true"

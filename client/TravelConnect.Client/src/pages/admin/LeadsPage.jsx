@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Download, Plus, Search, SlidersHorizontal, Inbox, UserCheck, Info, ChevronRight, XCircle, TrendingUp } from "lucide-react";
+import { Download, Search, SlidersHorizontal, Inbox, UserCheck, Info, ChevronRight, XCircle, TrendingUp } from "lucide-react";
 import { leadsApi, convertLeadToCustomer, setLeadStage } from "../../services/api";
 import CrudModal from "../../components/admin/CrudModal";
 import StatCard from "../../components/admin/StatCard";
@@ -100,8 +100,7 @@ export default function LeadsPage() {
   const handleSave = async (form) => {
     setSaving(true);
     try {
-      if (modal.mode === "add") await leadsApi.create({ ...form, worth: Number(form.worth || 0) });
-      else await leadsApi.update(modal.data.id, { ...form, id: modal.data.id, worth: Number(form.worth || 0) });
+      await leadsApi.update(modal.data.id, { ...form, id: modal.data.id, worth: Number(form.worth || 0) });
       setModal({ open: false, mode: "add", data: null });
       setLoading(true);
       load();
@@ -170,7 +169,6 @@ export default function LeadsPage() {
         </div>
         <div className="flex gap-2">
           <button className="btn-secondary"><Download size={16} /> Export</button>
-          <button onClick={() => openModal("add")} className="btn-primary"><Plus size={17} /> Add Lead</button>
         </div>
       </section>
 
@@ -179,8 +177,8 @@ export default function LeadsPage() {
           <Info size={16} />
         </span>
         <p className="text-sm text-text-primary leading-relaxed">
-          <span className="font-bold text-cyan-accent">How the pipeline works:</span> leads are entered manually or
-          auto-created from website &amp; checkout messages. Sales reps advance them
+          <span className="font-bold text-cyan-accent">How the pipeline works:</span> leads are auto-created from
+          website &amp; checkout messages. Sales reps advance them
           <span className="font-semibold"> New → Contacted → Qualified → Proposal → Negotiation</span>, then close as
           <span className="font-semibold"> Won</span> (converts to a Customer) or <span className="font-semibold"> Lost</span>.
           A paid booking also closes the matching lead as Won automatically.
@@ -306,7 +304,7 @@ export default function LeadsPage() {
       <CrudModal
         open={modal.open}
         onClose={() => setModal({ open: false, mode: "add", data: null })}
-        title={modal.mode === "add" ? "Add Lead" : modal.mode === "edit" ? "Edit Lead" : "Lead Details"}
+        title={modal.mode === "edit" ? "Edit Lead" : "Lead Details"}
         mode={modal.mode}
         fields={modalFields}
         data={modal.data || {}}
