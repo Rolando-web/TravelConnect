@@ -14,10 +14,20 @@ public static class DatabaseInitializer
         // Create database if it doesn't exist
         await db.Database.EnsureCreatedAsync();
 
+        // Probing every added column/table up front costs one round trip, and lets a
+        // fully-migrated database skip the ~12 idempotent DDL calls below entirely.
+        // Without this the DDL block issues COL_LENGTH/OBJECT_ID checks on every boot,
+        // which dominates startup once the schema is already settled.
+        var schemaIncomplete = !await ProbeSchemaCompleteAsync(db);
+        if (schemaIncomplete)
+        {
+            Console.WriteLine("[DB] Schema incomplete — applying additive migrations.");
+        }
+
         // Ensure the BookingFlights child table exists even on a pre-existing
         // database that was created before this table was introduced. Fresh
         // databases get it automatically via EnsureCreatedAsync.
-        await db.Database.ExecuteSqlRawAsync(@"
+        if (schemaIncomplete) await db.Database.ExecuteSqlRawAsync(@"
             IF OBJECT_ID(N'dbo.BookingFlights', N'U') IS NULL
             BEGIN
                 CREATE TABLE dbo.BookingFlights (
@@ -41,7 +51,7 @@ public static class DatabaseInitializer
 
         // Ensure the Suppliers.ImageUrl column exists on pre-existing databases
         // (fresh databases get it automatically via EnsureCreatedAsync).
-        await db.Database.ExecuteSqlRawAsync(@"
+        if (schemaIncomplete) await db.Database.ExecuteSqlRawAsync(@"
             IF COL_LENGTH('dbo.Suppliers', 'ImageUrl') IS NULL
             BEGIN
                 ALTER TABLE dbo.Suppliers ADD ImageUrl nvarchar(max) NOT NULL
@@ -49,7 +59,7 @@ public static class DatabaseInitializer
             END");
 
         // Ensure the Images table exists even on a pre-existing database.
-        await db.Database.ExecuteSqlRawAsync(@"
+        if (schemaIncomplete) await db.Database.ExecuteSqlRawAsync(@"
             IF OBJECT_ID(N'dbo.Images', N'U') IS NULL
             BEGIN
                 CREATE TABLE dbo.Images (
@@ -62,7 +72,7 @@ public static class DatabaseInitializer
             END");
 
         // Ensure new columns exist on pre-existing databases for Booking
-        await db.Database.ExecuteSqlRawAsync(@"
+        if (schemaIncomplete) await db.Database.ExecuteSqlRawAsync(@"
             IF COL_LENGTH('dbo.Bookings', 'SeatNumbers') IS NULL
                 ALTER TABLE dbo.Bookings ADD SeatNumbers nvarchar(max) NOT NULL CONSTRAINT DF_Bookings_SeatNumbers DEFAULT ('');
             IF COL_LENGTH('dbo.Bookings', 'CancellationPolicyTier') IS NULL
@@ -77,14 +87,14 @@ public static class DatabaseInitializer
                 ALTER TABLE dbo.Bookings ADD Category nvarchar(max) NOT NULL CONSTRAINT DF_Bookings_Category DEFAULT ('');");
 
         // Ensure new columns exist on pre-existing databases for BookingFlights
-        await db.Database.ExecuteSqlRawAsync(@"
+        if (schemaIncomplete) await db.Database.ExecuteSqlRawAsync(@"
             IF COL_LENGTH('dbo.BookingFlights', 'SeatNumber') IS NULL
                 ALTER TABLE dbo.BookingFlights ADD SeatNumber nvarchar(max) NOT NULL CONSTRAINT DF_BookingFlights_SeatNumber DEFAULT ('');
             IF COL_LENGTH('dbo.BookingFlights', 'SeatStatus') IS NULL
                 ALTER TABLE dbo.BookingFlights ADD SeatStatus nvarchar(max) NOT NULL CONSTRAINT DF_BookingFlights_SeatStatus DEFAULT ('Available');");
 
         // Ensure new columns exist on pre-existing databases for Flights
-        await db.Database.ExecuteSqlRawAsync(@"
+        if (schemaIncomplete) await db.Database.ExecuteSqlRawAsync(@"
             IF COL_LENGTH('dbo.Flights', 'TotalSeats') IS NULL
                 ALTER TABLE dbo.Flights ADD TotalSeats int NOT NULL CONSTRAINT DF_Flights_TotalSeats DEFAULT (180);
             IF COL_LENGTH('dbo.Flights', 'TotalRows') IS NULL
@@ -93,14 +103,14 @@ public static class DatabaseInitializer
                 ALTER TABLE dbo.Flights ADD SeatConfig nvarchar(max) NOT NULL CONSTRAINT DF_Flights_SeatConfig DEFAULT ('A,B,C,D,E,F');");
 
         // Ensure new columns exist on pre-existing databases for Payments
-        await db.Database.ExecuteSqlRawAsync(@"
+        if (schemaIncomplete) await db.Database.ExecuteSqlRawAsync(@"
             IF COL_LENGTH('dbo.Payments', 'SenderName') IS NULL
                 ALTER TABLE dbo.Payments ADD SenderName nvarchar(max) NOT NULL CONSTRAINT DF_Payments_SenderName DEFAULT ('');
             IF COL_LENGTH('dbo.Payments', 'SenderMobile') IS NULL
                 ALTER TABLE dbo.Payments ADD SenderMobile nvarchar(max) NOT NULL CONSTRAINT DF_Payments_SenderMobile DEFAULT ('');");
 
         // Ensure new columns exist on pre-existing databases for Leads (CRM)
-        await db.Database.ExecuteSqlRawAsync(@"
+        if (schemaIncomplete) await db.Database.ExecuteSqlRawAsync(@"
             IF COL_LENGTH('dbo.Leads', 'Source') IS NULL
                 ALTER TABLE dbo.Leads ADD Source nvarchar(max) NOT NULL CONSTRAINT DF_Leads_Source DEFAULT ('Manual');
             IF COL_LENGTH('dbo.Leads', 'Worth') IS NULL
@@ -109,7 +119,7 @@ public static class DatabaseInitializer
                 ALTER TABLE dbo.Leads ADD NextFollowUp nvarchar(max) NOT NULL CONSTRAINT DF_Leads_NextFollowUp DEFAULT ('');");
 
         // Ensure EmailLogs table exists
-        await db.Database.ExecuteSqlRawAsync(@"
+        if (schemaIncomplete) await db.Database.ExecuteSqlRawAsync(@"
             IF OBJECT_ID(N'dbo.EmailLogs', N'U') IS NULL
             BEGIN
                 CREATE TABLE dbo.EmailLogs (
@@ -128,7 +138,7 @@ public static class DatabaseInitializer
             END");
 
         // Ensure SupportConversations table exists
-        await db.Database.ExecuteSqlRawAsync(@"
+        if (schemaIncomplete) await db.Database.ExecuteSqlRawAsync(@"
             IF OBJECT_ID(N'dbo.SupportConversations', N'U') IS NULL
             BEGIN
                 CREATE TABLE dbo.SupportConversations (
@@ -149,7 +159,7 @@ public static class DatabaseInitializer
             END");
 
         // Ensure SupportMessages table exists
-        await db.Database.ExecuteSqlRawAsync(@"
+        if (schemaIncomplete) await db.Database.ExecuteSqlRawAsync(@"
             IF OBJECT_ID(N'dbo.SupportMessages', N'U') IS NULL
             BEGIN
                 CREATE TABLE dbo.SupportMessages (
@@ -168,7 +178,7 @@ public static class DatabaseInitializer
             END");
 
         // Ensure SubscriptionPlans table exists
-        await db.Database.ExecuteSqlRawAsync(@"
+        if (schemaIncomplete) await db.Database.ExecuteSqlRawAsync(@"
             IF OBJECT_ID(N'dbo.SubscriptionPlans', N'U') IS NULL
             BEGIN
                 CREATE TABLE dbo.SubscriptionPlans (
@@ -186,7 +196,7 @@ public static class DatabaseInitializer
             END");
 
         // Ensure Subscriptions table exists
-        await db.Database.ExecuteSqlRawAsync(@"
+        if (schemaIncomplete) await db.Database.ExecuteSqlRawAsync(@"
             IF OBJECT_ID(N'dbo.Subscriptions', N'U') IS NULL
             BEGIN
                 CREATE TABLE dbo.Subscriptions (
@@ -234,10 +244,89 @@ public static class DatabaseInitializer
         await SeedAsync(db);
     }
 
+    // One round trip instead of 24. Returns true only when every table and column
+    // touched by the additive DDL block above is already present, which is the
+    // steady state for any database that has been started at least once before.
+    private static async Task<bool> ProbeSchemaCompleteAsync(TravelConnectDbContext db)
+    {
+        var connection = db.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync();
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT CASE WHEN
+                OBJECT_ID(N'dbo.BookingFlights',        N'U') IS NOT NULL
+            AND OBJECT_ID(N'dbo.Images',                N'U') IS NOT NULL
+            AND OBJECT_ID(N'dbo.EmailLogs',             N'U') IS NOT NULL
+            AND OBJECT_ID(N'dbo.SupportConversations',  N'U') IS NOT NULL
+            AND OBJECT_ID(N'dbo.SupportMessages',       N'U') IS NOT NULL
+            AND OBJECT_ID(N'dbo.SubscriptionPlans',     N'U') IS NOT NULL
+            AND OBJECT_ID(N'dbo.Subscriptions',         N'U') IS NOT NULL
+            AND COL_LENGTH('dbo.Bookings',        'SeatNumbers')           IS NOT NULL
+            AND COL_LENGTH('dbo.Bookings',        'CancellationPolicyTier') IS NOT NULL
+            AND COL_LENGTH('dbo.Bookings',        'RefundAmount')          IS NOT NULL
+            AND COL_LENGTH('dbo.Bookings',        'CancelledAt')           IS NOT NULL
+            AND COL_LENGTH('dbo.Bookings',        'RefundReference')       IS NOT NULL
+            AND COL_LENGTH('dbo.Bookings',        'Category')              IS NOT NULL
+            AND COL_LENGTH('dbo.BookingFlights',  'SeatNumber')            IS NOT NULL
+            AND COL_LENGTH('dbo.BookingFlights',  'SeatStatus')            IS NOT NULL
+            AND COL_LENGTH('dbo.Suppliers',       'ImageUrl')              IS NOT NULL
+            AND COL_LENGTH('dbo.Flights',         'TotalSeats')            IS NOT NULL
+            AND COL_LENGTH('dbo.Flights',         'TotalRows')             IS NOT NULL
+            AND COL_LENGTH('dbo.Flights',         'SeatConfig')            IS NOT NULL
+            AND COL_LENGTH('dbo.Payments',        'SenderName')            IS NOT NULL
+            AND COL_LENGTH('dbo.Payments',        'SenderMobile')          IS NOT NULL
+            AND COL_LENGTH('dbo.Leads',           'Source')                IS NOT NULL
+            AND COL_LENGTH('dbo.Leads',           'Worth')                 IS NOT NULL
+            AND COL_LENGTH('dbo.Leads',           'NextFollowUp')          IS NOT NULL
+                THEN 1 ELSE 0 END";
+
+        var result = await command.ExecuteScalarAsync();
+        return Convert.ToInt32(result) == 1;
+    }
+
+    // One round trip instead of 11. Returns a bit per seeded table, in the same
+    // order SeedAsync checks them, so each seed block can branch on a flag that
+    // was already fetched instead of re-querying the table.
+    private static async Task<int> ProbeSeededTablesAsync(TravelConnectDbContext db)
+    {
+        var connection = db.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync();
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT (CASE WHEN EXISTS (SELECT 1 FROM [SubscriptionPlans]) THEN 1 ELSE 0 END)
+                 + (CASE WHEN EXISTS (SELECT 1 FROM [SystemUsers])       THEN 2 ELSE 0 END)
+                 + (CASE WHEN EXISTS (SELECT 1 FROM [Destinations])      THEN 4 ELSE 0 END)
+                 + (CASE WHEN EXISTS (SELECT 1 FROM [Hotels])            THEN 8 ELSE 0 END)
+                 + (CASE WHEN EXISTS (SELECT 1 FROM [Cars])              THEN 16 ELSE 0 END)
+                 + (CASE WHEN EXISTS (SELECT 1 FROM [Packages])          THEN 32 ELSE 0 END)
+                 + (CASE WHEN EXISTS (SELECT 1 FROM [Promotions])        THEN 64 ELSE 0 END)
+                 + (CASE WHEN EXISTS (SELECT 1 FROM [Suppliers])         THEN 128 ELSE 0 END)
+                 + (CASE WHEN EXISTS (SELECT 1 FROM [Flights])           THEN 256 ELSE 0 END)
+                 + (CASE WHEN EXISTS (SELECT 1 FROM [Activities])        THEN 512 ELSE 0 END)
+                 + (CASE WHEN EXISTS (SELECT 1 FROM [Customers])         THEN 1024 ELSE 0 END)";
+
+        var result = await command.ExecuteScalarAsync();
+        return Convert.ToInt32(result);
+    }
+
+    private static bool Seeded(int mask, int bit) => (mask & bit) != 0;
+
     private static async Task SeedAsync(TravelConnectDbContext db)
     {
+        // Which seed tables already hold rows, fetched in a single round trip
+        // instead of one AnyAsync() per table.
+        var seededMask = await ProbeSeededTablesAsync(db);
+
         // Seed subscription tier plans if empty
-        if (!await db.SubscriptionPlans.AnyAsync())
+        if (!Seeded(seededMask, 1))
         {
             db.SubscriptionPlans.AddRange(new[]
             {
@@ -275,7 +364,7 @@ public static class DatabaseInitializer
             await db.SaveChangesAsync();
         }
         // Only seed default admin/staff accounts if none exist yet.
-        if (!await db.SystemUsers.AnyAsync())
+        if (!Seeded(seededMask, 2))
         {
             var systemUsers = new[]
             {
@@ -290,7 +379,7 @@ public static class DatabaseInitializer
         }
 
         // Destinations (15)
-        if (!await db.Destinations.AnyAsync())
+        if (!Seeded(seededMask, 4))
         {
             db.Destinations.AddRange(new[]
             {
@@ -314,7 +403,7 @@ public static class DatabaseInitializer
         }
 
         // Hotels (10)
-        if (!await db.Hotels.AnyAsync())
+        if (!Seeded(seededMask, 8))
         {
             db.Hotels.AddRange(new[]
             {
@@ -333,7 +422,7 @@ public static class DatabaseInitializer
         }
 
         // Cars (10)
-        if (!await db.Cars.AnyAsync())
+        if (!Seeded(seededMask, 16))
         {
             db.Cars.AddRange(new[]
             {
@@ -352,7 +441,7 @@ public static class DatabaseInitializer
         }
 
         // Deals / Packages (10)
-        if (!await db.Packages.AnyAsync())
+        if (!Seeded(seededMask, 32))
         {
             db.Packages.AddRange(new[]
             {
@@ -380,7 +469,7 @@ public static class DatabaseInitializer
         }
 
         // Promotions / Deal offer codes (6)
-        if (!await db.Promotions.AnyAsync())
+        if (!Seeded(seededMask, 64))
         {
             db.Promotions.AddRange(new[]
             {
@@ -395,7 +484,7 @@ public static class DatabaseInitializer
         }
 
         // Suppliers (linked to their packages once both exist)
-        if (!await db.Suppliers.AnyAsync())
+        if (!Seeded(seededMask, 128))
         {
             db.Suppliers.AddRange(new[]
             {
@@ -439,7 +528,7 @@ public static class DatabaseInitializer
         // Flights (17 Manila-origin + 5 Davao hub routes).
         // Departure dates are relative to "today" so a fresh database always has
         // near-future departures that the (date-tolerant) flight search can show.
-        if (!await db.Flights.AnyAsync())
+        if (!Seeded(seededMask, 256))
         {
             string flightDate(int addDays) => DateTime.UtcNow.Date.AddDays(addDays).ToString("yyyy-MM-dd");
             db.Flights.AddRange(new[]
@@ -473,7 +562,7 @@ public static class DatabaseInitializer
         }
 
         // Activities / Services (10)
-        if (!await db.Activities.AnyAsync())
+        if (!Seeded(seededMask, 512))
         {
             db.Activities.AddRange(new[]
             {
@@ -492,7 +581,7 @@ public static class DatabaseInitializer
         }
 
         // Customers (12 initial international and domestic customer profiles)
-        if (!await db.Customers.AnyAsync())
+        if (!Seeded(seededMask, 1024))
         {
             db.Customers.AddRange(new[]
             {

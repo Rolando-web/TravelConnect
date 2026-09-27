@@ -166,14 +166,14 @@ describe("AdminManagementPage System Users", () => {
     expect(screen.queryByText("Temporary Password")).not.toBeInTheDocument();
   });
 
-  it("hides privileged roles from an Agency Admin's user form (employees only)", async () => {
+  it("hides only the Super Admin role from an Agency Admin's user form", async () => {
     mocks.outletCtx.role = "Agency Admin";
 
     await openAddUser();
 
     const select = inputFor("Role");
     const roleOptions = [...select.options].filter((o) => o.value !== "").map((o) => o.text);
-    expect(roleOptions).toEqual(["Agency Staff", "Finance Staff", "Supplier"]);
+    expect(roleOptions).toEqual(["Agency Admin", "Agency Staff", "Finance Staff", "Supplier"]);
   });
 
   it("keeps all roles visible to a Super Admin", async () => {

@@ -12,12 +12,12 @@ namespace TravelConnect.Server.Controllers;
 [Route("api/[controller]")]
 public class UsersController(TravelConnectDbContext db) : ControllerBase
 {
-    // Roles that only the platform owner may create/edit. An Agency Admin owns
-    // the CRM/ERP and can manage their own workforce, but never these accounts.
-    private static readonly HashSet<string> PrivilegedRoles = new(StringComparer.Ordinal)
+    // Role only the platform owner (Super Admin) may create. An Agency Admin
+    // owns the CRM/ERP and may provision same-tier Agency Admins plus the whole
+    // workforce (Agency Staff, Finance Staff, Supplier) — but never this one.
+    private static readonly HashSet<string> SuperAdminOnly = new(StringComparer.Ordinal)
     {
-        "Super Admin",
-        "Agency Admin"
+        "Super Admin"
     };
 
     // Canonical role allowlist. Anything else (including typo'd or lowercase
@@ -123,8 +123,8 @@ public class UsersController(TravelConnectDbContext db) : ControllerBase
         if (!KnownRoles.Contains(entity.Role))
             return BadRequest(new { message = $"Unknown role '{entity.Role}'. Use one of: Super Admin, Agency Admin, Agency Staff, Finance Staff, Supplier." });
 
-        if (!IsSuperAdmin(me) && PrivilegedRoles.Contains(entity.Role))
-            return StatusCode(403, new { message = "Agency Admin can only create employee accounts (Agency Staff, Finance Staff, Supplier)." });
+        if (!IsSuperAdmin(me) && SuperAdminOnly.Contains(entity.Role))
+            return StatusCode(403, new { message = "Agency Admin can only create Agency Admin and employee accounts (Agency Admin, Agency Staff, Finance Staff, Supplier) — Super Admin is reserved for the platform owner." });
 
         entity.CreatedAt = DateTime.UtcNow;
         entity.UpdatedAt = DateTime.UtcNow;
@@ -147,13 +147,13 @@ public class UsersController(TravelConnectDbContext db) : ControllerBase
         if (!KnownRoles.Contains(entity.Role))
             return BadRequest(new { message = $"Unknown role '{entity.Role}'. Use one of: Super Admin, Agency Admin, Agency Staff, Finance Staff, Supplier." });
 
-        // An Agency Admin can neither edit a platform-owner account nor promote
-        // someone into a privileged role. Super Admins have no limits.
+        // An Agency Admin can edit own-tier Agency Admins and the workforce, but
+        // never a platform-owner account, and can promote nobody to Super Admin.
         if (!IsSuperAdmin(me) &&
             (existing.Role == "Super Admin" ||
              string.IsNullOrWhiteSpace(entity.Role) ||
-             PrivilegedRoles.Contains(entity.Role)))
-            return StatusCode(403, new { message = "Agency Admin cannot edit or promote privileged accounts (Super Admin / Agency Admin)." });
+             SuperAdminOnly.Contains(entity.Role)))
+            return StatusCode(403, new { message = "Agency Admin cannot edit a Super Admin account or promote anyone to Super Admin." });
 
         db.Entry(existing).CurrentValues.SetValues(entity);
         existing.UpdatedAt = DateTime.UtcNow;

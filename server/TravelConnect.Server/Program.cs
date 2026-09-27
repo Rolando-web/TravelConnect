@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.NetworkInformation;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
@@ -164,6 +166,100 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddResponseCaching();
 
 var app = builder.Build();
+
+// Take over the port from a previous run of *this* executable, so a plain
+// `dotnet run` always works. Without this, Kestrel only complains after the DB
+// init/seeding has already run, so a duplicate launch buries the real error under
+// a wall of DbCommand logs and dies with an unhandled AddressInUseException.
+//
+// The match is deliberately narrow: only processes running the exact same binary
+// path are terminated. Anything else holding the port is left alone and reported.
+var startupUrls = app.Urls.DefaultIfEmpty(
+        app.Configuration["urls"] ?? app.Configuration["ASPNETCORE_URLS"] ?? string.Empty)
+    .Select(u => u.Trim())
+    .Where(u => u.Length > 0);
+
+foreach (var rawUrl in startupUrls)
+{
+    if (!Uri.TryCreate(rawUrl, UriKind.Absolute, out var parsed) ||
+        (parsed.Scheme != Uri.UriSchemeHttp && parsed.Scheme != Uri.UriSchemeHttps))
+    {
+        continue;
+    }
+
+    var port = parsed.Port;
+    if (port <= 0) continue;
+
+    var isBusy = () => IPGlobalProperties.GetIPGlobalProperties()
+        .GetActiveTcpListeners()
+        .Any(l => l is IPEndPoint ipEnd && ipEnd.Port == port);
+
+    if (!isBusy()) continue;
+
+    var selfPath = Environment.ProcessPath;
+    var selfName = string.IsNullOrEmpty(selfPath)
+        ? null
+        : System.IO.Path.GetFileNameWithoutExtension(selfPath);
+
+    var stale = selfName == null
+        ? Array.Empty<System.Diagnostics.Process>()
+        : System.Diagnostics.Process.GetProcessesByName(selfName)
+            .Where(p =>
+            {
+                if (p.Id == Environment.ProcessId) return false;
+                try
+                {
+                    return string.Equals(
+                        System.IO.Path.GetFullPath(p.MainModule?.FileName ?? string.Empty),
+                        System.IO.Path.GetFullPath(selfPath ?? string.Empty),
+                        StringComparison.OrdinalIgnoreCase);
+                }
+                catch
+                {
+                    // MainModule throws for processes we cannot inspect (other users,
+                    // protected processes). Treat those as "not ours" and leave them be.
+                    return false;
+                }
+            })
+            .ToArray();
+
+    if (stale.Length == 0)
+    {
+        Console.Error.WriteLine();
+        Console.Error.WriteLine($"[PORT] Port {port} is already in use ({rawUrl}) by a process that is not this app.");
+        Console.Error.WriteLine($"[PORT] Stop it, then start again:");
+        Console.Error.WriteLine($"    Get-NetTCPConnection -LocalPort {port} -State Listen | Select-Object OwningProcess");
+        Console.Error.WriteLine();
+        Environment.Exit(1);
+    }
+
+    Console.WriteLine($"[PORT] Port {port} held by an earlier instance of this server — stopping it.");
+    foreach (var p in stale)
+    {
+        Console.WriteLine($"[PORT]   stopping PID {p.Id}");
+        try { p.Kill(entireProcessTree: true); } catch { /* already gone */ }
+    }
+
+    foreach (var p in stale)
+    {
+        try { p.WaitForExit(5000); } catch { /* best effort */ }
+    }
+
+    for (var attempt = 0; attempt < 20 && isBusy(); attempt++)
+    {
+        Thread.Sleep(250);
+    }
+
+    if (isBusy())
+    {
+        Console.Error.WriteLine();
+        Console.Error.WriteLine($"[PORT] Port {port} is still in use after stopping the previous instance.");
+        Console.Error.WriteLine();
+        Environment.Exit(1);
+    }
+
+    Console.WriteLine($"[PORT] Port {port} released.");
+}
 
 // TLS is normally terminated at the reverse proxy (nginx/Vercel/Render), so
 // honour the forwarded scheme and only redirect locally when a real HTTPS

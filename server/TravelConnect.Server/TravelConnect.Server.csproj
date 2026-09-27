@@ -26,4 +26,18 @@
     <InternalsVisibleTo Include="TravelConnect.Server.Tests" />
   </ItemGroup>
 
+  <!--
+    A running instance locks its own .exe, so rebuilding while one is up fails with
+    MSB3021 and the new process then cannot bind :5110 either. Stop the old instance
+    before the build so a plain `dotnet run` always works. Debug/Windows only, and the
+    helper only ever stops processes running this project's own output binary.
+  -->
+  <Target Name="StopPreviousServerInstance"
+          BeforeTargets="Build"
+          Condition="'$(OS)' == 'Windows_NT' AND '$(Configuration)' == 'Debug' AND '$(TargetPath)' != ''">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\stop-stale-server.ps1&quot; -ExePath &quot;$(TargetPath)&quot;"
+          ContinueOnError="true"
+          StandardOutputImportance="low" />
+  </Target>
+
 </Project>

@@ -125,26 +125,41 @@ public class UsersControllerTests
     }
 
     [Fact]
-    public async Task Create_agency_admin_cannot_create_privileged_roles()
+    public async Task Create_agency_admin_cannot_create_super_admin()
     {
         using var db = TestDb.Create();
         await SeedUserAsync(db, "a", "a@tc.com", "Agency Admin");
 
-        foreach (var role in new[] { "Super Admin", "Agency Admin" })
+        var result = await Controller(db, "a", "a@tc.com").Create(new SystemUser
         {
-            var result = await Controller(db, "a", "a@tc.com").Create(new SystemUser
-            {
-                Email = $"x-{role}@tc.com",
-                DisplayName = "X",
-                Role = role
-            });
-            AssertForbiddenMessage(
-                "Agency Admin can only create employee accounts (Agency Staff, Finance Staff, Supplier).",
-                result);
-        }
+            Email = "x-super@tc.com",
+            DisplayName = "X",
+            Role = "Super Admin"
+        });
 
-        // No privileged (or any) row may have been written for those attempts.
+        AssertForbiddenMessage(
+            "Agency Admin can only create Agency Admin and employee accounts (Agency Admin, Agency Staff, Finance Staff, Supplier) — Super Admin is reserved for the platform owner.",
+            result);
+
         Assert.Empty(db.SystemUsers.Where(u => u.Email.StartsWith("x-")));
+    }
+
+    [Fact]
+    public async Task Create_agency_admin_can_create_same_tier_agency_admin()
+    {
+        using var db = TestDb.Create();
+        await SeedUserAsync(db, "a", "a@tc.com", "Agency Admin");
+
+        var result = await Controller(db, "a", "a@tc.com").Create(new SystemUser
+        {
+            Email = "coadmin@tc.com",
+            DisplayName = "Co Admin",
+            Role = "Agency Admin"
+        });
+
+        var created = Assert.IsType<CreatedAtActionResult>(result);
+        Assert.Equal("Agency Admin", Assert.IsType<SystemUser>(created.Value).Role);
+        Assert.Contains(db.SystemUsers, u => u.Email == "coadmin@tc.com" && u.Role == "Agency Admin");
     }
 
     [Fact]
@@ -199,12 +214,12 @@ public class UsersControllerTests
         var result = await Controller(db, "a", "a@tc.com").Update(sup.Id, sup);
 
         AssertForbiddenMessage(
-            "Agency Admin cannot edit or promote privileged accounts (Super Admin / Agency Admin).",
+            "Agency Admin cannot edit a Super Admin account or promote anyone to Super Admin.",
             result);
     }
 
     [Fact]
-    public async Task Update_agency_admin_cannot_promote_employee()
+    public async Task Update_agency_admin_cannot_promote_employee_to_super_admin()
     {
         using var db = TestDb.Create();
         await SeedUserAsync(db, "a", "a@tc.com", "Agency Admin");
@@ -214,8 +229,39 @@ public class UsersControllerTests
         var result = await Controller(db, "a", "a@tc.com").Update(emp.Id, emp);
 
         AssertForbiddenMessage(
-            "Agency Admin cannot edit or promote privileged accounts (Super Admin / Agency Admin).",
+            "Agency Admin cannot edit a Super Admin account or promote anyone to Super Admin.",
             result);
+    }
+
+    [Fact]
+    public async Task Update_agency_admin_can_promote_employee_to_agency_admin()
+    {
+        using var db = TestDb.Create();
+        await SeedUserAsync(db, "a", "a@tc.com", "Agency Admin");
+        var emp = await SeedUserAsync(db, "e", "e@tc.com", "Agency Staff");
+
+        emp.Role = "Agency Admin";
+        var result = await Controller(db, "a", "a@tc.com").Update(emp.Id, emp);
+
+        Assert.IsType<NoContentResult>(result);
+        var reloaded = await db.SystemUsers.FirstAsync(u => u.Id == emp.Id);
+        Assert.Equal("Agency Admin", reloaded.Role);
+    }
+
+    [Fact]
+    public async Task Update_agency_admin_can_edit_same_tier_admin()
+    {
+        using var db = TestDb.Create();
+        await SeedUserAsync(db, "a", "a@tc.com", "Agency Admin");
+        var co = await SeedUserAsync(db, "c", "c@tc.com", "Agency Admin");
+
+        co.DisplayName = "Co Renamed";
+        var result = await Controller(db, "a", "a@tc.com").Update(co.Id, co);
+
+        Assert.IsType<NoContentResult>(result);
+        var reloaded = await db.SystemUsers.FirstAsync(u => u.Id == co.Id);
+        Assert.Equal("Co Renamed", reloaded.DisplayName);
+        Assert.Equal("Agency Admin", reloaded.Role);
     }
 
     [Fact]

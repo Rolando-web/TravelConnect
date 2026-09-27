@@ -52,7 +52,7 @@ const FALLBACK_FLIGHT_IMG = "https://images.unsplash.com/photo-1436491865332-7a6
 // Roles a non-Super-Admin manager is allowed to hand out on the System Users
 // page. Super Admin / Agency Admin accounts stay exclusive to the platform
 // owner, so an Agency Admin can only create accounts for their own employees.
-const PRIVILEGED_ROLES = ["Super Admin", "Agency Admin"];
+const PRIVILEGED_ROLES = ["Super Admin"];
 
 const statusBadge = {
   Active: "badge-green",
@@ -445,8 +445,10 @@ export default function AdminManagementPage() {
   const [title, subtitle] = pageMeta[page] || ["Management", "Manage your TravelConnect records"];
   const permission = access[page];
 
-  // System Users: an Agency Admin (CRM/ERP owner) manages their own workforce,
-  // so privileged Super Admin / Agency Admin roles are hidden from their form.
+  // System Users: an Agency Admin (CRM/ERP owner) manages their own tier plus
+  // the workforce, so only the platform-owner Super Admin role is hidden from
+  // their form. Ever agency admin they create has the System Users + Agency
+  // Support pages via the role resolver.
   const usersFields = useMemo(() => {
     if (page !== "users" || role === "Super Admin") return config?.fields || [];
     return (config?.fields || []).map((f) =>
