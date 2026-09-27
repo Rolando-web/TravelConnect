@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, query, setDoc, where } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs, query, setDoc, where } from "firebase/firestore";
 import { db } from "./firebase";
 
 /**
@@ -29,6 +29,37 @@ export async function syncRoleToFirestore(email, role) {
     return updated;
   } catch (err) {
     console.warn("Role→Firestore sync skipped:", err.message);
+    return 0;
+  }
+}
+
+/**
+ * Removes a deleted System User's Firestore profile entirely so the account can
+ * no longer resolve to an admin role. The AuthContext menu role falls back to
+ * Firestore when the backend registry no longer has the row, so a delete that
+ * stops at the SQL table would leave the off-boarded user logged into the admin
+ * menu forever. Deleting the profile drops the claim to staff access (claims
+ * remain what they were, but the resolver normalizes to Customer when nothing
+ * is left).
+ *
+ * @returns number of Firestore profiles removed (0 when nothing matched).
+ */
+export async function removeRoleFromFirestore(email) {
+  if (!email) return 0;
+
+  try {
+    const snap = await getDocs(
+      query(collection(db, "users"), where("email", "==", email.trim()))
+    );
+
+    let removed = 0;
+    for (const item of snap.docs) {
+      await deleteDoc(doc(db, "users", item.id));
+      removed++;
+    }
+    return removed;
+  } catch (err) {
+    console.warn("Firestore profile removal skipped:", err.message);
     return 0;
   }
 }

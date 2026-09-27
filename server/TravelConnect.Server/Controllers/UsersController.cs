@@ -176,6 +176,8 @@ public class UsersController(TravelConnectDbContext db) : ControllerBase
 
         var entity = await db.SystemUsers.FirstOrDefaultAsync(e => e.Id == id);
         if (entity is null) return NotFound(new { message = "Record not found" });
+        if (entity.Id == me.Id)
+            return BadRequest(new { message = "You cannot delete your own account." });
         if (!IsSuperAdmin(me) && entity.Role == "Super Admin") return Forbid();
         db.SystemUsers.Remove(entity);
         await db.SaveChangesAsync();

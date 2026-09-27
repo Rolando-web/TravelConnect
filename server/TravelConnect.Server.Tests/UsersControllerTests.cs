@@ -320,6 +320,19 @@ public class UsersControllerTests
     }
 
     [Fact]
+    public async Task Delete_user_cannot_delete_own_account()
+    {
+        using var db = TestDb.Create();
+        var a = await SeedUserAsync(db, "a", "a@tc.com", "Agency Admin");
+
+        var result = await Controller(db, "a", "a@tc.com").Delete(a.Id);
+
+        var bad = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Contains("You cannot delete your own account.", TestDb.ToJson(bad.Value).GetProperty("message").GetString());
+        Assert.Single(db.SystemUsers);
+    }
+
+    [Fact]
     public async Task Delete_agency_admin_cannot_delete_super_admin()
     {
         using var db = TestDb.Create();

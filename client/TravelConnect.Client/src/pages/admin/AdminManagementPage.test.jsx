@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   },
   createSystemUser: vi.fn(),
   syncRoleToFirestore: vi.fn(),
+  removeRoleFromFirestore: vi.fn(),
 }));
 
 vi.mock("react-router-dom", () => ({
@@ -33,6 +34,7 @@ vi.mock("../../services/systemUserProvision", () => ({
 }));
 vi.mock("../../services/firestoreRoleSync", () => ({
   syncRoleToFirestore: mocks.syncRoleToFirestore,
+  removeRoleFromFirestore: mocks.removeRoleFromFirestore,
 }));
 
 vi.mock("./ProfilePage", () => ({ default: () => null }));
@@ -42,13 +44,16 @@ vi.mock("./HelpdeskInboxPage", () => ({ default: () => null }));
 
 beforeEach(() => {
   mocks.outletCtx.role = "Super Admin";
+  mocks.outletCtx.access = { users: "Manage" };
   mocks.api.usersApi.list.mockReset();
   mocks.api.usersApi.update.mockReset();
   mocks.createSystemUser.mockReset();
   mocks.syncRoleToFirestore.mockReset();
+  mocks.removeRoleFromFirestore.mockReset();
   mocks.api.usersApi.list.mockResolvedValue([]);
   mocks.createSystemUser.mockResolvedValue({ firebaseUid: "UID-1" });
   mocks.syncRoleToFirestore.mockResolvedValue(0);
+  mocks.removeRoleFromFirestore.mockResolvedValue(0);
   vi.spyOn(window, "alert").mockImplementation(() => {});
 });
 
@@ -164,6 +169,31 @@ describe("AdminManagementPage System Users", () => {
     );
     expect(mocks.createSystemUser).not.toHaveBeenCalled();
     expect(screen.queryByText("Temporary Password")).not.toBeInTheDocument();
+  });
+
+  it("deletes a user (backend row + Firestore profile) after confirmation", async () => {
+    mocks.api.usersApi.list.mockResolvedValue([
+      { id: 7, displayName: "Ana Garcia", email: "supplier@travelconnect.com", role: "Supplier", status: "Active" },
+    ]);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    renderUsers();
+    await screen.findByText("Ana Garcia");
+    fireEvent.click(screen.getByText("Delete"));
+
+    await waitFor(() => expect(mocks.api.usersApi.remove).toHaveBeenCalledWith(7));
+    expect(mocks.removeRoleFromFirestore).toHaveBeenCalledWith("supplier@travelconnect.com");
+  });
+
+  it("cannot delete a user without Manage access", async () => {
+    mocks.outletCtx.access = { users: "View" };
+    mocks.api.usersApi.list.mockResolvedValue([
+      { id: 7, displayName: "Ana Garcia", email: "supplier@travelconnect.com", role: "Supplier" },
+    ]);
+
+    renderUsers();
+    await screen.findByText("Ana Garcia");
+    expect(screen.queryByText("Delete")).not.toBeInTheDocument();
   });
 
   it("hides only the Super Admin role from an Agency Admin's user form", async () => {

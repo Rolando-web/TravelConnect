@@ -29,7 +29,10 @@ import {
   promotionsApi,
   leadsApi,
 } from "../../services/api";
-import { syncRoleToFirestore } from "../../services/firestoreRoleSync";
+import {
+  syncRoleToFirestore,
+  removeRoleFromFirestore,
+} from "../../services/firestoreRoleSync";
 import { createSystemUser } from "../../services/systemUserProvision";
 
 const customPages = { profile: ProfilePage, support: SupportPage, settings: SystemSettingsPage, helpdesk: HelpdeskInboxPage };
@@ -150,7 +153,8 @@ const PAGES = {
   users: {
     api: usersApi,
     singular: "User",
-    hint: "A new account here gets a REAL sign-in credential: set a Temporary Password when adding a user so they can log in with their email. Giving them the password is up to you. Role changes are synced to the account's Firestore profile, so the admin menu updates immediately. As Agency Admin you can create employee roles (Agency Staff, Finance Staff, Supplier) plus the scoped supplier accounts (Hotel Supplier manages hotels only, Car Rental Supplier manages cars only) — Super Admin and Agency Admin accounts are reserved for the platform owner.",
+    canDelete: true,
+    hint: "A new account here gets a REAL sign-in credential: set a Temporary Password when adding a user so they can log in with their email. Giving them the password is up to you. Role changes are synced to the account's Firestore profile, so the admin menu updates immediately. As Agency Admin you can create employee roles (Agency Staff, Finance Staff, Supplier) plus the scoped supplier accounts (Hotel Supplier manages hotels only, Car Rental Supplier manages cars only) — Super Admin and Agency Admin accounts are reserved for the platform owner. Delete removes the account's admin access here and on their Firestore profile (you cannot delete your own account).",
     fields: [
       { key: "displayName", label: "Name", required: true },
 { key: "email", label: "Email", required: true, type: "email" },
@@ -479,6 +483,35 @@ export default function AdminManagementPage() {
 
   const openModal = (mode, data = null) => setModal({ open: true, mode, data });
 
+  const handleDelete = async (row) => {
+    const label = row.displayName || row.email || `${config.singular} #${row.id}`;
+    const message =
+      config.singular === "User"
+        ? `Delete ${label}? This removes their System Users record and revokes their admin access. Their Sign-in email is unaffected. This cannot be undone.`
+        : `Delete ${label}? This cannot be undone.`;
+    if (!window.confirm(message)) return;
+
+    try {
+      await config.api.remove(row.id);
+
+      // Broken-link removal: the backend registry no longer knows this user,
+      // so their Firestore profile must go too, or the menu role resolver falls
+      // back to the stale Firestore role and keeps them staff forever.
+      if (page === "users" && row.email) {
+        try {
+          await removeRoleFromFirestore(row.email);
+        } catch {
+          /* non-fatal: backend row is gone; Firestore cleanup can be re-run */
+        }
+      }
+
+      setLoading(true);
+      load();
+    } catch (err) {
+      alert(err.message || "Failed to delete record");
+    }
+  };
+
   const handleSave = async (form) => {
     setSaving(true);
     try {
@@ -685,6 +718,11 @@ export default function AdminManagementPage() {
                         {canManage && (
                           <button className="text-xs text-text-secondary hover:text-badge-orange transition" onClick={() => openModal("edit", row)}>
                             Edit
+                          </button>
+                        )}
+                        {canManage && config.canDelete && (
+                          <button className="text-xs text-red-500/70 hover:text-red-500 transition" onClick={() => handleDelete(row)}>
+                            Delete
                           </button>
                         )}
                       </div>
