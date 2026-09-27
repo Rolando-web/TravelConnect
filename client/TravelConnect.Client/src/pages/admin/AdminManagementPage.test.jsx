@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import AdminManagementPage from "./AdminManagementPage";
 
 const mocks = vi.hoisted(() => ({
+  route: { page: "users" },
   outletCtx: { access: { users: "Manage" }, role: "Super Admin" },
   api: {
     usersApi: { list: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn() },
@@ -24,7 +25,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("react-router-dom", () => ({
-  useParams: () => ({ page: "users" }),
+  useParams: () => ({ page: mocks.route.page }),
   useOutletContext: () => mocks.outletCtx,
 }));
 
@@ -220,5 +221,36 @@ describe("AdminManagementPage System Users", () => {
       "Hotel Supplier",
       "Car Rental Supplier",
     ]);
+  });
+});
+
+describe("AdminManagementPage supplier catalog images", () => {
+  beforeEach(() => {
+    mocks.route.page = "users";
+    mocks.outletCtx.role = "Hotel Supplier";
+    mocks.outletCtx.access = { hotels: "Manage" };
+  });
+
+  const mountCatalog = async (page, access, listMock) => {
+    mocks.route.page = page;
+    mocks.outletCtx.access = access;
+    mocks.api[listMock].list.mockReset().mockResolvedValue([]);
+    render(<AdminManagementPage />);
+    fireEvent.click(await screen.findByRole("button", { name: /add /i }));
+  };
+
+  it("renders the Hotel image field as an upload button, not a URL input", async () => {
+    await mountCatalog("hotels", { hotels: "Manage" }, "hotelsApi");
+
+    expect(screen.getByText("Upload Image")).toBeInTheDocument();
+    expect(screen.getByText("No image set")).toBeInTheDocument();
+  });
+
+  it("renders the Car image field as an upload button, not a URL input", async () => {
+    mocks.outletCtx.role = "Car Rental Supplier";
+    await mountCatalog("cars", { cars: "Manage" }, "carsApi");
+
+    expect(screen.getByText("Upload Image")).toBeInTheDocument();
+    expect(screen.getByText("No image set")).toBeInTheDocument();
   });
 });

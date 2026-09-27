@@ -240,7 +240,7 @@ const PAGES = {
       { key: "reviews", label: "Reviews", type: "number", min: 0 },
       { key: "roomsAvailable", label: "Rooms Available", type: "number", min: 0 },
       { key: "amenities", label: "Amenities" },
-      { key: "imageUrl", label: "Image URL" },
+      { key: "imageUrl", label: "Image", type: "image" },
       { key: "status", label: "Status", type: "select", options: ["Active", "Inactive"] },
     ],
     cols: [
@@ -275,7 +275,7 @@ const PAGES = {
       { key: "transmission", label: "Transmission", type: "select", options: ["Automatic", "Manual"] },
       { key: "seats", label: "Seats", type: "number", min: 0 },
       { key: "fuelType", label: "Fuel Type", type: "select", options: ["Gasoline", "Diesel", "Electric", "Hybrid"] },
-      { key: "imageUrl", label: "Image URL" },
+      { key: "imageUrl", label: "Image", type: "image" },
       { key: "status", label: "Status", type: "select", options: ["Active", "Inactive"] },
     ],
     cols: [
