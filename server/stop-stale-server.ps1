@@ -11,64 +11,92 @@
 # the -ExePath passed in are stopped. Any other process holding the port is left
 # running and reported instead.
 param(
-    [Parameter(Mandatory = $true)]
-    [string]$ExePath
+    [string]$ExePath = ""
 )
 
 $ErrorActionPreference = 'SilentlyContinue'
-$target = [System.IO.Path]::GetFullPath($ExePath)
-$name = [System.IO.Path]::GetFileNameWithoutExtension($target)
-$me = $PID
 
-$stale = Get-Process -Name $name | Where-Object {
-    if ($_.Id -eq $me) { return $false }
+$target = ""
+$targetExe = ""
+$targetDll = ""
+$name = "TravelConnect.Server"
+
+if ($ExePath) {
     try {
-        [string]::Equals(
-            [System.IO.Path]::GetFullPath($_.Path),
-            $target,
-            [System.StringComparison]::OrdinalIgnoreCase)
-    } catch {
-        $false
-    }
+        $target = [System.IO.Path]::GetFullPath($ExePath)
+        $name = [System.IO.Path]::GetFileNameWithoutExtension($target)
+        $targetExe = [System.IO.Path]::ChangeExtension($target, ".exe")
+        $targetDll = [System.IO.Path]::ChangeExtension($target, ".dll")
+    } catch { }
 }
 
-if (-not $stale) { exit 0 }
+$me = $PID
 
-# Kill the owning `dotnet run` parents FIRST. `dotnet run` supervises the app
-# process and will respawn it if only the child .exe dies, so terminating the child
-# alone just races a fresh instance against the build that is about to start.
-$parents = @()
-foreach ($p in $stale) {
+# 1. Match any process matching the target binary or server process name
+$stale = Get-Process -Name $name -ErrorAction SilentlyContinue | Where-Object {
+    if ($_.Id -eq $me) { return $false }
+    if (-not $target) { return $true }
     try {
-        $ppid = (Get-CimInstance Win32_Process -Filter "ProcessId=$($p.Id)").ParentProcessId
-        $parent = Get-CimInstance Win32_Process -Filter "ProcessId=$ppid" -ErrorAction SilentlyContinue
-        if ($parent -and $parent.Name -eq 'dotnet.exe' -and $parent.CommandLine -match 'TravelConnect') {
-            $parents += $parent
+        if ($_.Path) {
+            $p = [System.IO.Path]::GetFullPath($_.Path)
+            return ([string]::Equals($p, $target, [System.StringComparison]::OrdinalIgnoreCase) -or
+                    [string]::Equals($p, $targetExe, [System.StringComparison]::OrdinalIgnoreCase) -or
+                    [string]::Equals($p, $targetDll, [System.StringComparison]::OrdinalIgnoreCase))
+        }
+    } catch { }
+    return $true
+}
+
+# 2. Check if port 5110 or 7241 is held by another process
+$portProcesses = @()
+foreach ($port in @(5110, 7241)) {
+    try {
+        $conns = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
+        foreach ($conn in $conns) {
+            if ($conn.OwningProcess -and $conn.OwningProcess -ne $me) {
+                $portProc = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue
+                if ($portProc) {
+                    $portProcesses += $portProc
+                }
+            }
+        }
+    } catch { }
+}
+
+$allToStop = @($stale) + @($portProcesses) | Where-Object { $_ -ne $null } | Sort-Object Id -Unique
+
+if (-not $allToStop -or $allToStop.Count -eq 0) { exit 0 }
+
+# 3. Kill the owning dotnet run parents first so they do not auto-restart
+$parents = @()
+foreach ($p in $allToStop) {
+    try {
+        $procInfo = Get-CimInstance Win32_Process -Filter "ProcessId=$($p.Id)" -ErrorAction SilentlyContinue
+        if ($procInfo -and $procInfo.ParentProcessId) {
+            $parent = Get-CimInstance Win32_Process -Filter "ProcessId=$($procInfo.ParentProcessId)" -ErrorAction SilentlyContinue
+            if ($parent -and $parent.Name -match 'dotnet' -and $parent.CommandLine -match 'TravelConnect') {
+                $parents += $parent
+            }
         }
     } catch { }
 }
 
 foreach ($pp in ($parents | Sort-Object ProcessId -Unique)) {
-    Write-Host "[build] stopping previous 'dotnet run' host (PID $($pp.ProcessId))"
-    Stop-Process -Id $pp.ProcessId -Force
+    Write-Host "[build] Stopping previous 'dotnet run' host (PID $($pp.ProcessId))..."
+    Stop-Process -Id $pp.ProcessId -Force -ErrorAction SilentlyContinue
 }
 
-foreach ($p in $stale) {
-    Write-Host "[build] stopping previous server instance (PID $($p.Id))"
-    Stop-Process -Id $p.Id -Force
+foreach ($p in $allToStop) {
+    Write-Host "[build] Stopping previous server instance (PID $($p.Id))..."
+    Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
 }
 
-# Wait for the OS to actually release the file handles and the listening socket.
-$deadline = (Get-Date).AddSeconds(10)
+# 4. Wait for the OS to release the file handles and the listening socket
+$deadline = (Get-Date).AddSeconds(5)
 while ((Get-Date) -lt $deadline) {
-    if (-not (Get-Process -Name $name | Where-Object {
-            try {
-                [string]::Equals([System.IO.Path]::GetFullPath($_.Path), $target, [System.StringComparison]::OrdinalIgnoreCase)
-            } catch { $false }
-        })) {
-        break
-    }
-    Start-Sleep -Milliseconds 200
+    $remaining = Get-Process -Name $name -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne $me }
+    if (-not $remaining) { break }
+    Start-Sleep -Milliseconds 150
 }
 
 exit 0

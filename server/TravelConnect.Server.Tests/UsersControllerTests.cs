@@ -138,7 +138,7 @@ public class UsersControllerTests
         });
 
         AssertForbiddenMessage(
-            "Agency Admin can only create Agency Admin and employee accounts (Agency Admin, Agency Staff, Finance Staff, Supplier) — Super Admin is reserved for the platform owner.",
+            "Agency Admin can only create Agency Admin and employee accounts (Agency Admin, Agency Staff, Finance Staff, Supplier, Hotel Supplier, Car Rental Supplier) — Super Admin is reserved for the platform owner.",
             result);
 
         Assert.Empty(db.SystemUsers.Where(u => u.Email.StartsWith("x-")));
@@ -160,6 +160,29 @@ public class UsersControllerTests
         var created = Assert.IsType<CreatedAtActionResult>(result);
         Assert.Equal("Agency Admin", Assert.IsType<SystemUser>(created.Value).Role);
         Assert.Contains(db.SystemUsers, u => u.Email == "coadmin@tc.com" && u.Role == "Agency Admin");
+    }
+
+    [Fact]
+    public async Task Create_agency_admin_can_create_scoped_supplier_roles()
+    {
+        using var db = TestDb.Create();
+        await SeedUserAsync(db, "a", "a@tc.com", "Agency Admin");
+
+        foreach (var role in new[] { "Hotel Supplier", "Car Rental Supplier" })
+        {
+            var result = await Controller(db, "a", "a@tc.com").Create(new SystemUser
+            {
+                Email = $"scoped-{role.Replace(" ", "")}@tc.com",
+                DisplayName = "Scoped Supplier",
+                Role = role
+            });
+
+            var created = Assert.IsType<CreatedAtActionResult>(result);
+            Assert.Equal(role, Assert.IsType<SystemUser>(created.Value).Role);
+        }
+
+        Assert.Contains(db.SystemUsers, u => u.Email == "scoped-HotelSupplier@tc.com" && u.Role == "Hotel Supplier");
+        Assert.Contains(db.SystemUsers, u => u.Email == "scoped-CarRentalSupplier@tc.com" && u.Role == "Car Rental Supplier");
     }
 
     [Fact]
@@ -278,6 +301,22 @@ public class UsersControllerTests
         var reloaded = await db.SystemUsers.FirstAsync(u => u.Id == emp.Id);
         Assert.Equal("Renamed", reloaded.DisplayName);
         Assert.Equal("Agency Staff", reloaded.Role);
+    }
+
+    [Fact]
+    public async Task Update_agency_admin_can_update_scoped_supplier()
+    {
+        using var db = TestDb.Create();
+        await SeedUserAsync(db, "a", "a@tc.com", "Agency Admin");
+        var sup = await SeedUserAsync(db, "h", "hotel@tc.com", "Hotel Supplier");
+
+        sup.DisplayName = "Renamed Hotel Partner";
+        var result = await Controller(db, "a", "a@tc.com").Update(sup.Id, sup);
+
+        Assert.IsType<NoContentResult>(result);
+        var reloaded = await db.SystemUsers.FirstAsync(u => u.Id == sup.Id);
+        Assert.Equal("Hotel Supplier", reloaded.Role);
+        Assert.Equal("Renamed Hotel Partner", reloaded.DisplayName);
     }
 
     [Fact]

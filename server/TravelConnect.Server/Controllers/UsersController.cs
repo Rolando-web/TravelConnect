@@ -29,7 +29,9 @@ public class UsersController(TravelConnectDbContext db) : ControllerBase
         "Agency Admin",
         "Agency Staff",
         "Finance Staff",
-        "Supplier"
+        "Supplier",
+        "Hotel Supplier",
+        "Car Rental Supplier"
     };
 
     // Resolves the signed-in SystemUser from the Firebase identity, with the
@@ -121,10 +123,10 @@ public class UsersController(TravelConnectDbContext db) : ControllerBase
         if (me is null || !IsManager(me)) return Forbid();
 
         if (!KnownRoles.Contains(entity.Role))
-            return BadRequest(new { message = $"Unknown role '{entity.Role}'. Use one of: Super Admin, Agency Admin, Agency Staff, Finance Staff, Supplier." });
+            return BadRequest(new { message = $"Unknown role '{entity.Role}'. Use one of: Super Admin, Agency Admin, Agency Staff, Finance Staff, Supplier, Hotel Supplier, Car Rental Supplier." });
 
         if (!IsSuperAdmin(me) && SuperAdminOnly.Contains(entity.Role))
-            return StatusCode(403, new { message = "Agency Admin can only create Agency Admin and employee accounts (Agency Admin, Agency Staff, Finance Staff, Supplier) — Super Admin is reserved for the platform owner." });
+            return StatusCode(403, new { message = "Agency Admin can only create Agency Admin and employee accounts (Agency Admin, Agency Staff, Finance Staff, Supplier, Hotel Supplier, Car Rental Supplier) — Super Admin is reserved for the platform owner." });
 
         entity.CreatedAt = DateTime.UtcNow;
         entity.UpdatedAt = DateTime.UtcNow;
@@ -145,7 +147,7 @@ public class UsersController(TravelConnectDbContext db) : ControllerBase
         if (existing is null) return NotFound(new { message = "Record not found" });
 
         if (!KnownRoles.Contains(entity.Role))
-            return BadRequest(new { message = $"Unknown role '{entity.Role}'. Use one of: Super Admin, Agency Admin, Agency Staff, Finance Staff, Supplier." });
+            return BadRequest(new { message = $"Unknown role '{entity.Role}'. Use one of: Super Admin, Agency Admin, Agency Staff, Finance Staff, Supplier, Hotel Supplier, Car Rental Supplier." });
 
         // An Agency Admin can edit own-tier Agency Admins and the workforce, but
         // never a platform-owner account, and can promote nobody to Super Admin.

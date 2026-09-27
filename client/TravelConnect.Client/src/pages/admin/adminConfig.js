@@ -4,6 +4,8 @@ export const ADMIN_ROLES = [
   "Agency Staff",
   "Finance Staff",
   "Supplier",
+  "Hotel Supplier",
+  "Car Rental Supplier",
 ];
 
 export const ROLE_NAV = {
@@ -88,6 +90,16 @@ export const ROLE_NAV = {
     ["bookings", "Bookings"],
     ["profile", "Profile"],
   ],
+  "Hotel Supplier": [
+    ["dashboard", "Dashboard"],
+    ["hotels", "My Hotels"],
+    ["profile", "Profile"],
+  ],
+  "Car Rental Supplier": [
+    ["dashboard", "Dashboard"],
+    ["cars", "My Cars"],
+    ["profile", "Profile"],
+  ],
 };
 
 export const navItems = ROLE_NAV["Super Admin"].map(([key, label]) => ({ key, label }));
@@ -151,6 +163,16 @@ export const ADMIN_ACCESS = {
     activities: "Manage",
     packages: "View",
     bookings: "View",
+    profile: "Manage",
+  },
+  "Hotel Supplier": {
+    dashboard: "View",
+    hotels: "Manage",
+    profile: "Manage",
+  },
+  "Car Rental Supplier": {
+    dashboard: "View",
+    cars: "Manage",
     profile: "Manage",
   },
 };

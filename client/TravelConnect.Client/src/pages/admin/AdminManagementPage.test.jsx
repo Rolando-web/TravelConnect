@@ -173,7 +173,7 @@ describe("AdminManagementPage System Users", () => {
 
     const select = inputFor("Role");
     const roleOptions = [...select.options].filter((o) => o.value !== "").map((o) => o.text);
-    expect(roleOptions).toEqual(["Agency Admin", "Agency Staff", "Finance Staff", "Supplier"]);
+    expect(roleOptions).toEqual(["Agency Admin", "Agency Staff", "Finance Staff", "Supplier", "Hotel Supplier", "Car Rental Supplier"]);
   });
 
   it("keeps all roles visible to a Super Admin", async () => {
@@ -187,6 +187,8 @@ describe("AdminManagementPage System Users", () => {
       "Agency Staff",
       "Finance Staff",
       "Supplier",
+      "Hotel Supplier",
+      "Car Rental Supplier",
     ]);
   });
 });

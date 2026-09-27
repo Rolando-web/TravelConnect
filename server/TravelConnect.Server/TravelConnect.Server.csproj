@@ -37,11 +37,11 @@
     apphost.exe, so the exe would still be locked by the time this ran.
   -->
   <Target Name="StopPreviousServerInstance"
-          BeforeTargets="PrepareForBuild"
-          Condition="'$(OS)' == 'Windows_NT' AND '$(Configuration)' == 'Debug' AND '$(TargetPath)' != ''">
-    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\stop-stale-server.ps1&quot; -ExePath &quot;$(TargetPath)&quot;"
+          BeforeTargets="PrepareForBuild;BeforeBuild"
+          Condition="'$(OS)' == 'Windows_NT' AND '$(Configuration)' == 'Debug'">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\stop-stale-server.ps1&quot; -ExePath &quot;$(TargetDir)$(TargetName).exe&quot;"
           ContinueOnError="true"
-          StandardOutputImportance="low" />
+          StandardOutputImportance="high" />
   </Target>
 
 </Project>

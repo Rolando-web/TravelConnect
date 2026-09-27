@@ -1105,6 +1105,39 @@ so the manual add path is contradictory dead weight.
 
 ---
 
+### 21.1 The bug (requested)
+
+Adding a System User did **two** steps: create the **Firebase sign-in credential**, then save the **SQL System Users row**. The row save kept failing with `Request failed (403)` — "Sign-in account created, but saving the System Users record failed". The account was created, so an orphan Firebase account (no backend row, no working role) was left behind.
+
+### 21.2 Root cause
+
+`createUserWithEmailAndPassword()` **signs the new user in** — it silently swaps `auth.currentUser` from the acting Agency Admin to the brand-new supplier *before* the very next call. The backend row save (`POST /api/users`) is a managers-only call, but the request was now authorized as the new non-manager identity, so `UsersController.Create` correctly returned **Forbid (403)**. The previous Phase-16 bug fix had masked this because it ran with a mock.
+
+### 21.3 The fix
+
+- `systemUserProvision.js` now provisions the credential via the **Firebase REST sign-up endpoint** (`accounts:signUp` with the public web API key) instead of the SDK sign-in helper. The REST call **never touches the browser session**, so the admin's token still authorizes the backend row save and the admin stays logged in. `EMAIL_EXISTS` / `INVALID_EMAIL` / `WEAK_PASSWORD` / `OPERATION_NOT_ALLOWED` map to the same readable messages as before; a code comment marks the sign-in helper as permanently off-limits.
+- **Two new scoped supplier roles** added as first-class unique role keys (the original request): `Hotel Supplier` and `Car Rental Supplier`.
+  - Backend `UsersController`: both added to the `KnownRoles` allowlist (create + update + messages).
+  - Client `adminConfig`: added to `ADMIN_ROLES`, `ROLE_NAV`, and `ADMIN_ACCESS`. **Hotel Supplier's menu is Dashboard · My Hotels · Profile only**; **Car Rental Supplier's is Dashboard · My Cars · Profile only** — their only service is adding/managing that asset type.
+  - Modal role dropdown (System Users add/edit) now lists both; the Agency Admin hint text names them.
+
+### 21.4 Phase 21 scope
+
+- Fix the 403 (REST credential provisioning, session preserved).
+- Unique role keys for `Hotel Supplier` + `Car Rental Supplier` in the modal, backend allowlist, nav, and access gates.
+- Regression tests for the REST provisioning flow and both new roles.
+
+### 21.5 Phase 21 Gate Checklist
+
+| # | Item | Dev | QA |
+|---|------|-----|-----|
+| K1 | 21.1–21.3 implemented; backend 156/156, lint 0, build + bundle gate OK | ☑ | |
+| K2 | `systemUserProvision.test.js` rewritten for REST (provisioning, no-save-on-duplicate, step-surfacing, session-preservation) — 8/8 green; AdminManagementPage role-option tests updated | ☑ | |
+| K3 | Smoke: Agency Admin adds a user with role **Hotel Supplier** / **Car Rental Supplier** → no 403, backend row + Firestore role written, sign-in works with the temp password, menu shows only Dashboard · My Hotels (or My Cars) · Profile | | ☐ |
+| K4 | Prod re-check after Vercel + backend re-upload; sign in as the new supplier accounts | | ☐ |
+
+---
+
 # 4. Progress Log
 
 | Phase | Started | Completed | Sign-off (Dev/QA) | Result |
@@ -1130,6 +1163,7 @@ so the manual add path is contradictory dead weight.
 | 18 Admin Menu Role Reconciliation | 2026-09-26 | 2026-09-26 | ✓ / | Done — **the admin menu is now driven by the authoritative backend System Users table, not just Firestore.** The user's "admin account" had the right role in the backend registry but still logged into a staff-level menu because `resolveRole` only ever read Firestore/claims, and a stale/missing profile (or a legacy role string) pinned it down. Added `GET /api/users/me` (self row for any authenticated identity, email-fallback + UID binding preserved), and `AuthContext.resolveRole` now reads Firestore + claims + backend **in parallel, bounded 2s, cached per session** — the backend role wins when the account exists there, legacy aliases normalize (`Agency Owner`/`Owner`/`Admin` → `Agency Admin`), and a mismatched Firestore profile is **self-healed** automatically. Customers (404 in the registry) are untouched. 18A gate passed (lint 0, build OK, 146/146 + 150/150) before 18C; frontend **150/150** (146 + 4), backend **150/150** (147 + 3), build 0 warn / 0 err, lint 0, bundle gate OK. H3/H4: sign-in as the owner email → badge shows Agency Admin + the pages appear; prod re-check = user |
 | 19 Same-Tier Agency Admin Provisioning | 2026-09-27 | 2026-09-27 | ✓ / | Done — **an Agency Admin can now onboard another Agency Admin** (co-run the agency), and only **Super Admin creation/promotion** stays reserved for the platform owner. Backend: `PrivilegedRoles` narrowed to `SuperAdminOnly = { "Super Admin" }` — create/edit guards block Agency-Admin creators from creating a Super Admin, editing an existing one, or promoting anyone to it (403 + messages); role allowlist from `883fae8` still rejects unknown/typo role strings. Client: `PRIVILEGED_ROLES = ["Super Admin"]`, so an Agency Admin's dropdown shows Agency Admin · Agency Staff · Finance Staff · Supplier; the newly created Agency Admin automatically gets **System Users + Agency Support** via the role resolver/`AdminLayout` groups. Also fixed pre-existing nullable warning (`Environment.ProcessPath`) → backend build **0 warn / 0 err**. 19A gate passed (lint 0, build OK, 150/150 + 150/150) before 19C; frontend **150/150**, backend **154/154**, lint 0, bundle gate OK. I3/I4: sign in as the new Agency Admin → pages appear; trying to create Super Admin is rejected; prod re-check = user |
 | 20 CRM No-Manual-Add (inquiry-sourced leads) | 2026-09-27 | 2026-09-27 | ✓ / | Done — **the CRM & Leads page can no longer add leads by hand.** Removed the Add Lead modal button + the modal's `add`-mode save branch + the `Add Lead` title case + unused `Plus` import; `leadsApi` no longer exposes `create` (client `POST /api/leads` deleted); backend `LeadsController` dropped its `[HttpPost] Create` action — **`POST /api/leads` now returns 405** (verified live). Leads are created only by the inquiry pipeline (`InquiriesController`); stage-move and convert actions are unaffected. Edit/view modal stays. 20A gate passed (lint 0, build OK, 150/150 + 154/154) before 20C; frontend **150/150**, backend **154/154**, build 0 warn / 0 err, lint 0, bundle gate OK (LeadsPage chunk 10.7 kB → 10.5 kB). J3/J4: smoke the 405 + no Add button; prod re-check = user |
+| 21 System Users 403 Fix + Hotel/Car Rental Supplier Roles | 2026-09-28 | 2026-09-28 | ✓ / | Done — **System Users add-user 403 root cause found + fixed + two scoped supplier accounts.** Root cause: `createUserWithEmailAndPassword` signs the NEW user in, swapping the admin's session — so the follow-up `POST /api/users` was authorized as the brand-new non-manager → Forbid 403 (orphan Firebase account). Fix: provision the credential via the **Firebase REST sign-up endpoint**, which never touches the browser session — the admin stays signed in and the row save authenticates. Added **two first-class roles**: `Hotel Supplier` (menu = Dashboard · My Hotels · Profile) and `Car Rental Supplier` (Dashboard · My Cars · Profile) — backend `KnownRoles` + client `ADMIN_ROLES`/`ROLE_NAV`/`ADMIN_ACCESS` + modal dropdown + hint. 21A gate passed (lint 0, build OK, 150/150 + 156/156) before 21C; frontend **150/150**, backend **156/156**, build 0 warn / 0 err, lint 0, bundle gate OK. K3/K4: add-a-supplier-then-login smoke (menu shows only the scoped page) + prod re-check = user |
 | Release Gate R1–R6 | 2026-09-23 | 2026-09-23 | ✓ / | R1–R5 Dev done: publish + build + vault/secrets clean + bundle gate OK + lint **0 problems** (62→0 cleanup: unused imports removed, `useMemo(setPage)` anti-pattern → `useEffect`, context-hook/static-component suppressions documented). Added **TEST-MODE-ONLY** PayMongo guard + `00 / 00` expiry mask. Pending (user): deploy to Vercel/host (R5*), human popup 3-D Secure QA, then R6 QA sign-off |
 | **Release** | | | / | **R6 pending — deploy on Vercel/host, then check QA boxes** |
 

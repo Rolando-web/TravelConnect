@@ -150,12 +150,12 @@ const PAGES = {
   users: {
     api: usersApi,
     singular: "User",
-    hint: "A new account here gets a REAL sign-in credential: set a Temporary Password when adding a user so they can log in with their email. Giving them the password is up to you. Role changes are synced to the account's Firestore profile, so the admin menu updates immediately. As Agency Admin you can only create employee roles (Agency Staff, Finance Staff, Supplier) — Super Admin and Agency Admin accounts are reserved for the platform owner.",
+    hint: "A new account here gets a REAL sign-in credential: set a Temporary Password when adding a user so they can log in with their email. Giving them the password is up to you. Role changes are synced to the account's Firestore profile, so the admin menu updates immediately. As Agency Admin you can create employee roles (Agency Staff, Finance Staff, Supplier) plus the scoped supplier accounts (Hotel Supplier manages hotels only, Car Rental Supplier manages cars only) — Super Admin and Agency Admin accounts are reserved for the platform owner.",
     fields: [
       { key: "displayName", label: "Name", required: true },
 { key: "email", label: "Email", required: true, type: "email" },
   { key: "phone", label: "Phone", type: "tel" },
-      { key: "role", label: "Role", type: "select", options: ["Super Admin", "Agency Admin", "Agency Staff", "Finance Staff", "Supplier"] },
+      { key: "role", label: "Role", type: "select", options: ["Super Admin", "Agency Admin", "Agency Staff", "Finance Staff", "Supplier", "Hotel Supplier", "Car Rental Supplier"] },
       { key: "department", label: "Department" },
       { key: "status", label: "Status", type: "select", options: ["Active", "Inactive"] },
     ],

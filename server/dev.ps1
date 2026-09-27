@@ -8,8 +8,10 @@ param([switch]$StopOnly)
 $project = Join-Path $PSScriptRoot "TravelConnect.Server\TravelConnect.Server.csproj"
 
 function Stop-Stale {
-    Get-NetTCPConnection -LocalPort 5110 -State Listen -ErrorAction SilentlyContinue |
-        ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
+    @(5110, 7241) | ForEach-Object {
+        Get-NetTCPConnection -LocalPort $_ -State Listen -ErrorAction SilentlyContinue |
+            ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
+    }
 
     Get-Process -Name "TravelConnect.Server" -ErrorAction SilentlyContinue |
         Stop-Process -Force -ErrorAction SilentlyContinue
