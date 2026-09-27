@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 using System.Security.Claims;
 using TravelConnect.Server.Data;
 using TravelConnect.Server.Models;
@@ -91,8 +92,31 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
                su.Role == "Agency Admin";
     }
 
+    // The single Category that belongs to the Super Admin's tier inbox. Declared
+    // once so the query filter and the CanModerate guard can never drift apart.
+    internal const string TierCategory = "Subscription";
+
     private static bool IsTierConversation(string? category) =>
-        string.Equals(category, "Subscription", StringComparison.OrdinalIgnoreCase);
+        string.Equals(category, TierCategory, StringComparison.OrdinalIgnoreCase);
+
+    // LINQ-to-SQL form of "is NOT a tier conversation".
+    //
+    // This predicate used to be a plain call to IsTierConversation() inside
+    // Inbox()'s .Where(...). EF Core cannot translate either that helper or
+    // `string.Equals(x, y, StringComparison.OrdinalIgnoreCase)`, so on a real
+    // relational provider the whole GET /api/support/inbox request died with
+    // "The LINQ expression ... could not be translated" -> HTTP 500 -> the
+    // Agency Support Hub rendered "An unexpected error occurred." It slipped
+    // through because the EF in-memory test provider evaluates such
+    // expressions client-side, so every unit test passed against a provider
+    // that production never uses.
+    //
+    // ToLower() on both sides is the translatable, case-insensitive equivalent,
+    // so a legacy "subscription" row still cannot leak into the Agency Admin's
+    // inbox. Exposed as a single expression so the regression test compiles the
+    // exact predicate the controller uses (no re-implementation to drift).
+    internal static Expression<Func<SupportConversation, bool>> NotTierConversation() =>
+        c => !c.Category.ToLower().Equals(TierCategory.ToLower());
 
     // Only the role responsible for a conversation's category may read or act
     // on it. Returns false (and the caller returns Forbid) when the caller is
@@ -242,7 +266,7 @@ public class SupportController(TravelConnectDbContext db, EmailService emailServ
             // No explicit category = the role's own scoped view. Agency Admin
             // must not see tier (Subscription) conversations they cannot
             // moderate — those belong to the Super Admin's inbox only.
-            query = query.Where(c => !IsTierConversation(c.Category));
+            query = query.Where(NotTierConversation());
         }
         else
         {
