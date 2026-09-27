@@ -121,8 +121,18 @@ export const cancellationPolicyApi = {
     request(`/api/cancellation-policies/rules/${id}`, { method: "DELETE" }, ADMIN_WRITE_TIMEOUT_MS),
   reset: () => request("/api/cancellation-policies/reset", { method: "POST" }, ADMIN_WRITE_TIMEOUT_MS),
 };
-export const paymentsApi = crud("payments");
-export const customersApi = crud("customers");
+// The staff review queue for cancellation requests the policy could not
+// auto-approve. Deciding one is a server-side permission, and the amount was
+// frozen when the customer asked, so this client sends only the decision.
+export const cancellationReviewApi = {
+  list: (query = "") => request(`/api/admin/cancellations${query}`),
+  get: (id) => request(`/api/admin/cancellations/${id}`),
+  approve: (id, body) =>
+    request(`/api/admin/cancellations/${id}/approve`, { method: "POST", body: JSON.stringify(body) }, ADMIN_WRITE_TIMEOUT_MS),
+  reject: (id, body) =>
+    request(`/api/admin/cancellations/${id}/reject`, { method: "POST", body: JSON.stringify(body) }, ADMIN_WRITE_TIMEOUT_MS),
+};
+export const paymentsApi = crud("payments");export const customersApi = crud("customers");
 export const packagesApi = crud("packages");
 export const destinationsApi = crud("destinations");
 export const promotionsApi = crud("promotions");

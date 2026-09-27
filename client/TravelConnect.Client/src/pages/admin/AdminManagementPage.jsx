@@ -15,6 +15,7 @@ import SupportPage from "./SupportPage";
 import HelpdeskInboxPage from "./HelpdeskInboxPage";
 import SystemSettingsPage from "./SystemSettingsPage";
 import CancellationPolicyPage from "./CancellationPolicyPage";
+import CancellationQueuePage from "./CancellationQueuePage";
 import CrudModal from "../../components/admin/CrudModal";
 import StatCard from "../../components/admin/StatCard";
 import Pagination from "../../components/admin/Pagination";
@@ -41,6 +42,7 @@ const customPages = {
   support: SupportPage,
   settings: SystemSettingsPage,
   "cancellation-policy": CancellationPolicyPage,
+  "cancellation-queue": CancellationQueuePage,
   helpdesk: HelpdeskInboxPage,
 };
 

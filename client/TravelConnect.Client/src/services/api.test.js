@@ -10,6 +10,7 @@ import {
   getCancellationQuote,
   requestBookingCancellation,
   getCancellationStatus,
+  cancellationReviewApi,
   validatePromoCode,
   fetchWithTimeout,
 } from "./api";
@@ -329,6 +330,47 @@ describe("API client", () => {
       `${API_URL}/api/bookings/7/cancellation-quote`,
       expect.anything()
     );
+  });
+
+  it("passes the review queue query straight through to the admin endpoint", async () => {
+    const fetcher = vi.fn(() =>
+      Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ items: [] }) })
+    );
+    globalThis.fetch = fetcher;
+
+    await cancellationReviewApi.list("?status=Cancellation%20Approved&page=2&pageSize=25&search=juan");
+
+    expect(fetcher).toHaveBeenCalledWith(
+      `${API_URL}/api/admin/cancellations?status=Cancellation%20Approved&page=2&pageSize=25&search=juan`,
+      expect.anything()
+    );
+  });
+
+  it("sends a staff decision as a POST to the request id", async () => {
+    const fetcher = vi.fn(() =>
+      Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ message: "ok" }) })
+    );
+    globalThis.fetch = fetcher;
+
+    await cancellationReviewApi.approve(11, { notes: "doctor note", resolution: "travel-credit", refundAmount: 2500 });
+    expect(fetcher.mock.calls[0][0]).toBe(`${API_URL}/api/admin/cancellations/11/approve`);
+    expect(fetcher.mock.calls[0][1].method).toBe("POST");
+
+    await cancellationReviewApi.reject(11, { reason: "non-transferable" });
+    expect(fetcher.mock.calls[1][0]).toBe(`${API_URL}/api/admin/cancellations/11/reject`);
+    expect(JSON.parse(fetcher.mock.calls[1][1].body)).toEqual({ reason: "non-transferable" });
+  });
+
+  it("surfaces the server's refusal when a decision is rejected", async () => {
+    globalThis.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 409,
+        json: () => Promise.resolve({ message: "This request was already decided." }),
+      })
+    );
+
+    await expect(cancellationReviewApi.approve(11, {})).rejects.toThrow("This request was already decided.");
   });
 
   it("retries a network-rejected GET once and succeeds on the second attempt", async () => {

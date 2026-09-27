@@ -177,6 +177,7 @@ public class CancellationQuoteService(TravelConnectDbContext db, CancellationPol
             ? CancellationStatuses.Approved
             : CancellationStatuses.Requested;
 
+        BookingRefund? refund = null;
         var cancellation = new BookingCancellation
         {
             Reference = await NextReferenceAsync("CANC", now, ct),
@@ -221,51 +222,18 @@ public class CancellationQuoteService(TravelConnectDbContext db, CancellationPol
         await db.SaveChangesAsync(ct);
 
         booking.ActiveCancellationId = cancellation.Id;
-        booking.CancellationStatus = status;
         booking.UpdatedAt = now;
 
-        BookingRefund? refund = null;
         if (autoApprove)
         {
-            // Seat inventory goes back on sale the moment the cancellation stands.
-            foreach (var flight in booking.BookingFlights.Where(f => f.SeatStatus != "Available"))
-            {
-                flight.SeatStatus = "Available";
-                flight.SeatNumber = string.Empty;
-            }
-
-            booking.Status = BookingStatusValues.Cancelled;
-            booking.CancelledAt = now;
-
-            refund = new BookingRefund
-            {
-                Reference = await NextReferenceAsync("RFND", now, ct),
-                CancellationId = cancellation.Id,
-                BookingId = booking.Id,
-                Status = RefundStatuses.Pending,
-                Method = match.Resolution == RefundResolutions.TravelCredit ? "travel-credit" : booking.PaymentMethod,
-                Amount = quote.RefundAmount,
-                CalculatedAmount = quote.RefundAmount,
-                OriginalAmount = quote.OriginalAmount,
-                TotalDeductions = quote.TotalFees,
-                RequestedBy = requestedBy,
-            };
-            db.BookingRefunds.Add(refund);
-            await db.SaveChangesAsync(ct);
-
-            // Legacy mirror columns so the existing admin booking table keeps
-            // showing the refund without knowing about the cancellation tables.
-            booking.RefundAmount = quote.RefundAmount;
-            booking.RefundReference = refund.Reference;
-            booking.CancellationPolicyTier = match.Tier;
-            booking.Paid = false;
+            refund = await CompleteAsync(booking, cancellation, match.Resolution, now, "system:auto-approve", ct);
         }
         else
         {
+            booking.CancellationStatus = status;
             booking.Status = BookingStatusValues.CancellationRequested;
+            await db.SaveChangesAsync(ct);
         }
-
-        await db.SaveChangesAsync(ct);
 
         var message = autoApprove
             ? quote.IsRefundable
@@ -274,6 +242,72 @@ public class CancellationQuoteService(TravelConnectDbContext db, CancellationPol
             : "Cancellation request submitted and awaiting staff review.";
 
         return (cancellation, refund, message);
+    }
+
+    /// <summary>
+    /// Turns an approved cancellation into reality: the decision is stamped, the
+    /// seat inventory goes back on sale, the booking is cancelled and a pending
+    /// refund is raised for the frozen amount. Shared by the auto-approve path and
+    /// by staff approval, so both can never drift apart.
+    /// </summary>
+    public async Task<BookingRefund?> CompleteAsync(
+        Booking booking,
+        BookingCancellation cancellation,
+        string resolution,
+        DateTime now,
+        string decidedBy,
+        CancellationToken ct = default)
+    {
+        cancellation.Status = CancellationStatuses.Approved;
+        cancellation.CancellationDate = now;
+        cancellation.DecidedAt = now;
+        cancellation.ApprovedBy = decidedBy;
+        cancellation.ApprovedAt = now;
+        cancellation.Resolution = resolution;
+        cancellation.RequiresApproval = false;
+
+        // Seat inventory goes back on sale the moment the cancellation stands.
+        foreach (var flight in booking.BookingFlights.Where(f => f.SeatStatus != "Available"))
+        {
+            flight.SeatStatus = "Available";
+            flight.SeatNumber = string.Empty;
+        }
+
+        booking.Status = BookingStatusValues.Cancelled;
+        booking.CancellationStatus = cancellation.Status;
+        booking.ActiveCancellationId = cancellation.Id;
+        booking.CancelledAt = now;
+        booking.UpdatedAt = now;
+
+        BookingRefund? refund = null;
+        if (cancellation.RefundAmount > 0)
+        {
+            refund = new BookingRefund
+            {
+                Reference = await NextReferenceAsync("RFND", now, ct),
+                CancellationId = cancellation.Id,
+                BookingId = booking.Id,
+                Status = RefundStatuses.Pending,
+                Method = resolution == RefundResolutions.TravelCredit ? "travel-credit" : booking.PaymentMethod,
+                Amount = cancellation.RefundAmount,
+                CalculatedAmount = cancellation.RefundAmount,
+                OriginalAmount = cancellation.OriginalAmount,
+                TotalDeductions = cancellation.TotalFees,
+                RequestedBy = decidedBy,
+            };
+            db.BookingRefunds.Add(refund);
+
+            // Legacy mirror columns so the existing admin booking table keeps
+            // showing the refund without knowing about the cancellation tables.
+            booking.RefundAmount = cancellation.RefundAmount;
+            booking.RefundReference = refund.Reference;
+        }
+
+        booking.CancellationPolicyTier = cancellation.PolicyTier;
+        booking.Paid = false;
+
+        await db.SaveChangesAsync(ct);
+        return refund;
     }
 
     /// <summary>Sequential, collision-checked document reference (CANC-2026-000123).</summary>

@@ -295,7 +295,7 @@ public class CancellationRequestFlowTests
     }
 
     [Fact]
-    public async Task An_approved_travel_credit_refund_uses_the_credit_method()
+    public async Task An_approved_travel_credit_refund_raises_no_zero_amount_refund()
     {
         var settings = CancellationPolicyService.Defaults.Settings();
         settings.AutoApproveGracePeriod = true;
@@ -307,12 +307,16 @@ public class CancellationRequestFlowTests
         booking.FareType = FareTypes.NonRefundable;
         booking.CreatedAt = Now.AddHours(-2);
 
-        var (_, refund, _) = await Quotes(db).RequestAsync(booking, "change-of-plans", "x", "juan@tc.com", Now);
+        var (cancellation, refund, _) = await Quotes(db).RequestAsync(booking, "change-of-plans", "x", "juan@tc.com", Now);
 
-        Assert.NotNull(refund);
-        Assert.Equal("travel-credit", refund!.Method);
-        Assert.Equal(0m, refund.Amount);
-        Assert.Equal(RefundStatuses.Pending, refund.Status);
+        // The travel-credit outcome is recorded on the cancellation, but a
+        // zero-amount refund row is not: an empty refund would only ever be
+        // picked up by a payout batch to be paid nothing.
+        Assert.Null(refund);
+        Assert.Empty(await db.BookingRefunds.ToListAsync());
+        Assert.Equal(RefundResolutions.TravelCredit, cancellation.Resolution);
+        Assert.Equal(0m, cancellation.RefundAmount);
+        Assert.Equal(BookingStatusValues.Cancelled, booking.Status);
     }
 
     [Fact]

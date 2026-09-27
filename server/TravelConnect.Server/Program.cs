@@ -84,6 +84,7 @@ builder.Services.AddScoped<BookingLifecycleService>();
 // table, never from the request body. Both consume the scoped DbContext.
 builder.Services.AddScoped<CancellationPolicyService>();
 builder.Services.AddScoped<CancellationQuoteService>();
+builder.Services.AddScoped<CancellationReviewService>();
 builder.Services.AddScoped<StaffContextService>();
 
 // EmailJS admin notifications (sent server-side so the email path is
