@@ -29,6 +29,10 @@ public class TravelConnectDbContext : DbContext
     public DbSet<EmailLog> EmailLogs => Set<EmailLog>();
     public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
+    public DbSet<BookingCancellation> BookingCancellations => Set<BookingCancellation>();
+    public DbSet<BookingRefund> BookingRefunds => Set<BookingRefund>();
+    public DbSet<CancellationPolicySettings> CancellationPolicySettings => Set<CancellationPolicySettings>();
+    public DbSet<CancellationPolicyRule> CancellationPolicyRules => Set<CancellationPolicyRule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -52,10 +56,48 @@ public class TravelConnectDbContext : DbContext
         modelBuilder.Entity<Payment>().Property(p => p.Amount).HasColumnType("decimal(18,2)");
         modelBuilder.Entity<Promotion>().Property(p => p.Discount).HasColumnType("decimal(18,2)");
         modelBuilder.Entity<Booking>().Property(b => b.RefundAmount).HasColumnType("decimal(18,2)");
-        modelBuilder.Entity<Image>().Property(i => i.Data).HasColumnType("varbinary(max)");
+        // Image.Data: no explicit column type — each provider's default binary
+        // mapping is already correct (varbinary(max) on SQL Server, BLOB on
+        // SQLite, which the relational test suite uses to verify the schema).
         modelBuilder.Entity<Image>().Property(i => i.ContentType).HasMaxLength(64);
         modelBuilder.Entity<SubscriptionPlan>().Property(p => p.MonthlyPrice).HasColumnType("decimal(18,2)");
         modelBuilder.Entity<Subscription>().Property(s => s.MonthlyPrice).HasColumnType("decimal(18,2)");
+
+        // ── Cancellation / refund money columns (Phase 1) ───────────────
+        // Every money field is decimal(18,2): the refund engine rounds to cents
+        // and a float column would drift on a repeated add/subtract chain.
+        modelBuilder.Entity<BookingCancellation>().Property(c => c.OriginalAmount).HasColumnType("decimal(18,2)");
+        modelBuilder.Entity<BookingCancellation>().Property(c => c.AirlineCancellationFee).HasColumnType("decimal(18,2)");
+        modelBuilder.Entity<BookingCancellation>().Property(c => c.AgencyServiceFee).HasColumnType("decimal(18,2)");
+        modelBuilder.Entity<BookingCancellation>().Property(c => c.PaymentProcessingFee).HasColumnType("decimal(18,2)");
+        modelBuilder.Entity<BookingCancellation>().Property(c => c.OtherFee).HasColumnType("decimal(18,2)");
+        modelBuilder.Entity<BookingCancellation>().Property(c => c.TotalFees).HasColumnType("decimal(18,2)");
+        modelBuilder.Entity<BookingCancellation>().Property(c => c.RefundableAmount).HasColumnType("decimal(18,2)");
+        modelBuilder.Entity<BookingCancellation>().Property(c => c.RefundAmount).HasColumnType("decimal(18,2)");
+        modelBuilder.Entity<BookingRefund>().Property(r => r.Amount).HasColumnType("decimal(18,2)");
+        modelBuilder.Entity<BookingRefund>().Property(r => r.CalculatedAmount).HasColumnType("decimal(18,2)");
+        modelBuilder.Entity<BookingRefund>().Property(r => r.OriginalAmount).HasColumnType("decimal(18,2)");
+        modelBuilder.Entity<BookingRefund>().Property(r => r.TotalDeductions).HasColumnType("decimal(18,2)");
+
+        // Hard money guards at the schema level: a negative refund/amount is
+        // never a legitimate row, so the database rejects it outright even if a
+        // future code path forgets to clamp.
+        modelBuilder.Entity<BookingCancellation>().ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_BookingCancellations_NonNegative",
+                "[RefundAmount] >= 0 AND [RefundableAmount] >= 0 AND [OriginalAmount] >= 0");
+            // The status vocabulary is pinned in the database, generated from
+            // the C# list so the two can never drift.
+            t.HasCheckConstraint("CK_BookingCancellations_Status",
+                CancellationStatuses.CheckConstraintSql());
+        });
+        modelBuilder.Entity<BookingRefund>().ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_BookingRefunds_NonNegative",
+                "[Amount] >= 0 AND [CalculatedAmount] >= 0");
+            t.HasCheckConstraint("CK_BookingRefunds_Status",
+                RefundStatuses.CheckConstraintSql());
+        });
 
         modelBuilder.Entity<Package>().HasOne(p => p.Supplier).WithMany().HasForeignKey(p => p.SupplierId).OnDelete(DeleteBehavior.SetNull);
         modelBuilder.Entity<Flight>().HasOne(f => f.Supplier).WithMany().HasForeignKey(f => f.SupplierId).OnDelete(DeleteBehavior.SetNull);
@@ -65,6 +107,30 @@ public class TravelConnectDbContext : DbContext
         modelBuilder.Entity<Payment>().HasOne(p => p.Booking).WithMany().HasForeignKey(p => p.BookingId).OnDelete(DeleteBehavior.SetNull);
         modelBuilder.Entity<BookingFlight>().HasOne(f => f.Booking).WithMany(b => b.BookingFlights).HasForeignKey(f => f.BookingId).OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<EmailLog>().HasOne(e => e.Booking).WithMany().HasForeignKey(e => e.BookingId).OnDelete(DeleteBehavior.SetNull);
+
+        // Booking owns its cancellation requests, and a cancellation owns its
+        // refund — deleting a booking (rare, and blocked by the controller once a
+        // refund exists) must never leave orphaned financial rows behind.
+        modelBuilder.Entity<BookingCancellation>()
+            .HasOne(c => c.Booking).WithMany(b => b.Cancellations)
+            .HasForeignKey(c => c.BookingId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<BookingRefund>()
+            .HasOne(r => r.Cancellation).WithMany(c => c.Refunds)
+            .HasForeignKey(r => r.CancellationId).OnDelete(DeleteBehavior.Cascade);
+        // Deliberately NOT cascading from Bookings: a refund is a financial
+        // record, so the FK blocks deleting a booking that has already been
+        // settled (two cascading paths to BookingRefunds is also a SQL Server
+        // "multiple cascade paths" error, which this avoids).
+        modelBuilder.Entity<BookingRefund>()
+            .HasOne(r => r.Booking).WithMany()
+            .HasForeignKey(r => r.BookingId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<BookingRefund>()
+            .HasOne(r => r.Payment).WithMany()
+            .HasForeignKey(r => r.PaymentId).OnDelete(DeleteBehavior.SetNull);
+        // Booking.ActiveCancellationId is intentionally NOT an FK: a second
+        // Bookings -> BookingCancellations edge would point into a table that
+        // already cascades from Bookings (an FK cycle SQL Server rejects). It is
+        // a soft pointer, denormalised purely for fast list filtering.
 
         // Indexes for the hot lookup/filter/order paths (Phase 4). EF Core
         // already indexes FK columns via convention, so only non-FK filters
@@ -82,5 +148,43 @@ public class TravelConnectDbContext : DbContext
         modelBuilder.Entity<Payment>().HasIndex(p => new { p.Status, p.Method });
         modelBuilder.Entity<EmailLog>().HasIndex(e => new { e.Type, e.SentAt });
         modelBuilder.Entity<SupportMessage>().HasIndex(m => new { m.SupportConversationId, m.CreatedAt });
+
+        // Cancellation / refund lookup paths (admin queue, customer status
+        // tracker, duplicate-refund guard).
+        modelBuilder.Entity<BookingCancellation>().HasIndex(c => c.Reference).IsUnique();
+        modelBuilder.Entity<BookingCancellation>().HasIndex(c => new { c.Status, c.CreatedAt });
+        modelBuilder.Entity<BookingCancellation>().HasIndex(c => new { c.CustomerEmail, c.Status });
+        modelBuilder.Entity<BookingRefund>().HasIndex(r => r.Reference).IsUnique();
+        // One live refund per booking: the filtered unique index is the last
+        // line of defence against a double refund if two requests race.
+        modelBuilder.Entity<BookingRefund>()
+            .HasIndex(r => r.BookingId)
+            .IsUnique()
+            .HasFilter("[Status] <> 'Voided'");
+        modelBuilder.Entity<BookingRefund>().HasIndex(r => new { r.Status, r.CreatedAt });
+        modelBuilder.Entity<BookingRefund>().HasIndex(r => r.CancellationId);
+        modelBuilder.Entity<Booking>().HasIndex(b => b.CancellationStatus);
+
+        // Policy configuration: money columns are decimal, and only one settings
+        // row may be active (the resolution service reads that single row).
+        modelBuilder.Entity<CancellationPolicySettings>()
+            .Property(s => s.MaxRefundOverridePercent).HasColumnType("decimal(5,2)");
+        modelBuilder.Entity<CancellationPolicyRule>().Property(r => r.AirlineFeePercent).HasColumnType("decimal(5,2)");
+        modelBuilder.Entity<CancellationPolicyRule>().Property(r => r.AirlineFeeAmount).HasColumnType("decimal(18,2)");
+        modelBuilder.Entity<CancellationPolicyRule>().Property(r => r.AgencyServiceFee).HasColumnType("decimal(18,2)");
+        modelBuilder.Entity<CancellationPolicyRule>().Property(r => r.PaymentProcessingFee).HasColumnType("decimal(18,2)");
+        modelBuilder.Entity<CancellationPolicyRule>().Property(r => r.OtherFee).HasColumnType("decimal(18,2)");
+        modelBuilder.Entity<CancellationPolicyRule>().ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_CancellationPolicyRules_RefundPercentage",
+                "[RefundPercentage] >= 0 AND [RefundPercentage] <= 100");
+            t.HasCheckConstraint("CK_CancellationPolicyRules_Tier", PolicyTiers.CheckConstraintSql("PolicyTier"));
+        });
+        modelBuilder.Entity<CancellationPolicySettings>().ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_CancellationPolicySettings_GracePeriod", "[GracePeriodHours] >= 0");
+        });
+        modelBuilder.Entity<CancellationPolicySettings>().HasIndex(s => s.IsActive);
+        modelBuilder.Entity<CancellationPolicyRule>().HasIndex(r => new { r.IsActive, r.PolicyTier, r.Priority });
     }
 }

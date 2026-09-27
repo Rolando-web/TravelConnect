@@ -80,6 +80,12 @@ builder.Services.AddScoped<PromoService>();
 // journey date passes. Consumes the scoped DbContext => scoped.
 builder.Services.AddScoped<BookingLifecycleService>();
 
+// Cancellation & refund (Phase 2+): the policy lives in the database and is
+// interpreted by this service; staff permissions come from the SystemUsers
+// table, never from the request body. Both consume the scoped DbContext.
+builder.Services.AddScoped<CancellationPolicyService>();
+builder.Services.AddScoped<StaffContextService>();
+
 // EmailJS admin notifications (sent server-side so the email path is
 // rate-limited like the inquiry endpoint it rides on).
 builder.Services.Configure<EmailJsOptions>(builder.Configuration.GetSection("EmailJs"));

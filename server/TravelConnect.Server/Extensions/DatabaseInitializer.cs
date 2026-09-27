@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TravelConnect.Server.Data;
 using TravelConnect.Server.Models;
+using TravelConnect.Server.Services;
 
 namespace TravelConnect.Server.Extensions;
 
@@ -85,6 +86,122 @@ public static class DatabaseInitializer
                 ALTER TABLE dbo.Bookings ADD RefundReference nvarchar(max) NOT NULL CONSTRAINT DF_Bookings_RefundReference DEFAULT ('');
             IF COL_LENGTH('dbo.Bookings', 'Category') IS NULL
                 ALTER TABLE dbo.Bookings ADD Category nvarchar(max) NOT NULL CONSTRAINT DF_Bookings_Category DEFAULT ('');");
+
+        // ── Cancellation / refund workflow columns on Bookings (Phase 1) ──
+        if (schemaIncomplete) await db.Database.ExecuteSqlRawAsync(@"
+            IF COL_LENGTH('dbo.Bookings', 'FareType') IS NULL
+                ALTER TABLE dbo.Bookings ADD FareType nvarchar(64) NOT NULL CONSTRAINT DF_Bookings_FareType DEFAULT ('Economy');
+            IF COL_LENGTH('dbo.Bookings', 'CancellationStatus') IS NULL
+                ALTER TABLE dbo.Bookings ADD CancellationStatus nvarchar(64) NOT NULL CONSTRAINT DF_Bookings_CancellationStatus DEFAULT ('Confirmed');
+            IF COL_LENGTH('dbo.Bookings', 'RefundStatus') IS NULL
+                ALTER TABLE dbo.Bookings ADD RefundStatus nvarchar(64) NOT NULL CONSTRAINT DF_Bookings_RefundStatus DEFAULT ('');
+            IF COL_LENGTH('dbo.Bookings', 'ActiveCancellationId') IS NULL
+                ALTER TABLE dbo.Bookings ADD ActiveCancellationId int NULL;");
+
+        // Ensure the BookingCancellations table exists (fresh databases get it
+        // from EnsureCreatedAsync; pre-existing ones need the DDL).
+        if (schemaIncomplete) await db.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'dbo.BookingCancellations', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.BookingCancellations (
+                    Id                      int            NOT NULL IDENTITY(1,1) CONSTRAINT PK_BookingCancellations PRIMARY KEY,
+                    Reference               nvarchar(64)   NOT NULL,
+                    BookingId               int            NOT NULL,
+                    CustomerName            nvarchar(max)  NOT NULL,
+                    CustomerEmail           nvarchar(max)  NOT NULL,
+                    Status                  nvarchar(64)   NOT NULL,
+                    ReasonCode              nvarchar(max)  NOT NULL,
+                    Reason                  nvarchar(max)  NOT NULL,
+                    RequestedAt             datetime2      NOT NULL,
+                    CancellationDate        datetime2      NULL,
+                    DecidedAt               datetime2      NULL,
+                    RequestedBy             nvarchar(max)  NOT NULL,
+                    ApprovedBy              nvarchar(max)  NOT NULL,
+                    ApprovedAt              datetime2      NULL,
+                    RejectionReason         nvarchar(max)  NOT NULL,
+                    PolicyRuleId            int            NOT NULL,
+                    PolicyName              nvarchar(max)  NOT NULL,
+                    PolicyTier              nvarchar(max)  NOT NULL,
+                    FareType                nvarchar(max)  NOT NULL,
+                    RefundPercentage        int            NOT NULL,
+                    RequiresApproval        bit            NOT NULL,
+                    AutoApproved            bit            NOT NULL,
+                    IsException             bit            NOT NULL,
+                    Resolution              nvarchar(max)  NOT NULL,
+                    DepartureDate           datetime2      NULL,
+                    HoursSinceBooking       int            NOT NULL,
+                    HoursBeforeDeparture    int            NOT NULL,
+                    PastDeparture           bit            NOT NULL,
+                    OriginalAmount          decimal(18,2)  NOT NULL,
+                    AirlineCancellationFee  decimal(18,2)  NOT NULL,
+                    AgencyServiceFee        decimal(18,2)  NOT NULL,
+                    PaymentProcessingFee    decimal(18,2)  NOT NULL,
+                    OtherFee                decimal(18,2)  NOT NULL,
+                    TotalFees               decimal(18,2)  NOT NULL,
+                    RefundableAmount        decimal(18,2)  NOT NULL,
+                    RefundAmount            decimal(18,2)  NOT NULL,
+                    Notes                   nvarchar(max)  NOT NULL,
+                    CreatedAt               datetime2      NOT NULL,
+                    UpdatedAt               datetime2      NOT NULL,
+                    CONSTRAINT FK_BookingCancellations_Bookings_BookingId
+                        FOREIGN KEY (BookingId) REFERENCES dbo.Bookings (Id) ON DELETE CASCADE,
+                    CONSTRAINT CK_BookingCancellations_NonNegative
+                        CHECK (RefundAmount >= 0 AND RefundableAmount >= 0 AND OriginalAmount >= 0),
+                    CONSTRAINT CK_BookingCancellations_Status
+                        CHECK (" + CancellationStatuses.CheckConstraintSql() + @")
+                );
+                CREATE UNIQUE INDEX UX_BookingCancellations_Reference ON dbo.BookingCancellations (Reference);
+                CREATE INDEX IX_BookingCancellations_BookingId ON dbo.BookingCancellations (BookingId);
+                CREATE INDEX IX_BookingCancellations_Status ON dbo.BookingCancellations (Status, CreatedAt);
+                CREATE INDEX IX_BookingCancellations_CustomerEmail ON dbo.BookingCancellations (CustomerEmail, Status);
+            END");
+
+        // Ensure the BookingRefunds table exists. The filtered unique index on
+        // BookingId is what makes a double refund impossible at the database
+        // level, even if two approval requests arrive at the same moment.
+        if (schemaIncomplete) await db.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'dbo.BookingRefunds', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.BookingRefunds (
+                    Id                  int            NOT NULL IDENTITY(1,1) CONSTRAINT PK_BookingRefunds PRIMARY KEY,
+                    Reference           nvarchar(64)   NOT NULL,
+                    CancellationId      int            NOT NULL,
+                    BookingId           int            NOT NULL,
+                    PaymentId           int            NULL,
+                    Status              nvarchar(64)   NOT NULL,
+                    Method              nvarchar(max)  NOT NULL,
+                    Amount              decimal(18,2)  NOT NULL,
+                    CalculatedAmount    decimal(18,2)  NOT NULL,
+                    OriginalAmount      decimal(18,2)  NOT NULL,
+                    TotalDeductions     decimal(18,2)  NOT NULL,
+                    IsAdjusted          bit            NOT NULL,
+                    RefundReference     nvarchar(max)  NOT NULL,
+                    RequestedBy         nvarchar(max)  NOT NULL,
+                    ApprovedBy          nvarchar(max)  NOT NULL,
+                    ApprovedAt          datetime2      NULL,
+                    ProcessedAt         datetime2      NULL,
+                    CompletedAt         datetime2      NULL,
+                    RejectionReason     nvarchar(max)  NOT NULL,
+                    FailureReason       nvarchar(max)  NOT NULL,
+                    Notes               nvarchar(max)  NOT NULL,
+                    CreatedAt           datetime2      NOT NULL,
+                    UpdatedAt           datetime2      NOT NULL,
+                    CONSTRAINT FK_BookingRefunds_BookingCancellations_CancellationId
+                        FOREIGN KEY (CancellationId) REFERENCES dbo.BookingCancellations (Id) ON DELETE CASCADE,
+                    CONSTRAINT FK_BookingRefunds_Bookings_BookingId
+                        FOREIGN KEY (BookingId) REFERENCES dbo.Bookings (Id),
+                    CONSTRAINT FK_BookingRefunds_Payments_PaymentId
+                        FOREIGN KEY (PaymentId) REFERENCES dbo.Payments (Id),
+                    CONSTRAINT CK_BookingRefunds_NonNegative
+                        CHECK (Amount >= 0 AND CalculatedAmount >= 0),
+                    CONSTRAINT CK_BookingRefunds_Status
+                        CHECK (" + RefundStatuses.CheckConstraintSql() + @")
+                );
+                CREATE UNIQUE INDEX UX_BookingRefunds_Reference ON dbo.BookingRefunds (Reference);
+                CREATE UNIQUE INDEX UX_BookingRefunds_BookingId ON dbo.BookingRefunds (BookingId) WHERE [Status] <> 'Voided';
+                CREATE INDEX IX_BookingRefunds_CancellationId ON dbo.BookingRefunds (CancellationId);
+                CREATE INDEX IX_BookingRefunds_Status ON dbo.BookingRefunds (Status, CreatedAt);
+            END");
 
         // Ensure new columns exist on pre-existing databases for BookingFlights
         if (schemaIncomplete) await db.Database.ExecuteSqlRawAsync(@"
@@ -217,6 +334,70 @@ public static class DatabaseInitializer
                 );
             END");
 
+        // Ensure the cancellation-policy configuration tables exist. The policy
+        // lives in the database (not in code) so an administrator can change the
+        // grace period, refund percentages and fees at runtime.
+        if (schemaIncomplete) await db.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'dbo.CancellationPolicySettings', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.CancellationPolicySettings (
+                    Id                              int            NOT NULL IDENTITY(1,1) CONSTRAINT PK_CancellationPolicySettings PRIMARY KEY,
+                    Name                            nvarchar(max)  NOT NULL,
+                    GracePeriodHours                int            NOT NULL,
+                    AutoApproveGracePeriod          bit            NOT NULL,
+                    RequireApprovalLateCancellation bit            NOT NULL,
+                    RequireApprovalNoShow           bit            NOT NULL,
+                    RequireApprovalNonRefundable    bit            NOT NULL,
+                    NonRefundableResolution         nvarchar(max)  NOT NULL,
+                    AllowTravelCredit               bit            NOT NULL,
+                    TravelCreditValidityMonths      int            NOT NULL,
+                    AllowAmountOverride             bit            NOT NULL,
+                    MaxRefundOverridePercent        decimal(5,2)   NOT NULL,
+                    RequireCancellationReason       bit            NOT NULL,
+                    Currency                        nvarchar(max)  NOT NULL,
+                    IsActive                        bit            NOT NULL,
+                    Notes                           nvarchar(max)  NOT NULL,
+                    UpdatedBy                       nvarchar(max)  NOT NULL,
+                    CreatedAt                       datetime2      NOT NULL,
+                    UpdatedAt                       datetime2      NOT NULL,
+                    CONSTRAINT CK_CancellationPolicySettings_GracePeriod CHECK (GracePeriodHours >= 0)
+                );
+            END");
+
+        if (schemaIncomplete) await db.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'dbo.CancellationPolicyRules', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.CancellationPolicyRules (
+                    Id                       int            NOT NULL IDENTITY(1,1) CONSTRAINT PK_CancellationPolicyRules PRIMARY KEY,
+                    Name                     nvarchar(max)  NOT NULL,
+                    PolicyTier               nvarchar(64)   NOT NULL,
+                    Airline                  nvarchar(max)  NOT NULL,
+                    FareType                 nvarchar(max)  NOT NULL,
+                    MinHoursBeforeDeparture  int            NOT NULL,
+                    MaxHoursBeforeDeparture  int            NOT NULL,
+                    RefundPercentage         int            NOT NULL,
+                    AirlineFeePercent        decimal(5,2)   NOT NULL,
+                    AirlineFeeAmount         decimal(18,2)  NOT NULL,
+                    AgencyServiceFee         decimal(18,2)  NOT NULL,
+                    PaymentProcessingFee     decimal(18,2)  NOT NULL,
+                    OtherFee                 decimal(18,2)  NOT NULL,
+                    IsNonRefundable          bit            NOT NULL,
+                    RequiresApproval         bit            NULL,
+                    Resolution               nvarchar(max)  NOT NULL,
+                    Priority                 int            NOT NULL,
+                    IsActive                 bit            NOT NULL,
+                    Notes                    nvarchar(max)  NOT NULL,
+                    CreatedAt                datetime2      NOT NULL,
+                    UpdatedAt                datetime2      NOT NULL,
+                    CONSTRAINT CK_CancellationPolicyRules_RefundPercentage
+                        CHECK (RefundPercentage >= 0 AND RefundPercentage <= 100),
+                    CONSTRAINT CK_CancellationPolicyRules_Tier
+                        CHECK (" + PolicyTiers.CheckConstraintSql() + @")
+                );
+                CREATE INDEX IX_CancellationPolicyRules_Active
+                    ON dbo.CancellationPolicyRules (IsActive, PolicyTier, Priority);
+            END");
+
         // A full reset: wipe the transactional/demo records (inquiries, CRM
         // leads, the support-chat mirror and its email log) so every counter
         // page returns to 0, then drop the seed catalog so it is recreated
@@ -242,6 +423,29 @@ public static class DatabaseInitializer
 
         // Seed initial data if empty
         await SeedAsync(db);
+        await SeedCancellationPolicyAsync(db);
+    }
+
+    // The cancellation policy is configuration, not demo data: it is seeded once
+    // (and left alone afterwards) so a fresh install starts with a sane
+    // 24-hour grace period and fee structure that an admin can then edit. It is
+    // deliberately NOT cleared by --reseed, because wiping an agency's refund
+    // policy on a demo reset would silently change live refund amounts.
+    private static async Task SeedCancellationPolicyAsync(TravelConnectDbContext db)
+    {
+        if (!await db.CancellationPolicySettings.AnyAsync())
+        {
+            db.CancellationPolicySettings.Add(CancellationPolicyService.Defaults.Settings());
+            await db.SaveChangesAsync();
+            Console.WriteLine("[DB] Seeded default cancellation policy settings (24h grace).");
+        }
+
+        if (!await db.CancellationPolicyRules.AnyAsync())
+        {
+            db.CancellationPolicyRules.AddRange(CancellationPolicyService.Defaults.Rules());
+            await db.SaveChangesAsync();
+            Console.WriteLine("[DB] Seeded default cancellation policy rules (grace/early/late/non-refundable/no-show).");
+        }
     }
 
     // One round trip instead of 24. Returns true only when every table and column
@@ -263,14 +467,24 @@ public static class DatabaseInitializer
             AND OBJECT_ID(N'dbo.EmailLogs',             N'U') IS NOT NULL
             AND OBJECT_ID(N'dbo.SupportConversations',  N'U') IS NOT NULL
             AND OBJECT_ID(N'dbo.SupportMessages',       N'U') IS NOT NULL
-            AND OBJECT_ID(N'dbo.SubscriptionPlans',     N'U') IS NOT NULL
+                AND OBJECT_ID(N'dbo.SubscriptionPlans',     N'U') IS NOT NULL
             AND OBJECT_ID(N'dbo.Subscriptions',         N'U') IS NOT NULL
+                AND OBJECT_ID(N'dbo.BookingCancellations',  N'U') IS NOT NULL
+            AND OBJECT_ID(N'dbo.BookingRefunds',        N'U') IS NOT NULL
+            AND OBJECT_ID(N'dbo.CancellationPolicySettings', N'U') IS NOT NULL
+            AND OBJECT_ID(N'dbo.CancellationPolicyRules',    N'U') IS NOT NULL
+
+
             AND COL_LENGTH('dbo.Bookings',        'SeatNumbers')           IS NOT NULL
             AND COL_LENGTH('dbo.Bookings',        'CancellationPolicyTier') IS NOT NULL
             AND COL_LENGTH('dbo.Bookings',        'RefundAmount')          IS NOT NULL
             AND COL_LENGTH('dbo.Bookings',        'CancelledAt')           IS NOT NULL
             AND COL_LENGTH('dbo.Bookings',        'RefundReference')       IS NOT NULL
             AND COL_LENGTH('dbo.Bookings',        'Category')              IS NOT NULL
+            AND COL_LENGTH('dbo.Bookings',        'FareType')              IS NOT NULL
+            AND COL_LENGTH('dbo.Bookings',        'CancellationStatus')    IS NOT NULL
+            AND COL_LENGTH('dbo.Bookings',        'RefundStatus')          IS NOT NULL
+            AND COL_LENGTH('dbo.Bookings',        'ActiveCancellationId')  IS NOT NULL
             AND COL_LENGTH('dbo.BookingFlights',  'SeatNumber')            IS NOT NULL
             AND COL_LENGTH('dbo.BookingFlights',  'SeatStatus')            IS NOT NULL
             AND COL_LENGTH('dbo.Suppliers',       'ImageUrl')              IS NOT NULL
