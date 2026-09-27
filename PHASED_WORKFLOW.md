@@ -1163,6 +1163,80 @@ Requested: "Hotels Supplier and Cars Supplier — fix the Post, I can't create a
 
 ---
 
+# PHASE 23 — AGENCY SUPPORT HUB 500 ("An unexpected error occurred")
+
+**Requested after Phase 22:** the **Agency Support page** failed on load —
+"An unexpected error occurred. / Refresh to try again."
+
+### 23.1 The root cause (verified, then fixed)
+
+`SupportController.Inbox` excluded the Super Admin's tier threads with
+
+```csharp
+query = query.Where(c => !IsTierConversation(c.Category));
+```
+
+and `IsTierConversation` is `string.Equals(category, "Subscription", StringComparison.OrdinalIgnoreCase)`.
+**EF Core cannot translate that into SQL** — neither the helper method nor the
+`string.Equals(..., StringComparison)` overload inside it:
+
+```
+The LINQ expression 'DbSet<SupportConversation>().Where(s => !(string.Equals(
+  a: s.Category, b: "Subscription", comparisonType: OrdinalIgnoreCase)))'
+  could not be translated. Additional information: Translation of the
+  'string.Equals' overload with a 'StringComparison' parameter is not supported.
+```
+
+The throw became an unhandled exception → HTTP 500 → `Program.cs`'s global
+handler returned `{ message: "An unexpected error occurred." }` → the client
+correctly showed it in red above **"Refresh to try again."** So the page was
+never broken in the UI: the inbox query itself was failing, every single load.
+
+Why it slipped through, and why only this page:
+
+- **Every existing test passed.** All controller tests run on the **EF in-memory
+  provider**, which evaluates such expressions *client-side*. Production runs
+  **SQL Server**, which cannot. The test provider was masking a 500.
+- **Only the Agency Support Hub was affected.** It calls `inbox("")` with no
+  category, which takes the branch that adds this filter. The Super Admin's Tier
+  Support Hub sends `category=Subscription` and takes the other branch — which
+  is why the same page family looked healthy.
+
+### 23.2 The fix
+
+The tier filter is now one `internal static Expression<Func<SupportConversation, bool>>`
+using `ToLower()` on both sides — translatable on every provider and still
+case-insensitive, so a legacy lower-case `subscription` row can never leak into
+the Agency Admin's inbox. `"Subscription"` is a single `const` shared by the
+filter and `CanModerate`, so the query and the moderation guard cannot drift.
+Generated T-SQL is now a single pushed-down predicate:
+
+```sql
+SELECT TOP(@__p_0) ... FROM [SupportConversations] AS [s]
+WHERE LOWER([s].[Category]) <> N'subscription'
+ORDER BY [s].[LastMessageAt] DESC
+```
+
+### 23.3 Phase 23 scope
+
+| # | Item | Status |
+|---|------|--------|
+| 23A-1 | `SupportController` — tier filter replaced with a translatable `Expression<Func<..>>`; `TierCategory` const shared with `CanModerate`. | ☑ |
+| 23A-2 | Audited all 64 `StringComparison.` uses across the server: this was the **only** one inside a LINQ-to-SQL expression (the rest are LINQ-to-Objects or non-query code). | ☑ |
+| 23B-1 | `SupportInboxTranslationTests` (5) — SQL Server translatability via `ToQueryString()` on a dead-host provider (no connection needed, asserts the pushdown into `WHERE`); same on SQLite; the real `Inbox()` action run against a real SQL engine as a real Agency Admin (problems returned, `Subscription` **and** legacy `subscription` both excluded, Super Admin tier inbox intact); status/assignee filters; paging + `pageSize` clamp. Tests reuse the controller's own predicate, so they cannot drift from it. | ☑ |
+| 23B-2 | **Mutation-verified**: reverting the predicate to the old `c => !IsTierConversation(c.Category)` fails **5/5**; the shipped fix passes 5/5. | ☑ |
+
+### 23.4 Phase 23 Gate Checklist
+
+| # | Item | Dev | QA |
+|---|------|-----|-----|
+| P1 | 23A implemented; backend build 0 warn / 0 err; lint 0, build + bundle gate OK, existing suites green (backend 324, frontend 220) **before** new tests were written | ☑ | |
+| P2 | 23B green — backend **329/329** (324 + 5), frontend **220/220** unchanged, lint 0 problems, build OK, bundle gate OK (44 chunks, entry 64.2 kB gzip) | ☑ | |
+| P3 | Smoke (needs backend re-upload): sign in as Agency Admin → Agency Support Hub lists customer problems instead of the 500; the Super Admin's Tier Support Hub is unchanged; a tier thread never appears in the agency inbox | | ☐ |
+| P4 | Related hardening to schedule: `Category` / `Status` are `nvarchar(max) NOT NULL` but `IX_SupportConversations (Status, Category)` is declared in `OnModelCreating` — SQL Server cannot use `nvarchar(max)` as an index key column, so confirm the index actually exists in production before relying on it | | ☐ |
+
+---
+
 # 4. Progress Log
 
 | Phase | Started | Completed | Sign-off (Dev/QA) | Result |
@@ -1190,6 +1264,7 @@ Requested: "Hotels Supplier and Cars Supplier — fix the Post, I can't create a
 | 20 CRM No-Manual-Add (inquiry-sourced leads) | 2026-09-27 | 2026-09-27 | ✓ / | Done — **the CRM & Leads page can no longer add leads by hand.** Removed the Add Lead modal button + the modal's `add`-mode save branch + the `Add Lead` title case + unused `Plus` import; `leadsApi` no longer exposes `create` (client `POST /api/leads` deleted); backend `LeadsController` dropped its `[HttpPost] Create` action — **`POST /api/leads` now returns 405** (verified live). Leads are created only by the inquiry pipeline (`InquiriesController`); stage-move and convert actions are unaffected. Edit/view modal stays. 20A gate passed (lint 0, build OK, 150/150 + 154/154) before 20C; frontend **150/150**, backend **154/154**, build 0 warn / 0 err, lint 0, bundle gate OK (LeadsPage chunk 10.7 kB → 10.5 kB). J3/J4: smoke the 405 + no Add button; prod re-check = user |
 | 21 System Users 403 Fix + Hotel/Car Rental Supplier Roles | 2026-09-28 | 2026-09-28 | ✓ / | Done — **System Users add-user 403 root cause found + fixed + two scoped supplier accounts.** Root cause: `createUserWithEmailAndPassword` signs the NEW user in, swapping the admin's session — so the follow-up `POST /api/users` was authorized as the brand-new non-manager → Forbid 403 (orphan Firebase account). Fix: provision the credential via the **Firebase REST sign-up endpoint**, which never touches the browser session — the admin stays signed in and the row save authenticates. Added **two first-class roles**: `Hotel Supplier` (menu = Dashboard · My Hotels · Profile) and `Car Rental Supplier` (Dashboard · My Cars · Profile) — backend `KnownRoles` + client `ADMIN_ROLES`/`ROLE_NAV`/`ADMIN_ACCESS` + modal dropdown + hint. **Follow-up: Delete user added** — row-level Delete button (Manage access), Firestore profile cleanup on delete so off-boarded staff can't keep the admin menu via the Firestore role fallback, backend self-delete guard (400), Super Admin still protected (403). 21A gate passed (lint 0, build OK, 152/152 + 157/157) before 21C; frontend **152/152**, backend **157/157**, build 0 warn / 0 err, lint 0, bundle gate OK. K3/K4: add-a-supplier-then-login smoke + delete-user smoke (menu access gone after delete) + prod re-check = user |
 | 22 Supplier product create + Image as file button | 2026-09-28 | 2026-09-28 | ✓ / | Done — **create-path audit found no API defect** (plain CRUD, Manage access confirmed for both supplier roles, no required-image trap) and the **Image URL text input is gone**: hotels/cars `imageUrl` is now a file-**upload button** (preview + `uploadImage` → backend `/api/images`, paste-URL fallback) so a supplier can finish a product from a local photo. Frontend **156/156** (+2 image-field tests), backend **157/157**, lint 0, build OK. K5: re-smoke create-product as Hotel/Car Rental Supplier on the deployed build = user |
+| 23 Agency Support Hub 500 fix | 2026-09-28 | 2026-09-28 | ✓ / | Done — **the Agency Support page's inbox query itself was failing**: `SupportController.Inbox` filtered tier threads with `query.Where(c => !IsTierConversation(c.Category))`, and EF Core cannot translate that helper (nor `string.Equals(x, y, StringComparison.OrdinalIgnoreCase)`) — "The LINQ expression ... could not be translated" → HTTP 500 → the page's "An unexpected error occurred. / Refresh to try again." Every test passed because the EF **in-memory** provider evaluates it client-side while production runs SQL Server; only this page was hit because the Super Admin's Tier hub sends `category=Subscription` and takes the other branch. Fix: one internal `Expression<Func<..>>` using `ToLower()` on both sides — translatable everywhere, still case-insensitive so a legacy `subscription` row can't leak — compiled to a pushed-down `WHERE LOWER([Category]) <> N'subscription'`; `TierCategory` const shared with `CanModerate`. Audited all 64 `StringComparison.` uses in the server: this was the only one in a LINQ-to-SQL expression. 23A gate passed (build 0 warn/0 err, 324/324 + 220/220) before 23B; **SupportInboxTranslationTests** (5) run the real `Inbox()` on a real SQL engine and compile the filter with the SQL Server provider via `ToQueryString()` (no connection needed); **mutation-verified 5/5 fail on the old predicate**; backend **329/329**, frontend **220/220**, lint 0, bundle gate OK (44 chunks, entry 64.2 kB gzip). P3/P4 = user (needs backend re-upload; also confirm the `(Status, Category)` index, since both are `nvarchar(max)`) |
 | Release Gate R1–R6 | 2026-09-23 | 2026-09-23 | ✓ / | R1–R5 Dev done: publish + build + vault/secrets clean + bundle gate OK + lint **0 problems** (62→0 cleanup: unused imports removed, `useMemo(setPage)` anti-pattern → `useEffect`, context-hook/static-component suppressions documented). Added **TEST-MODE-ONLY** PayMongo guard + `00 / 00` expiry mask. Pending (user): deploy to Vercel/host (R5*), human popup 3-D Secure QA, then R6 QA sign-off |
 | **Release** | | | / | **R6 pending — deploy on Vercel/host, then check QA boxes** |
 
