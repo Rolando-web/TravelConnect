@@ -98,6 +98,49 @@ describe("API client", () => {
     );
   });
 
+  it("unwraps the backend thread envelope so panes read conversation fields directly", async () => {
+    const conversation = {
+      id: 7,
+      subject: "Missing booking",
+      customerName: "Ana Cruz",
+      customerEmail: "ana@example.com",
+      status: "Open",
+    };
+    const messages = [
+      { id: 1, senderType: "customer", body: "I didn't get a receipt" },
+      { id: 2, senderType: "agent", body: "Resending it now" },
+    ];
+
+    const fetcher = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ conversation, messages }),
+      })
+    );
+    globalThis.fetch = fetcher;
+
+    const adminThread = await supportAdminApi.thread(7);
+    expect(adminThread).toEqual({ ...conversation, messages });
+
+    const customerThread = await supportApi.thread(7);
+    expect(customerThread).toEqual({ ...conversation, messages });
+  });
+
+  it("passes through non-envelope thread payloads untouched", async () => {
+    const fetcher = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ id: 7, subject: "S", messages: [] }),
+      })
+    );
+    globalThis.fetch = fetcher;
+
+    const thread = await supportApi.thread(7);
+    expect(thread).toEqual({ id: 7, subject: "S", messages: [] });
+  });
+
   it("routes inquiriesApi CRUD", async () => {
     const fetcher = vi.fn(() =>
       Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })

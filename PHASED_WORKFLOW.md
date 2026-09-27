@@ -1136,6 +1136,14 @@ Adding a System User did **two** steps: create the **Firebase sign-in credential
 | K3 | Smoke: Agency Admin adds a user with role **Hotel Supplier** / **Car Rental Supplier** → no 403, backend row + Firestore role written, sign-in works with the temp password, menu shows only Dashboard · My Hotels (or My Cars) · Profile | | ☐ |
 | K4 | Prod re-check after Vercel + backend re-upload; sign in as the new supplier accounts | | ☐ |
 
+### 21.7 Follow-up — Agency Support Hub thread pane broken (empty)
+
+Reported: the Agency Admin Support hub "failed". Root cause — **backend thread response shape mismatch**:
+
+`SupportController.GetAgentThread` (and customer `GetThread`) return an envelope `{ conversation, messages }`, but every thread pane consumes the conversation fields directly (`thread.subject`, `thread.messages`, …). So a real thread opened as a mostly-empty pane (fallback labels, "No messages yet.") in the **Agency Support Hub**, the Super Admin Support Hub, the Helpdesk inbox, **and** the customer chat. The unit tests mocked the *direct* shape, so they passed while the real app was broken.
+
+Fix: `api.js` now **unwraps the envelope in one place** — `supportApi.thread` and `supportAdminApi.thread` return `{ ...conversation, messages: [] }` (defaulting messages to `[]`), so every consumer works and the shape can't drift again. Added `api.test.js` regression tests (envelope unwrapped; non-envelope passed through). Frontend **154/154**, lint 0, build OK.
+
 ### 21.6 Follow-up — Delete user (System Users, Agency Admin)
 
 The System Users table had **no delete action** (the generic admin grid only rendered View/Edit, and the backend already supported `DELETE /api/users/{id}`). Added:

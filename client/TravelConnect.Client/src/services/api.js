@@ -132,15 +132,29 @@ export const inquiriesApi = crud("inquiries");
 export const supportApi = {
   list: () => request("/api/support/conversations"),
   create: (body) => request("/api/support/conversations", { method: "POST", body: JSON.stringify(body) }),
-  thread: (id) => request(`/api/support/conversations/${id}`),
+  thread: readThread(`/api/support/conversations`),
   send: (id, body) => request(`/api/support/conversations/${id}/messages`, { method: "POST", body: JSON.stringify(body) }),
   markRead: (id) => request(`/api/support/conversations/${id}/read`, { method: "PUT" }),
 };
 
+// The backend thread endpoints answer `{ conversation, messages }`, but every
+// thread pane (customer chat + the three admin hubs) reads the conversation
+// fields directly. Unwrap it here so a bare `thread.subject` / `thread.messages`
+// works everywhere and the shape can never drift again.
+function readThread(base) {
+  return async (id) => {
+    const data = await request(`${base}/${id}`);
+    if (data && typeof data === "object" && "conversation" in data) {
+      return { ...data.conversation, messages: data.messages ?? [] };
+    }
+    return data;
+  };
+}
+
 // Agent/Admin helpdesk: inbox, thread, reply, assign, status.
 export const supportAdminApi = {
   inbox: (query = "") => request(`/api/support/inbox${query}`),
-  thread: (id) => request(`/api/support/inbox/${id}`),
+  thread: readThread(`/api/support/inbox`),
   reply: (id, body) => request(`/api/support/inbox/${id}/reply`, { method: "POST", body: JSON.stringify(body) }, ADMIN_WRITE_TIMEOUT_MS),
   replyEmail: (id, body) => request(`/api/support/inbox/${id}/reply-email`, { method: "POST", body: JSON.stringify(body) }, ADMIN_WRITE_TIMEOUT_MS),
   read: (id) => request(`/api/support/inbox/${id}/read`, { method: "PUT" }),
