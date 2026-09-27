@@ -104,6 +104,23 @@ function crud(resource) {
 }
 
 export const bookingsApi = crud("bookings");
+
+// Cancellation & refund policy. The refund rules live in the database (grace
+// period, refund percentages, airline/agency/payment fees, approval routing) so
+// an admin can change them at runtime and the very next cancellation uses the
+// new numbers. This client never computes a refund — the server does.
+export const cancellationPolicyApi = {
+  get: () => request("/api/cancellation-policies"),
+  saveSettings: (body) =>
+    request("/api/cancellation-policies/settings", { method: "PUT", body: JSON.stringify(body) }, ADMIN_WRITE_TIMEOUT_MS),
+  createRule: (body) =>
+    request("/api/cancellation-policies/rules", { method: "POST", body: JSON.stringify(body) }, ADMIN_WRITE_TIMEOUT_MS),
+  updateRule: (id, body) =>
+    request(`/api/cancellation-policies/rules/${id}`, { method: "PUT", body: JSON.stringify(body) }, ADMIN_WRITE_TIMEOUT_MS),
+  deactivateRule: (id) =>
+    request(`/api/cancellation-policies/rules/${id}`, { method: "DELETE" }, ADMIN_WRITE_TIMEOUT_MS),
+  reset: () => request("/api/cancellation-policies/reset", { method: "POST" }, ADMIN_WRITE_TIMEOUT_MS),
+};
 export const paymentsApi = crud("payments");
 export const customersApi = crud("customers");
 export const packagesApi = crud("packages");

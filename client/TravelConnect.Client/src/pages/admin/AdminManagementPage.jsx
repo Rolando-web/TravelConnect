@@ -14,6 +14,7 @@ import ProfilePage from "./ProfilePage";
 import SupportPage from "./SupportPage";
 import HelpdeskInboxPage from "./HelpdeskInboxPage";
 import SystemSettingsPage from "./SystemSettingsPage";
+import CancellationPolicyPage from "./CancellationPolicyPage";
 import CrudModal from "../../components/admin/CrudModal";
 import StatCard from "../../components/admin/StatCard";
 import Pagination from "../../components/admin/Pagination";
@@ -35,7 +36,13 @@ import {
 } from "../../services/firestoreRoleSync";
 import { createSystemUser } from "../../services/systemUserProvision";
 
-const customPages = { profile: ProfilePage, support: SupportPage, settings: SystemSettingsPage, helpdesk: HelpdeskInboxPage };
+const customPages = {
+  profile: ProfilePage,
+  support: SupportPage,
+  settings: SystemSettingsPage,
+  "cancellation-policy": CancellationPolicyPage,
+  helpdesk: HelpdeskInboxPage,
+};
 
 // Shown only when adding a System User. The temporary password provisions a real
 // Firebase Auth credential — without it the account would appear in this table

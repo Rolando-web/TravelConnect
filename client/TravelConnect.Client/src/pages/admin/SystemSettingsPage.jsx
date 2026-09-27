@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useOutletContext } from "react-router-dom";
 import {
   Building2,
@@ -12,6 +13,7 @@ import {
   Sliders,
 } from "lucide-react";
 import { sanitizePhMobile, formatPhMobileFull } from "../../utils/phone";
+import { Field, SectionCard, Toggle } from "../../components/admin/SettingsPrimitives";
 
 const SETTINGS_KEY = "tc_system_settings";
 
@@ -23,7 +25,6 @@ const DEFAULT_SETTINGS = {
   enableGcash: true,
   enablePaymaya: true,
   enableCard: true,
-  cancellationWindowHours: 48,
   defaultLuggageProtection: true,
   emailConfirmations: true,
   inquiryAlerts: true,
@@ -43,56 +44,6 @@ function loadSettings() {
   } catch {
     return DEFAULT_SETTINGS;
   }
-}
-
-function Toggle({ checked, onChange, disabled, id, ariaLabel }) {
-  return (
-    <button
-      id={id}
-      type="button"
-      role="switch"
-      aria-label={ariaLabel}
-      aria-checked={checked}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-cyan-accent/50 disabled:opacity-40 disabled:cursor-not-allowed ${
-        checked ? "bg-cyan-accent" : "bg-navy-700 hover:bg-navy-600"
-      }`}
-    >
-      <span
-        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-          checked ? "translate-x-5" : "translate-x-0"
-        }`}
-      />
-    </button>
-  );
-}
-
-function SectionCard({ icon: Icon, title, subtitle, children }) {
-  return (
-    <div className="card">
-      <div className="flex items-center gap-3 mb-6 pb-4 border-b border-navy-700">
-        <div className="w-10 h-10 rounded-xl bg-cyan-accent/15 flex items-center justify-center text-cyan-accent shrink-0">
-          <Icon size={19} />
-        </div>
-        <div>
-          <h2 className="text-lg font-bold text-white">{title}</h2>
-          <p className="text-xs text-text-secondary">{subtitle}</p>
-        </div>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function Field({ label, hint, children }) {
-  return (
-    <label className="block text-xs font-semibold text-text-secondary">
-      {label}
-      <div className="mt-2 font-normal">{children}</div>
-      {hint && <span className="mt-1.5 block text-[11px] font-normal text-text-secondary/80 leading-relaxed">{hint}</span>}
-    </label>
-  );
 }
 
 export default function SystemSettingsPage() {
@@ -302,21 +253,23 @@ export default function SystemSettingsPage() {
               subtitle="Default cancellation rules and package add-on protections"
             >
               <div className="grid sm:grid-cols-2 gap-5 items-start">
-                <Field
-                  label="Cancellation Window (hours)"
-                  hint="Minimum notice required prior to travel date. Bookings cancelled outside this window qualify for refund processing."
-                >
-                  <input
-                    type="number"
-                    min="0"
-                    max="8760"
-                    step="1"
-                    className="input-field"
-                    value={settings.cancellationWindowHours}
-                    onChange={(e) => set("cancellationWindowHours", Math.min(8760, Math.max(0, Number(e.target.value) || 0)))}
-                    disabled={!canManage}
-                  />
-                </Field>
+                {/* The refund numbers (grace period, refund %, fees) live in the
+                    database and are edited on the Cancellation Policy page — a
+                    local number here could never affect a real refund. */}
+                <div className="rounded-xl bg-navy-900/80 border border-navy-700 p-4 flex flex-col justify-between">
+                  <div className="flex items-center justify-between gap-3 mb-1">
+                    <span className="text-sm font-bold text-text-primary">
+                      Cancellation &amp; Refund Policy
+                    </span>
+                    <Link to="/admin/cancellation-policy" className="text-xs font-bold text-cyan-accent hover:underline">
+                      Open
+                    </Link>
+                  </div>
+                  <p className="text-xs text-text-secondary mt-1">
+                    Grace period, refund percentages, airline/agency fees and approval routing are
+                    configured server-side and apply to the next cancellation request.
+                  </p>
+                </div>
 
                 <div className="rounded-xl bg-navy-900/80 border border-navy-700 p-4 flex flex-col justify-between">
                   <div className="flex items-center justify-between gap-3 mb-1">

@@ -15,9 +15,12 @@ export default function CrudModal({
   const [form, setForm] = useState({});
   const [errors, setErrors] = useState({});
 
+  // The form is seeded from `data` in both modes. An "add" form normally gets
+  // `data: null` (i.e. an empty record), but a caller may pass seed values so a
+  // new record starts valid without the admin filling every field.
   useEffect(() => {
     if (open) {
-      setForm(mode === "add" ? {} : { ...data });
+      setForm({ ...data });
       setErrors({});
     }
   }, [open, mode, data]);
@@ -94,7 +97,7 @@ export default function CrudModal({
     await onSave(form);
   };
 
-  const inputBase = "w-full bg-navy-900 border border-navy-700 rounded-xl px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-cyan-accent focus:ring-1 focus:ring-cyan-accent/30";
+  const inputBase = "w-full mt-1.5 bg-navy-900 border border-navy-700 rounded-xl px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-cyan-accent focus:ring-1 focus:ring-cyan-accent/30";
   const viewBase = `${inputBase} bg-navy-900/60 text-text-secondary cursor-default`;
 
   const renderField = (f) => {
@@ -252,10 +255,22 @@ export default function CrudModal({
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
-          {allFields.map((f) => (
-            <div key={f.key}>
-              {f.type !== "checkbox" && (
-                <label className="block text-xs font-semibold text-text-secondary mb-1.5">
+          {allFields.map((f) => {
+            const control = renderField(f);
+            // The control is nested inside its <label> so every field is
+            // programmatically labelled (getByLabelText, screen readers).
+            // Checkbox fields render their own label already.
+            if (f.type === "checkbox") {
+              return (
+                <div key={f.key}>
+                  {control}
+                  {errors[f.key] && <p className="text-xs text-badge-red mt-1">{errors[f.key]}</p>}
+                </div>
+              );
+            }
+            return (
+              <div key={f.key}>
+                <label className="block text-xs font-semibold text-text-secondary">
                   {f.label}
                   {f.required && !isView && <span className="text-badge-red ml-0.5">*</span>}
                   {f.readOnly && (
@@ -263,12 +278,12 @@ export default function CrudModal({
                       (auto — cannot be edited)
                     </span>
                   )}
+                  {control}
                 </label>
-              )}
-              {renderField(f)}
-              {errors[f.key] && <p className="text-xs text-badge-red mt-1">{errors[f.key]}</p>}
-            </div>
-          ))}
+                {errors[f.key] && <p className="text-xs text-badge-red mt-1">{errors[f.key]}</p>}
+              </div>
+            );
+          })}
         </form>
 
         {!isView && (
