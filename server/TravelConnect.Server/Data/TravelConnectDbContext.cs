@@ -79,6 +79,12 @@ public class TravelConnectDbContext : DbContext
         modelBuilder.Entity<BookingRefund>().Property(r => r.OriginalAmount).HasColumnType("decimal(18,2)");
         modelBuilder.Entity<BookingRefund>().Property(r => r.TotalDeductions).HasColumnType("decimal(18,2)");
 
+        // SQL Server refuses nvarchar(max) as an index key column, and
+        // IX_BookingCancellations_CustomerEmail covers lookups by address, so the
+        // length is pinned here to match the additive-migration DDL exactly.
+        modelBuilder.Entity<BookingCancellation>().Property(c => c.CustomerEmail).HasMaxLength(256);
+        modelBuilder.Entity<BookingCancellation>().Property(c => c.CustomerName).HasMaxLength(200);
+
         // Hard money guards at the schema level: a negative refund/amount is
         // never a legitimate row, so the database rejects it outright even if a
         // future code path forgets to clamp.
