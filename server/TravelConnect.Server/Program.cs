@@ -70,7 +70,6 @@ builder.Services.AddHttpClient<PayMongoService>();
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
 builder.Services.AddSingleton<EmailService>();
 builder.Services.AddSingleton<PdfService>();
-builder.Services.AddSingleton<CancellationService>();
 
 // Promo validation is shared by the public validation endpoint and the booking
 // pipeline. It consumes the scoped DbContext, so it must be scoped too.
@@ -84,6 +83,7 @@ builder.Services.AddScoped<BookingLifecycleService>();
 // interpreted by this service; staff permissions come from the SystemUsers
 // table, never from the request body. Both consume the scoped DbContext.
 builder.Services.AddScoped<CancellationPolicyService>();
+builder.Services.AddScoped<CancellationQuoteService>();
 builder.Services.AddScoped<StaffContextService>();
 
 // EmailJS admin notifications (sent server-side so the email path is

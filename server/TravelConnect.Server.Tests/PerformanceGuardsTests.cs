@@ -89,7 +89,7 @@ public class PerformanceGuardsTests
         await Seed(db, 520, Booking);
 
         var controller = new BookingsController(
-            db, null!, null!, new CancellationService(), new PromoService(db),
+            db, null!, null!, new PromoService(db),
             new BookingLifecycleService(db),
             NullLogger<BookingsController>.Instance)
             .WithIdentity("u", "super@tc.com");

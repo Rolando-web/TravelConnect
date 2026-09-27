@@ -93,6 +93,25 @@ export default function BookingDetailsModal() {
             </div>
           </div>
 
+          {/* Cancellation / refund status — a live request must stay visible */}
+          {(b.cancellationStatus || b.refundStatus) && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs space-y-1.5">
+              <p className="font-bold text-amber-800">
+                {b.cancellationStatus || "Cancellation requested"}
+              </p>
+              {b.cancellationReason && (
+                <p className="text-amber-700">Reason: {b.cancellationReason}</p>
+              )}
+              {b.refundStatus && (
+                <p className="text-amber-700">
+                  Refund: {b.refundStatus}
+                  {b.refundReference ? ` · ${b.refundReference}` : ""}
+                  {Number(b.refundAmount || 0) > 0 ? ` · ${displayPrice(b.refundAmount)}` : ""}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Transaction Metadata */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white border border-gray-100 rounded-2xl p-4 text-xs">
             <div>
@@ -218,7 +237,7 @@ export default function BookingDetailsModal() {
           {/* Cancellation Section Component */}
           {b.status === "upcoming" && (
             <CancellationSection
-              bookingId={b.id}
+              booking={b}
               onCancelConfirm={cancelBookingTransaction}
             />
           )}

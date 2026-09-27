@@ -377,19 +377,28 @@ export async function createBooking(bookingPayload) {
   });
 }
 
-export async function cancelBookingApi(bookingId) {
-  const result = await request(`/api/bookings/${bookingId}/cancel`, { method: "POST" });
-  return result || { success: true, message: "Booking cancelled successfully" };
+// ── Cancellation request (quote, then request) ───────────────────
+// The refund is calculated and frozen by the server; the client only sends a
+// reason. `proof` is the booking reference + email, which is what the API
+// requires from a caller who is not signed in.
+function proofQuery(proof) {
+  if (!proof?.referenceNumber || !proof?.customerEmail) return "";
+  return `?referenceNumber=${encodeURIComponent(proof.referenceNumber)}&email=${encodeURIComponent(proof.customerEmail)}`;
 }
 
-// ── Refund preview (tiered cancellation policy) ─────────────────
+export async function getCancellationQuote(bookingId, proof) {
+  return request(`/api/bookings/${bookingId}/cancellation-quote${proofQuery(proof)}`);
+}
 
-export async function getRefundPreview(bookingId) {
-  try {
-    return await request(`/api/bookings/${bookingId}/refund-preview`);
-  } catch {
-    return null;
-  }
+export async function requestBookingCancellation(bookingId, payload) {
+  return request(`/api/bookings/${bookingId}/cancellation-requests`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function getCancellationStatus(bookingId, proof) {
+  return request(`/api/bookings/${bookingId}/cancellation${proofQuery(proof)}`);
 }
 
 // ── PDF itinerary & confirmation email ──────────────────────────

@@ -30,7 +30,6 @@ public class BookingsControllerTests
             db,
             provider.GetRequiredService<IServiceScopeFactory>(),
             new PdfService(),
-            new CancellationService(),
             new PromoService(db),
             new BookingLifecycleService(db),
             NullLogger<BookingsController>.Instance);

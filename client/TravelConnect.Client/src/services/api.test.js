@@ -7,6 +7,9 @@ import {
   imgSrc,
   handleImgError,
   IMAGE_FALLBACK,
+  getCancellationQuote,
+  requestBookingCancellation,
+  getCancellationStatus,
   validatePromoCode,
   fetchWithTimeout,
 } from "./api";
@@ -264,6 +267,68 @@ describe("API client", () => {
     const flat = await validatePromoCode("FLAT300", 2000);
     expect(flat.discountAmount).toBe(300);
     expect(flat.finalAmount).toBe(1700);
+  });
+
+  it("routes the cancellation quote with the reference + email proof", async () => {
+    const fetcher = vi.fn(() =>
+      Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ refundAmount: 0 }) })
+    );
+    globalThis.fetch = fetcher;
+
+    await getCancellationQuote(7, { referenceNumber: "TC-2026-ABCD", customerEmail: "j@tc.com" });
+
+    expect(fetcher).toHaveBeenCalledWith(
+      `${API_URL}/api/bookings/7/cancellation-quote?referenceNumber=TC-2026-ABCD&email=j%40tc.com`,
+      expect.anything()
+    );
+  });
+
+  it("posts the cancellation request and reports the server rejection", async () => {
+    const fetcher = vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 409,
+        json: () => Promise.resolve({ message: "A cancellation request is already open." }),
+      })
+    );
+    globalThis.fetch = fetcher;
+
+    await expect(
+      requestBookingCancellation(7, { reasonCode: "illness", reason: "" })
+    ).rejects.toThrow("A cancellation request is already open.");
+
+    const [url, options] = fetcher.mock.calls[0];
+    expect(url).toBe(`${API_URL}/api/bookings/7/cancellation-requests`);
+    expect(options.method).toBe("POST");
+    expect(JSON.parse(options.body)).toEqual({ reasonCode: "illness", reason: "" });
+  });
+
+  it("reads the live cancellation status with the same proof", async () => {
+    const fetcher = vi.fn(() =>
+      Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ status: "Approved" }) })
+    );
+    globalThis.fetch = fetcher;
+
+    await getCancellationStatus(7, { referenceNumber: "TC-2026-ABCD", customerEmail: "j@tc.com" });
+
+    expect(fetcher).toHaveBeenCalledWith(
+      `${API_URL}/api/bookings/7/cancellation?referenceNumber=TC-2026-ABCD&email=j%40tc.com`,
+      expect.anything()
+    );
+  });
+
+  it("never sends a proof-less cancellation call as an anonymous lookup", async () => {
+    const fetcher = vi.fn(() =>
+      Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) })
+    );
+    globalThis.fetch = fetcher;
+
+    await getCancellationQuote(7, {});
+
+    expect(fetcher).toHaveBeenCalledWith(
+      `${API_URL}/api/bookings/7/cancellation-quote`,
+      expect.anything()
+    );
   });
 
   it("retries a network-rejected GET once and succeeds on the second attempt", async () => {

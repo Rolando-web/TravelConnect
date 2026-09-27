@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useRef } from "react";
 import { Lock } from "lucide-react";
 import {
   createBooking,
-  cancelBookingApi,
+  requestBookingCancellation,
   createPayMongoCheckout,
   getPayMongoCheckoutStatus,
   finalizePayMongoPayment,
@@ -451,88 +451,54 @@ export function BookingProvider({ children }) {
     return status === "paid" ? "succeeded" : status;
   };
 
-  // ── Instant Cancellation & Automatic Refund ─────────────────────────────
-  const cancelBookingTransaction = async (bookingId, reason = "User requested cancellation") => {
+  // ── Cancellation request (the server decides the money) ────────────────
+  const cancelBookingTransaction = async (bookingId, { reasonCode = "change-of-plans", reason = "" } = {}) => {
     const target = bookings.find((b) => b.id === bookingId) || selectedBookingDetails;
-    const fullAmount = Number(target?.amount || target?.totalAmount || target?.price || 0);
+    const proof = {
+      referenceNumber: target?.referenceNumber,
+      customerEmail: target?.customerEmail,
+    };
 
-    // 1. Call backend cancel endpoint. It applies the cancellation policy,
-    //    releases seat inventory, and generates the refund reference.
-    let refundAmount = fullAmount;
-    let refundRef = `RFND-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
-    let policyTier = target?.cancellationPolicyTier || "full";
-    let backendResponse = null;
-    try {
-      backendResponse = await cancelBookingApi(bookingId);
-      if (backendResponse && typeof backendResponse.refundAmount === "number") {
-        refundAmount = backendResponse.refundAmount;
-      }
-      if (backendResponse?.refundReference) refundRef = backendResponse.refundReference;
-      if (backendResponse?.policyTier) policyTier = backendResponse.policyTier;
-    } catch {
-      /* offline fallback — keep full refund */
-    }
+    // No local fallback: if the server refuses the cancellation the customer
+    // must be told, never shown a refund that was never issued.
+    const result = await requestBookingCancellation(bookingId, {
+      reasonCode,
+      reason,
+      referenceNumber: proof.referenceNumber,
+      customerEmail: proof.customerEmail,
+    });
 
-    const refundedAt = new Date().toISOString();
+    const serverStatus = result?.bookingStatus || "cancelled";
+    const serverCancellationStatus = result?.cancellationStatus || "";
+    const refundAmount = Number(result?.cancellation?.refundAmount ?? result?.refund?.amount ?? 0);
+    const refundReference = result?.refund?.reference || result?.cancellation?.reference || "";
+
+    const patch = {
+      status: serverStatus,
+      cancellationStatus: serverCancellationStatus,
+      cancellationReason: reason || result?.cancellation?.reason || "",
+      cancellationPolicyTier: result?.cancellation?.policyTier || "",
+      refundStatus: result?.refund?.status || "",
+      refundReference,
+      refundAmount,
+    };
 
     setBookings((prev) =>
-      prev.map((b) => {
-        if (b.id === bookingId) {
-          return {
-            ...b,
-            status: "refunded",
-            paid: false,
-            refundStatus: "Processed",
-            refundReference: refundRef,
-            refundedAt,
-            cancellationReason: reason,
-            cancellationPolicyTier: policyTier,
-            refundAmount,
-          };
-        }
-        return b;
-      })
+      prev.map((b) => (b.id === bookingId ? { ...b, ...patch } : b))
     );
 
     if (selectedBookingDetails && selectedBookingDetails.id === bookingId) {
-      setSelectedBookingDetails((prev) =>
-        prev
-          ? {
-              ...prev,
-              status: "refunded",
-              paid: false,
-              refundStatus: "Processed",
-              refundReference: refundRef,
-              refundedAt,
-              cancellationReason: reason,
-              cancellationPolicyTier: policyTier,
-              refundAmount,
-            }
-          : prev
-      );
-    }
-
-    // 2. Credit refund to TravelConnect Money (PHP Wallet). Read the live
-    //    balance instead of the state snapshot so concurrent refunds cannot
-    //    double-count on a stale value.
-    let newBalance = walletBalance;
-    if (refundAmount > 0) {
-      newBalance = writeWallet(Number(readWallet() || 0) + refundAmount);
-    }
-
-    // 3. Best-effort email notification (backend sends its own on cancel; this
-    //    is a no-op offline).
-    if (backendResponse?.success === false) {
-      // still friendly — refunded locally
+      setSelectedBookingDetails((prev) => (prev ? { ...prev, ...patch } : prev));
     }
 
     return {
-      success: true,
-      refundReference: refundRef,
-      refundedAt,
+      success: Boolean(result?.success),
+      message: result?.message || "Cancellation request submitted.",
+      requiresApproval: Boolean(result?.cancellation?.requiresApproval),
+      refundReference,
       refundAmount,
-      policyTier,
-      newWalletBalance: newBalance
+      policyTier: result?.cancellation?.policyTier || "",
+      bookingStatus: serverStatus,
     };
   };
 

@@ -2,22 +2,35 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   MapPin, Calendar, Users, CreditCard, BadgeCheck, CalendarClock,
-  ArrowRight, Globe, Lock, FileText, RotateCcw, ShieldCheck, CheckCircle2,
+  ArrowRight, Globe, Lock, FileText, RotateCcw, CheckCircle2,
   Coins, Check, Download
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useBooking } from "../context/BookingContext";
 import { useCurrency } from "../context/CurrencyContext";
-import { getRefundPreview, generateItineraryPdf } from "../services/api";
+import { generateItineraryPdf } from "../services/api";
+import { tierPresentation } from "../data/cancellationReasons";
+import CancellationRequestForm from "../components/booking/CancellationRequestForm";
 import FlightStatusCard from "../components/booking/FlightStatusCard";
 
 /* ─── Status helpers ─────────────────────────────────────────────────── */
 const STATUS_CONFIG = {
   upcoming: { label: "Active & Confirmed", color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20", dot: "bg-emerald-500" },
   completed: { label: "Completed Journey", color: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20", dot: "bg-blue-500" },
+  "cancellation-requested": { label: "Cancellation Under Review", color: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20", dot: "bg-amber-500" },
+  "refund-pending": { label: "Refund Pending", color: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20", dot: "bg-amber-500" },
+  "refund-processing": { label: "Refund Processing", color: "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20", dot: "bg-sky-500" },
+  "refund-failed": { label: "Refund Failed", color: "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20", dot: "bg-rose-500" },
   cancelled: { label: "Cancelled", color: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20", dot: "bg-slate-400" },
-  refunded: { label: "100% Refunded", color: "bg-sky-500/10 text-[#008fe5] dark:text-[#38bdf8] border-sky-500/20", dot: "bg-[#008fe5]" },
+  "non-refundable": { label: "Non-Refundable", color: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20", dot: "bg-slate-400" },
+  "no-show": { label: "No-Show", color: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20", dot: "bg-slate-400" },
+  refunded: { label: "Refunded", color: "bg-sky-500/10 text-[#008fe5] dark:text-[#38bdf8] border-sky-500/20", dot: "bg-[#008fe5]" },
 };
+
+// A cancellation that is still under review is still a live booking, so it must
+// stay visible in the Upcoming tab instead of vanishing from the customer's list.
+const STILL_ACTIVE = new Set(["upcoming", "cancellation-requested", "refund-pending", "refund-processing"]);
+const CLOSED_OUT = new Set(["cancelled", "refunded", "refund-failed", "non-refundable", "no-show"]);
 
 /* ═══════════════════════════════════════════════════════════════════════
    LOGIN GATE — minimal luxury sign-in invitation
@@ -218,8 +231,7 @@ function BookingsDashboard() {
   const [cancelModalBooking, setCancelModalBooking] = useState(null);
   const [cancellingInProgress, setCancellingInProgress] = useState(false);
   const [refundSuccessData, setRefundSuccessData] = useState(null);
-  const [refundPreview, setRefundPreview] = useState(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
+  const [cancelError, setCancelError] = useState("");
   const [downloadingRef, setDownloadingRef] = useState(null);
   const [actionNotice, setActionNotice] = useState("");
 
@@ -230,25 +242,22 @@ function BookingsDashboard() {
     return () => clearTimeout(t);
   }, [actionNotice]);
 
-  const upcomingCount = bookings.filter((b) => b.status === "upcoming").length;
-  const refundedCount = bookings.filter((b) => b.status === "refunded" || b.status === "cancelled").length;
+  const upcomingCount = bookings.filter((b) => STILL_ACTIVE.has(b.status)).length;
+  const refundedCount = bookings.filter((b) => CLOSED_OUT.has(b.status)).length;
   const completedCount = bookings.filter((b) => b.status === "completed").length;
 
   const visible = bookings.filter((b) => {
     if (activeTab === "all") return true;
-    if (activeTab === "refunded") return b.status === "refunded" || b.status === "cancelled";
+    if (activeTab === "refunded") return CLOSED_OUT.has(b.status);
+    if (activeTab === "upcoming") return STILL_ACTIVE.has(b.status);
     return b.status === activeTab;
   });
 
-  // Fetch the tiered refund breakdown as soon as the cancel modal opens.
+  // The cancel modal itself loads the server-computed quote.
   const requestCancel = (booking) => {
-    setRefundPreview(null);
+    setCancelError("");
+    setRefundSuccessData(null);
     setCancelModalBooking(booking);
-    setPreviewLoading(true);
-    getRefundPreview(booking.id ?? booking.referenceNumber)
-      .then((preview) => setRefundPreview(preview))
-      .catch(() => setRefundPreview(null))
-      .finally(() => setPreviewLoading(false));
   };
 
   const downloadPdf = async (booking) => {
@@ -274,36 +283,24 @@ function BookingsDashboard() {
     }
   };
 
-  const previewEffectiveAmount = refundPreview?.refundAmount
-    ?? (cancelModalBooking?.amount || cancelModalBooking?.totalAmount || 0);
-
-  const handleConfirmCancelAndRefund = async () => {
-    if (!cancelModalBooking) return;
+  const handleConfirmCancelAndRefund = async (bookingId, payload) => {
     setCancellingInProgress(true);
+    setCancelError("");
     try {
-      const res = await cancelBookingTransaction(cancelModalBooking.id, "User requested refund");
-      setCancellingInProgress(false);
+      const res = await cancelBookingTransaction(bookingId, payload);
       setRefundSuccessData({
         ...cancelModalBooking,
         refundReference: res.refundReference,
-        refundAmount: res.refundAmount ?? previewEffectiveAmount,
-        newWalletBalance: res.newWalletBalance,
+        refundAmount: res.refundAmount,
+        requiresApproval: res.requiresApproval,
+        message: res.message,
         policyTier: res.policyTier,
       });
       setCancelModalBooking(null);
-      setRefundPreview(null);
-    } catch {
+    } catch (err) {
+      setCancelError(err?.message || "Failed to cancel booking. Please try again.");
+    } finally {
       setCancellingInProgress(false);
-      setActionNotice("Failed to cancel booking. Please try again.");
-    }
-  };
-
-  const policyBadge = (tier) => {
-    switch (tier) {
-      case "full": return { label: "100% Full Refund", cls: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 fill-emerald-500" };
-      case "partial": return { label: "Partial Refund (50%)", cls: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20 fill-amber-500" };
-      case "credit": return { label: "Travel Credit", cls: "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20 fill-sky-500" };
-      default: return { label: "Refund", cls: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20 fill-slate-500" };
     }
   };
 
@@ -422,86 +419,33 @@ function BookingsDashboard() {
             </div>
 
             <div className="space-y-1.5">
-              <h3 className="font-heading text-xl font-bold">Request Instant Refund?</h3>
+              <h3 className="font-heading text-xl font-bold">Cancel this booking?</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
                 You are about to cancel <strong className="text-slate-900 dark:text-white">{cancelModalBooking.name || cancelModalBooking.packageName}</strong>.
+                Your refund is calculated by our team, so the amounts below are an estimate.
               </p>
             </div>
 
-            {/* Cancellation Policy Breakdown */}
-            <div className="space-y-2">
-              {previewLoading ? (
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] text-center text-xs font-semibold text-slate-500 dark:text-slate-400 animate-pulse">
-                  Calculating your refund…
-                </div>
-              ) : (
-                <>
-                  <div className={`p-3.5 rounded-2xl border text-xs flex items-center justify-between ${policyBadge(refundPreview?.policyTier).cls}`}>
-                    <span className="font-bold flex items-center gap-2">
-                      <ShieldCheck size={14} />
-                      {policyBadge(refundPreview?.policyTier).label}
-                    </span>
-                    <span className="font-mono font-black text-sm">
-                      {displayPrice(previewEffectiveAmount)}
-                    </span>
-                  </div>
-
-                  {refundPreview?.message && (
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                      {refundPreview.message}
-                    </p>
-                  )}
-
-                  {!refundPreview?.policyTier && (
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                      Cancelling within 7 days of booking qualifies for a 100% full refund. After day 7, a partial
-                      refund or travel credit applies.
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] text-xs space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Booking Ref:</span>
-                <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{cancelModalBooking.id || cancelModalBooking.referenceNumber}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Refund Destination:</span>
-                <span className="font-semibold text-emerald-600 dark:text-emerald-400">TravelConnect Wallet</span>
-              </div>
-              {(refundPreview?.policyTier === "credit") && (
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500 dark:text-slate-400">Refund Type:</span>
-                  <span className="font-semibold text-sky-600 dark:text-sky-400">Travel Credit (No Cashback)</span>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center gap-3 pt-2">
-              <button
-                type="button"
-                disabled={cancellingInProgress}
-                onClick={() => setCancelModalBooking(null)}
-                className="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-white/[0.05] hover:bg-slate-200 dark:hover:bg-white/[0.1] text-xs font-semibold transition"
-              >
-                Keep Booking
-              </button>
-              <button
-                type="button"
-                disabled={cancellingInProgress}
-                onClick={handleConfirmCancelAndRefund}
-                className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition shadow-md flex items-center justify-center gap-1.5"
-              >
-                {cancellingInProgress ? "Processing..." : "Confirm & Refund"}
-              </button>
-            </div>
+            <CancellationRequestForm
+              booking={cancelModalBooking}
+              onSubmit={handleConfirmCancelAndRefund}
+              submitLabel="Confirm & Refund"
+            />
+            {cancelError && (
+              <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">{cancelError}</p>
+            )}
+            <button
+              type="button"
+              disabled={cancellingInProgress}
+              onClick={() => { setCancelModalBooking(null); setCancelError(""); }}
+              className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-white/[0.05] hover:bg-slate-200 dark:hover:bg-white/[0.1] text-xs font-semibold transition"
+            >
+              Keep Booking
+            </button>
           </div>
         </div>
       )}
-
-      {/* ─── Refund Success Notice ───────────────────────────────────── */}
+      {/* ─── Cancellation Outcome Notice ─────────────────────────────── */}
       {refundSuccessData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
           <div
@@ -514,27 +458,31 @@ function BookingsDashboard() {
 
             <div className="space-y-1.5">
               <h3 className="font-heading text-2xl font-bold">
-                {refundSuccessData.policyTier === "credit"
-                  ? "Travel Credit Issued"
-                  : "Refund Processed Successfully"}
+                {refundSuccessData.requiresApproval
+                  ? "Cancellation Requested"
+                  : "Refund Processing Started"}
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {refundSuccessData.policyTier === "credit"
-                  ? "A travel credit of "
-                  : "The amount of "}
-                <strong className="text-emerald-600 dark:text-emerald-400 font-mono text-sm">{displayPrice(refundSuccessData.refundAmount)}</strong>
-                {" "}has been applied to your TravelConnect Money wallet.
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                {refundSuccessData.message}
               </p>
             </div>
 
             <div className="flex flex-wrap items-center justify-center gap-2">
-              <span className={`px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider ${policyBadge(refundSuccessData.policyTier).cls}`}>
-                {policyBadge(refundSuccessData.policyTier).label}
+              <span className={`px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider ${tierPresentation(refundSuccessData.policyTier).cls}`}>
+                {tierPresentation(refundSuccessData.policyTier).label}
               </span>
-              <span className="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-white/[0.05] border border-slate-200 dark:border-white/[0.06] text-[10px] font-mono text-slate-500 dark:text-slate-400">
-                Wallet Balance: {displayPrice(refundSuccessData.newWalletBalance)}
-              </span>
+              {refundSuccessData.refundReference && (
+                <span className="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-white/[0.05] border border-slate-200 dark:border-white/[0.06] text-[10px] font-mono text-slate-500 dark:text-slate-400">
+                  Ref: {refundSuccessData.refundReference}
+                </span>
+              )}
             </div>
+
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+              {refundSuccessData.refundAmount > 0
+                ? `A refund of ${displayPrice(refundSuccessData.refundAmount)} will be returned to your original payment method once it clears our review.`
+                : "No refund is due under the current cancellation policy."}
+            </p>
 
             <button
               onClick={() => setRefundSuccessData(null)}
