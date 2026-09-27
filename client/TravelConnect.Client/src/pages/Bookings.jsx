@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   MapPin, Calendar, Users, CreditCard, BadgeCheck, CalendarClock,
-  ArrowRight, Globe, Lock, FileText, RotateCcw, CheckCircle2,
+  ArrowRight, Globe, Lock, FileText, RotateCcw, CheckCircle2, AlertTriangle,
   Coins, Check, Download
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
@@ -85,7 +85,16 @@ function LoginGate() {
 ═══════════════════════════════════════════════════════════════════════ */
 function BookingVoucherCard({ booking, onViewDetails, onRequestCancel, onDownloadPdf, downloadingRef }) {
   const { displayPrice } = useCurrency();
-  const isRefunded = booking.status === "refunded" || booking.status === "cancelled";
+  // Only a settled refund is a refund. A cancelled booking has had its seats
+  // released; whether money comes back is the refund queue's business, and it is
+  // quoted by the policy, not by this card.
+  const refundState = booking.status === "refunded" ? "settled"
+    : ["refund-pending", "refund-processing"].includes(booking.status) ? "in-flight"
+    : booking.status === "refund-failed" ? "failed"
+    : booking.status === "cancelled" ? "cancelled"
+    : null;
+  const isRefunded = refundState === "settled";
+  const refundedAmount = booking.refundAmount ?? 0;
   const st = STATUS_CONFIG[booking.status] || STATUS_CONFIG.upcoming;
   const bookingAmount = booking.amount || booking.totalAmount || 0;
   const flightSegments = Array.isArray(booking.bookingFlights) ? booking.bookingFlights : [];
@@ -110,7 +119,12 @@ function BookingVoucherCard({ booking, onViewDetails, onRequestCancel, onDownloa
 
         {isRefunded && (
           <span className="absolute top-3 left-3 bg-amber-500 text-slate-950 text-[9px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-full shadow-md font-bold">
-            100% REFUNDED
+            REFUNDED
+          </span>
+        )}
+        {!isRefunded && refundState === "in-flight" && (
+          <span className="absolute top-3 left-3 bg-sky-500 text-slate-950 text-[9px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-full shadow-md font-bold">
+            REFUND IN PROGRESS
           </span>
         )}
       </div>
@@ -156,14 +170,39 @@ function BookingVoucherCard({ booking, onViewDetails, onRequestCancel, onDownloa
             </div>
           )}
 
-          {/* Refund Notice Banner */}
-          {isRefunded && (
-            <div className="mt-4 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl p-3 flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-300">
+          {/* Refund Notice Banner — only ever states what the server recorded */}
+          {refundState && (
+            <div
+              className={`mt-4 border rounded-2xl p-3 flex items-center justify-between text-xs ${
+                refundState === "failed"
+                  ? "bg-rose-500/10 border-rose-500/25 text-rose-800 dark:text-rose-300"
+                  : refundState === "settled"
+                    ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-800 dark:text-emerald-300"
+                    : "bg-sky-500/10 border-sky-500/25 text-sky-800 dark:text-sky-300"
+              }`}
+            >
               <div className="flex items-center gap-2">
-                <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
-                <span className="font-semibold">Full refund of {displayPrice(bookingAmount)} credited to TravelConnect Money.</span>
+                {refundState === "failed" ? (
+                  <AlertTriangle size={15} className="text-rose-500 shrink-0" />
+                ) : (
+                  <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                )}
+                <span className="font-semibold">
+                  {refundState === "settled" &&
+                    `Refund of ${displayPrice(refundedAmount)} returned to your ${booking.paymentMethod || "original payment method"}.`}
+                  {refundState === "in-flight" &&
+                    `Refund of ${displayPrice(refundedAmount)} is with our finance team.`}
+                  {refundState === "failed" &&
+                    "Your refund could not be completed. Our finance team is retrying it."}
+                  {refundState === "cancelled" &&
+                    (refundedAmount > 0
+                      ? `Booking cancelled. A refund of ${displayPrice(refundedAmount)} is being arranged.`
+                      : "Booking cancelled. This booking is not refundable under our cancellation policy.")}
+                </span>
               </div>
-              <span className="font-mono text-[10px] font-bold text-emerald-700 dark:text-emerald-300">{booking.refundReference || "RFND-PROCESSED"}</span>
+              {booking.refundReference && (
+                <span className="font-mono text-[10px] font-bold opacity-80">{booking.refundReference}</span>
+              )}
             </div>
           )}
         </div>

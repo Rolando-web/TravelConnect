@@ -119,7 +119,7 @@ public class PerformanceGuardsTests
         using var db = TestDb.Create();
         await Seed(db, 520, Payment);
 
-        var controller = new PaymentsController(db, null!, null!)
+        var controller = new PaymentsController(db, null!, null!, new StaffContextService(db))
             .WithIdentity("u", "super@tc.com");
 
         var result = await controller.GetAll(page: 1, pageSize: 9000);

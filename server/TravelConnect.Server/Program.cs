@@ -85,6 +85,7 @@ builder.Services.AddScoped<BookingLifecycleService>();
 builder.Services.AddScoped<CancellationPolicyService>();
 builder.Services.AddScoped<CancellationQuoteService>();
 builder.Services.AddScoped<CancellationReviewService>();
+builder.Services.AddScoped<RefundProcessingService>();
 builder.Services.AddScoped<StaffContextService>();
 
 // EmailJS admin notifications (sent server-side so the email path is

@@ -132,6 +132,20 @@ export const cancellationReviewApi = {
   reject: (id, body) =>
     request(`/api/admin/cancellations/${id}/reject`, { method: "POST", body: JSON.stringify(body) }, ADMIN_WRITE_TIMEOUT_MS),
 };
+export const refundsApi = {
+  list: (query = "") => request(`/api/admin/refunds${query}`),
+  get: (id) => request(`/api/admin/refunds/${id}`),
+  release: (id, body) =>
+    request(`/api/admin/refunds/${id}/release`, { method: "POST", body: JSON.stringify(body ?? {}) }, ADMIN_WRITE_TIMEOUT_MS),
+  process: (id, body) =>
+    request(`/api/admin/refunds/${id}/process`, { method: "POST", body: JSON.stringify(body ?? {}) }, ADMIN_WRITE_TIMEOUT_MS),
+  complete: (id, body) =>
+    request(`/api/admin/refunds/${id}/complete`, { method: "POST", body: JSON.stringify(body ?? {}) }, ADMIN_WRITE_TIMEOUT_MS),
+  fail: (id, body) =>
+    request(`/api/admin/refunds/${id}/fail`, { method: "POST", body: JSON.stringify(body ?? {}) }, ADMIN_WRITE_TIMEOUT_MS),
+  retry: (id, body) =>
+    request(`/api/admin/refunds/${id}/retry`, { method: "POST", body: JSON.stringify(body ?? {}) }, ADMIN_WRITE_TIMEOUT_MS),
+};
 export const paymentsApi = crud("payments");export const customersApi = crud("customers");
 export const packagesApi = crud("packages");
 export const destinationsApi = crud("destinations");

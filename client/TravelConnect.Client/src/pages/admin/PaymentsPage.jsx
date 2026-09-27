@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Download, Plus, Search, SlidersHorizontal, Inbox, RefreshCcw, Check, ShieldCheck } from "lucide-react";
+import { Download, Plus, Search, SlidersHorizontal, Inbox, RefreshCcw, Check, ShieldCheck, AlertTriangle } from "lucide-react";
 import { paymentsApi, getPaymentReconciliation, refundPaymentToWallet } from "../../services/api";
 import CrudModal from "../../components/admin/CrudModal";
 import StatCard from "../../components/admin/StatCard";
@@ -60,6 +60,7 @@ export default function PaymentsPage() {
   const [modal, setModal] = useState({ open: false, mode: "add", data: null });
   const [saving, setSaving] = useState(false);
   const [refundingId, setRefundingId] = useState(null);
+  const [refundError, setRefundError] = useState("");
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
 
@@ -94,13 +95,16 @@ export default function PaymentsPage() {
   const handleRefund = async (p) => {
     if (!window.confirm(`Issue refund to wallet for ${money(p.amount)} (${p.referenceId || p.id})?`)) return;
     setRefundingId(p.id ?? p.referenceId);
+    setRefundError("");
     try {
       await refundPaymentToWallet(p.id);
       setLoading(true);
       load();
       loadRecon();
     } catch (err) {
-      alert(err.message || "Failed to issue refund");
+      // A cancelled booking is refused by the server and pointed at the refund
+      // queue, because that is the only path that respects the policy amount.
+      setRefundError(err.message || "Failed to issue refund");
     } finally {
       setRefundingId(null);
     }
@@ -177,6 +181,12 @@ export default function PaymentsPage() {
           <button onClick={() => openModal("add")} className="btn-primary"><Plus size={17} /> Record Payment</button>
         </div>
       </section>
+
+      {refundError && (
+        <div className="mb-4 rounded-xl border border-badge-red/30 bg-badge-red/10 px-4 py-3 text-sm text-badge-red flex items-center gap-2">
+          <AlertTriangle size={16} /> {refundError}
+        </div>
+      )}
 
       <div className="flex items-center gap-1 mb-5 bg-navy-900 border border-navy-700 rounded-xl p-1 w-fit">
         <button

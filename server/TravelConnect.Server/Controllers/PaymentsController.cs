@@ -15,7 +15,8 @@ namespace TravelConnect.Server.Controllers;
 public class PaymentsController(
     TravelConnectDbContext db,
     PayMongoService payMongo,
-    PayMongoOptions payMongoOptions) : ControllerBase
+    PayMongoOptions payMongoOptions,
+    StaffContextService staff) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Payment>>> GetAll(int? page = null, int? pageSize = null)
@@ -682,9 +683,20 @@ public class PaymentsController(
     }
 
     // POST api/payments/{id}/refund-to-wallet
+    //
+    // Legacy shortcut, kept only for payments that were never part of a
+    // cancellation. A cancellation creates its own BookingRefund with the policy
+    // amount, fees and audit trail, and paying that booking from here would refund
+    // the full ticket (ignoring fees) while the real refund row sat untouched in
+    // Pending. Two money paths for one booking is exactly how a customer ends up
+    // paid twice, so the queue in RefundsController owns cancellation payouts.
     [HttpPost("{id:int}/refund-to-wallet")]
     public async Task<IActionResult> RefundToWallet(int id)
     {
+        var actor = await staff.ResolveAsync(User);
+        if (!actor.CanManageRefunds)
+            return Forbid();
+
         var payment = await db.Payments
             .Include(p => p.Booking)
             .FirstOrDefaultAsync(p => p.Id == id);
@@ -692,6 +704,22 @@ public class PaymentsController(
         if (payment is null) return NotFound(new { message = "Payment not found" });
         if (payment.Status == "Refunded")
             return BadRequest(new { message = "Payment is already refunded" });
+
+        if (payment.BookingId is not null)
+        {
+            var liveRefund = await db.BookingRefunds
+                .Where(r => r.BookingId == payment.BookingId && r.Status != RefundStatuses.Voided)
+                .OrderByDescending(r => r.Id)
+                .FirstOrDefaultAsync();
+
+            if (liveRefund is not null)
+                return Conflict(new
+                {
+                    message = $"This booking was cancelled. Release refund {liveRefund.Reference} from the refund queue instead.",
+                    refundId = liveRefund.Id,
+                    refundStatus = liveRefund.Status,
+                });
+        }
 
         // Update payment status
         payment.Status = "Refunded";

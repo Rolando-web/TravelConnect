@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { useOutletContext, useParams } from "react-router-dom";
 import {
   Download,
@@ -16,6 +16,7 @@ import HelpdeskInboxPage from "./HelpdeskInboxPage";
 import SystemSettingsPage from "./SystemSettingsPage";
 import CancellationPolicyPage from "./CancellationPolicyPage";
 import CancellationQueuePage from "./CancellationQueuePage";
+import RefundQueuePage from "./RefundQueuePage";
 import CrudModal from "../../components/admin/CrudModal";
 import StatCard from "../../components/admin/StatCard";
 import Pagination from "../../components/admin/Pagination";
@@ -43,6 +44,7 @@ const customPages = {
   settings: SystemSettingsPage,
   "cancellation-policy": CancellationPolicyPage,
   "cancellation-queue": CancellationQueuePage,
+  refunds: RefundQueuePage,
   helpdesk: HelpdeskInboxPage,
 };
 

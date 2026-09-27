@@ -18,7 +18,7 @@ public class PaymentsControllerCardTests
     };
 
     private static PaymentsController Controller(TravelConnectDbContext db, FakePayMongoHandler handler) =>
-        new(db, new PayMongoService(new HttpClient(handler), Options), Options);
+        new(db, new PayMongoService(new HttpClient(handler), Options), Options, new StaffContextService(db));
 
     private const string SuccessIntent =
         """{ "data": { "id": "pi_success", "attributes": { "status": "succeeded", "amount": 1200000, "metadata": { "booking_reference": "REF-C1" } } } }""";

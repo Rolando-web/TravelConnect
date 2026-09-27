@@ -11,6 +11,8 @@ import {
   requestBookingCancellation,
   getCancellationStatus,
   cancellationReviewApi,
+  refundsApi,
+  refundPaymentToWallet,
   validatePromoCode,
   fetchWithTimeout,
 } from "./api";
@@ -371,6 +373,52 @@ describe("API client", () => {
     );
 
     await expect(cancellationReviewApi.approve(11, {})).rejects.toThrow("This request was already decided.");
+  });
+
+  it("walks the refund payout steps through their own endpoints", async () => {
+    const fetcher = vi.fn(() =>
+      Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ message: "ok" }) })
+    );
+    globalThis.fetch = fetcher;
+
+    await refundsApi.list("?status=open&page=1&pageSize=10");
+    expect(fetcher.mock.calls[0][0]).toBe(`${API_URL}/api/admin/refunds?status=open&page=1&pageSize=10`);
+
+    await refundsApi.get(21);
+    expect(fetcher.mock.calls[1][0]).toBe(`${API_URL}/api/admin/refunds/21`);
+
+    await refundsApi.release(21, { notes: "batch" });
+    expect(fetcher.mock.calls[2][0]).toBe(`${API_URL}/api/admin/refunds/21/release`);
+    expect(JSON.parse(fetcher.mock.calls[2][1].body)).toEqual({ notes: "batch" });
+
+    await refundsApi.process(21, { refundReference: "TRACE-77123" });
+    expect(fetcher.mock.calls[3][0]).toBe(`${API_URL}/api/admin/refunds/21/process`);
+
+    await refundsApi.complete(21, { refundReference: "TRACE-77123" });
+    expect(fetcher.mock.calls[4][0]).toBe(`${API_URL}/api/admin/refunds/21/complete`);
+
+    await refundsApi.fail(21, { reason: "GCash account is closed." });
+    expect(fetcher.mock.calls[5][0]).toBe(`${API_URL}/api/admin/refunds/21/fail`);
+    expect(JSON.parse(fetcher.mock.calls[5][1].body)).toEqual({ reason: "GCash account is closed." });
+
+    await refundsApi.retry(21, {});
+    expect(fetcher.mock.calls[6][0]).toBe(`${API_URL}/api/admin/refunds/21/retry`);
+  });
+
+  it("tells finance that a cancelled booking is paid out from the queue instead", async () => {
+    globalThis.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 409,
+        json: () =>
+          Promise.resolve({
+            message: "This booking was cancelled. Release refund RFND-2026-000021 from the refund queue instead.",
+            refundId: 21,
+          }),
+      })
+    );
+
+    await expect(refundPaymentToWallet(5)).rejects.toThrow(/refund queue/);
   });
 
   it("retries a network-rejected GET once and succeeds on the second attempt", async () => {
